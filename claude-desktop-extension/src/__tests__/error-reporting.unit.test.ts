@@ -3,6 +3,7 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 import * as os from 'os';
 import { captureToolError, resetErrorReporting } from '../error-reporting';
+import { DetailedError } from '../../../shared/detailedError';
 
 const DSN = 'https://publickey@o0.ingest.sentry.io/1';
 
@@ -72,6 +73,15 @@ describe('captureToolError', () => {
     const filenames = values.flatMap((v) => v.stacktrace!.frames.map((f) => f.filename ?? ''));
     expect(filenames.some((f) => f.includes('error-reporting.unit.test.ts'))).toBe(true);
     expect(filenames.every((f) => !f.includes(os.homedir()))).toBe(true);
+  });
+
+  it('sends a DetailedError as its message, never its detailed message', async () => {
+    const error = new DetailedError('No patient record matches that name.', "No patient record matches 'Nelson'. Available: 'Bart Simpson'.");
+    captureToolError(error, { tool: 'switch_proxy_target' }, DSN);
+    const body = JSON.stringify((await sentEvent()).event);
+    expect(body).toContain('No patient record matches that name.');
+    expect(body).not.toContain('Bart');
+    expect(body).not.toContain('Nelson');
   });
 
   it('sends nothing without a DSN', async () => {

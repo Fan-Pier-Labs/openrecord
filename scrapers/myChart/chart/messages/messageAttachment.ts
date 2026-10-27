@@ -31,6 +31,7 @@ import { safeFileName } from '../../core/safeFileName';
 import type { FilePayload } from '../../core/filePayload';
 import { list, rec, text } from '../../processors/read';
 import { fetchConversationThreadRaw } from './messageThreads';
+import { DetailedError } from '../../../../shared/detailedError';
 
 /**
  * A downloaded attachment: the file, and what the thread said about it.
@@ -87,13 +88,12 @@ function threadAttachments(threadRaw: { requests: Array<{ body: unknown }> }): T
   return out.filter((a, i) => out.findIndex((b) => b.dcsId === a.dcsId && b.name === a.name) === i);
 }
 
-function describeAvailable(attachments: ThreadAttachment[]): string {
+function describeAvailable(attachments: ThreadAttachment[], withNames: boolean): string {
   if (attachments.length === 0) return 'That conversation has no attachments.';
-  return (
-    'The attachments on that conversation are: ' +
-    attachments.map((a) => `${a.name || '(unnamed)'} (attachment_id ${a.dcsId || a.etxId || '?'})`).join(', ') +
-    '.'
-  );
+  const id = (a: ThreadAttachment) => a.dcsId || a.etxId || '?';
+  return withNames
+    ? `The attachments on that conversation are: ${attachments.map((a) => `${a.name || '(unnamed)'} (attachment_id ${id(a)})`).join(', ')}.`
+    : `The attachment_ids on that conversation are: ${attachments.map(id).join(', ')}.`;
 }
 
 /**
@@ -119,17 +119,16 @@ export async function downloadMessageAttachment(
   const attachments = threadAttachments(threadRaw);
   const attachment = attachments.find((a) => a.dcsId === attachmentId || (a.etxId !== '' && a.etxId === attachmentId));
   if (!attachment) {
-    throw new Error(`No attachment ${attachmentId} on conversation ${conversationId}. ${describeAvailable(attachments)}`);
+    const lead = `No attachment ${attachmentId} on conversation ${conversationId}. `;
+    throw new DetailedError(lead + describeAvailable(attachments, false), lead + describeAvailable(attachments, true));
   }
   if (attachment.legacyUrlForCommunityJump) {
-    throw new Error(
-      `${attachment.name} is held by another organization's portal (a community link), which this account cannot download from here.`,
-    );
+    const rest = " is held by another organization's portal (a community link), which this account cannot download from here.";
+    throw new DetailedError(`Attachment ${attachmentId}${rest}`, `${attachment.name}${rest}`);
   }
   if (attachment.type !== DCS_DOC_TYPE || !attachment.dcsId) {
-    throw new Error(
-      `${attachment.name} is not a downloadable document (MyChart type ${attachment.type}); only file attachments (type ${DCS_DOC_TYPE}) are supported.`,
-    );
+    const rest = ` is not a downloadable document (MyChart type ${attachment.type}); only file attachments (type ${DCS_DOC_TYPE}) are supported.`;
+    throw new DetailedError(`Attachment ${attachmentId}${rest}`, `${attachment.name}${rest}`);
   }
 
   const collector = new RawCollector(mychartRequest);
@@ -164,10 +163,16 @@ export async function downloadMessageAttachment(
       );
     }
     if (failure.reason === 'not_released') {
-      throw new Error(
-        `MyChart returned no download link for ${attachment.name}; it may not be downloadable from the portal either.`,
+      const rest = '; it may not be downloadable from the portal either.';
+      throw new DetailedError(
+        `MyChart returned no download link for attachment ${attachmentId}${rest}`,
+        `MyChart returned no download link for ${attachment.name}${rest}`,
       );
     }
-    throw new Error(`MyChart answered the download of ${attachment.name} with ${failure.detail}; nothing was downloaded.`);
+    const rest = ` with ${failure.detail}; nothing was downloaded.`;
+    throw new DetailedError(
+      `MyChart answered the download of attachment ${attachmentId}${rest}`,
+      `MyChart answered the download of ${attachment.name}${rest}`,
+    );
   }
 }

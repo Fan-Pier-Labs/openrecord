@@ -175,7 +175,8 @@ not compile for any client — the enforcement for "every dispatch goes through 
   `request_refill`. **Exact match first, then a unique partial** — a substring-only matcher rejects a
   perfectly correct name whenever another entry contains it ("Dr. Smith" against "Dr. Smithson"),
   telling the caller to be more specific about a name that could not have been. Ambiguity is always
-  an error listing the candidates. `resolveTopic` is the deliberate exception: an unmatched topic
+  an error whose detailed message lists the candidates; its message, which reaches error reporting,
+  names none, since they are the patient's providers or medications. `resolveTopic` is the deliberate exception: an unmatched topic
   falls back to the first one, because MyChart requires a topic and the category is cosmetic — but
   `send_message` returns `topic_used` and `topic_substituted` so the substitution is never silent.
 - **`shared/base64url.ts`** is the portable codec behind `image_id` — no `Buffer`, no `atob`,
@@ -324,6 +325,22 @@ once and deadlock against its own callers. `requestConcurrency.unit.test.ts` cov
 specifically; it times out if the permit is ever moved to wrap the whole call. Keys on the host
 actually being contacted, so a cross-host redirect gets its own budget instead of spending the
 vanity hostname's.
+
+## Error messages (`shared/detailedError.ts`)
+
+An error's `message` is what error reporting sends: Sentry, Amplitude and the analytics Lambda read
+only the name, message and stack. So a message never carries chart data — a family member's name,
+a document or attachment title, a provider or medication, a local file path, text from a MyChart
+page. When the full explanation needs it, throw a `DetailedError(message, detailedMessage)`: the
+message says what went wrong with ids and counts, and the detailed message is the explanation with
+the names in it. Every place that turns an error into text for Claude or the user — the MCPB's tool
+results, the CLI, the app's agent loop — goes through `detailedMessage(err)`, so Claude gets the
+same answer it always did.
+
+The split fails safe. A client that forgets `detailedMessage` shows Claude less; nothing reaches
+error reporting that was not put in `message`. A wrapping error carries its cause's detailed message
+forward in its own (`assertProxyReadContext` does). Errors thrown by libraries — a `JSON.parse`
+quoting the start of its input, say — are outside this, and land in reporting as they are.
 
 ## Mount discovery (`scrapers/myChart/auth/login.ts`)
 

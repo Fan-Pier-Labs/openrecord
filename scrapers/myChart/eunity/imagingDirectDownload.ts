@@ -25,6 +25,7 @@ import { sortImagesByPatientPosition } from '../clo-image-parser/sortByPatientPo
 import { logger } from '../../../shared/logger';
 import { type Amf3Object, collectAmf3Objects, decodeAmf3, unwrapAmf3 } from '../../../shared/amf3Reader';
 import { Amf3Writer } from '../../../shared/amf3Writer';
+import { detailedMessage } from '../../../shared/detailedError';
 
 // ─── AMF3 Request Construction ───
 
@@ -1293,7 +1294,7 @@ export async function downloadImagingStudyDirect(
         }
       } catch (err) {
         completed++;
-        result.errors.push(`${series.seriesDescription}: ${(err as Error).message}`);
+        result.errors.push(`${series.seriesDescription}: ${detailedMessage(err)}`);
       }
     }
 
@@ -1309,7 +1310,7 @@ export async function downloadImagingStudyDirect(
       );
     }
   } catch (err) {
-    result.errors.push(`Fatal: ${(err as Error).message}`);
+    result.errors.push(`Fatal: ${detailedMessage(err)}`);
   }
 
   // The parallel batches above complete in whatever order the image server

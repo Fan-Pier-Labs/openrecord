@@ -63,6 +63,8 @@ detail for every line here is in [`docs/architecture.md`](docs/architecture.md).
   client derives its surface from it; none hand-maintains a list — including account-free lookups,
   which are `kind: 'public'` and whose `run` takes no session, so they cannot reach a chart. Add an
   entry and it ships everywhere. `capability-parity.unit.test.ts` fails if a client drops one.
+- **An error message never carries chart data** — it reaches Sentry and analytics. Throw a
+  `DetailedError` (`shared/detailedError.ts`); clients show its `detailedMessage`.
 - **Never read a chart without asserting whose it is.** MyChart's active patient is server-side
   session state, so every chart-touching capability asserts the patient first and refuses with the
   fix rather than returning the wrong family member's record.
@@ -96,9 +98,6 @@ fake server. **Never take an action that could trigger a 2FA SMS to the user wit
 | `cd npm-package && bun run build` | Build the CLI binary at `npm-package/dist/cli.cjs` |
 | `docker compose -f docker-compose.ci.yaml up -d --build --wait` | Start the CI fake-mychart (port 4000); `down -v` to stop |
 | `bun scrapers/list-all-mycharts/probes/probe-mount-discovery.ts` | Mount discovery against all ~750 directory hosts. Run after touching discovery |
-
-All five packages are on TypeScript 6 — `moduleResolution: "Node"`, `baseUrl`, and paths without a
-leading `./` no longer parse, so don't reintroduce them.
 
 ## Tests
 

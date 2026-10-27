@@ -14,6 +14,7 @@
 import { makeAuthenticatedRequest } from '../../core/makeAuthenticatedRequest';
 import type { MyChartRequest } from '../../core/myChartRequest';
 import type { FilePayload } from '../../core/filePayload';
+import { DetailedError } from '../../../../shared/detailedError';
 
 /** `GetComposeSettings`' `attachmentSettings`. File sizes are in KB. */
 export interface AttachmentSettings {
@@ -155,7 +156,10 @@ async function uploadAttachments(
   const data = parseUploadResponse(text);
   const ids = (data?.Data ?? []).map((d) => d.DocumentId ?? '');
   if (!res.ok || !data?.Success || ids.length !== files.length || ids.some((id) => !id)) {
-    throw new Error(`Attachment upload failed with status ${res.status}: ${JSON.stringify(text.slice(0, 500))}`);
+    throw new DetailedError(
+      `Attachment upload failed with status ${res.status} (${ids.filter(Boolean).length} of ${files.length} files stored).`,
+      `Attachment upload failed with status ${res.status}: ${JSON.stringify(text.slice(0, 500))}`,
+    );
   }
   return ids;
 }

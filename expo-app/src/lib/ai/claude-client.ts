@@ -39,6 +39,7 @@ import { getBackendSession } from "@/lib/backend/session";
 import { getFreshIdToken } from "@/lib/backend/google-signin";
 import { extractToolCalls } from "./tool-call-parser";
 import { WRITE_TOOLS, RESPOND_TOOL, isExclusiveTool, renderToolList } from "./tool-catalog";
+import { detailedMessage } from "../../../../shared/detailedError";
 
 export type ToolCall = {
   id: string;
@@ -435,7 +436,7 @@ export async function sendMessage(
         try {
           return { call, result: await executeLocalTool(call.tool, call.args) };
         } catch (reason) {
-          return { call, result: `Error: ${(reason as Error)?.message ?? String(reason)}` };
+          return { call, result: `Error: ${detailedMessage(reason)}` };
         }
       }),
     );

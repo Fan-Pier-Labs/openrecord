@@ -34,7 +34,10 @@ describe('readLocalFile', () => {
   })
 
   it('refuses a missing path and a directory', async () => {
-    await expect(readLocalFile(path.join(dir, 'nope.pdf'))).rejects.toThrow(/Attachment not found/)
-    await expect(readLocalFile(dir)).rejects.toThrow(/Attachment not found/)
+    await expect(readLocalFile(path.join(dir, 'nope.pdf'))).rejects.toThrow(/^No file at the attachment path given\.$/)
+    await expect(readLocalFile(path.join(dir, 'nope.pdf'))).rejects.toMatchObject({
+      detailedMessage: `Attachment not found: ${path.join(dir, 'nope.pdf')}`,
+    })
+    await expect(readLocalFile(dir)).rejects.toThrow(/^No file at the attachment path given\.$/)
   })
 })

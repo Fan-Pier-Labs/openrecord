@@ -263,16 +263,19 @@ describe('recipient resolution', () => {
   });
 
   it('refuses to guess when a name matches more than one provider', () => {
-    expect(() => resolveRecipient(recipients, 'Dr.')).toThrow(/Multiple recipients match/);
-    expect(() => resolveRecipient(recipients, 'dr')).toThrow(/Multiple recipients match/);
+    expect(() => resolveRecipient(recipients, 'Dr.')).toThrow(/2 recipients match that name/);
+    expect(() => resolveRecipient(recipients, 'dr')).toThrow(/2 recipients match that name/);
   });
 
   it('says no name was given only when there really is none', () => {
     expect(() => resolveRecipient(recipients, '   ')).toThrow(/No recipient name given/);
   });
 
-  it('lists the real options when nothing matches', () => {
-    expect(() => resolveRecipient(recipients, 'zzz')).toThrow(/Billing Department/);
+  it('lists the real options in the detailed message only, when nothing matches', () => {
+    expect(() => resolveRecipient(recipients, 'zzz')).toThrow(/^No recipient matches that name\.$/);
+    expect(() => resolveRecipient(recipients, 'zzz')).toThrow(
+      expect.objectContaining({ detailedMessage: expect.stringContaining('Billing Department') }),
+    );
   });
 });
 
