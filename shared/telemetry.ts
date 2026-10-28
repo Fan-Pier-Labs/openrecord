@@ -156,6 +156,18 @@ export function describeError(error: unknown): ErrorReport {
   return { name: error.name, message: error.message, stack };
 }
 
+let app: { name: string; version: string } | undefined;
+
+/**
+ * Each client calls this once at startup so every event says which build sent
+ * it — including the scraper's own events, which can't otherwise tell an MCPB
+ * login from a CLI one. Library consumers never call it; their events go
+ * without.
+ */
+export function setTelemetryApp(name: string, version: string): void {
+  app = { name, version };
+}
+
 /**
  * Send a telemetry event to both sinks (Amplitude and our analytics
  * Lambda). Fire-and-forget. Never throws. Returns immediately when
@@ -182,6 +194,7 @@ export function sendTelemetryEvent(
       const deviceId = getAnonymousId();
       const properties = {
         ...eventProperties,
+        ...(app ? { app: app.name, app_version: app.version } : {}),
         arch: envInfo.arch,
         runtime_version: envInfo.runtime_version,
       };
@@ -199,6 +212,8 @@ export function sendTelemetryEvent(
             platform: envInfo.platform,
             os_name: envInfo.platform,
             os_version: envInfo.os_version,
+            // Amplitude's built-in Version, so its version filters work.
+            ...(app ? { app_version: app.version } : {}),
             event_properties: failure
               ? { ...properties, error_name: failure.name, error_message: failure.message, error_stack: failure.stack }
               : properties,

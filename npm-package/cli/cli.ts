@@ -20,7 +20,7 @@ import { savePasskeyCredential, loadPasskeyCredential } from './passkeyStore';
 import { passkeyLoginWithCounterRetry } from '../../scrapers/myChart/auth/passkeyLoginRetry';
 import { wireSilentReauthentication } from '../../scrapers/myChart/auth/silentLogin';
 import type { PasskeyCredential } from '../../scrapers/myChart/auth/softwareAuthenticator';
-import { sendTelemetryEvent } from '../../shared/telemetry';
+import { sendTelemetryEvent, setTelemetryApp } from '../../shared/telemetry';
 import { checkVersion, formatUpdateNotice } from '../../scrapers/metadata/version';
 import { isBlockedInstance } from '../../scrapers/myChart/auth/blockedInstances';
 import {
@@ -695,6 +695,7 @@ async function handleSendReply(mychartRequest: MyChartRequest) {
 
 async function main() {
   // Fire-and-forget telemetry — never blocks or breaks the CLI
+  setTelemetryApp('cli', CLI_VERSION);
   sendTelemetryEvent('cli_started', {
     action: cliArgs.action || 'default',
     host: cliArgs.host || 'unknown',
