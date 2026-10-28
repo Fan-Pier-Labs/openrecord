@@ -6,7 +6,7 @@
  *
  * The file is the offline seed: it is what the mobile app shows on a first
  * launch with no network, what the Claude Desktop extension bundles, and what
- * `probes/probe-mount-discovery.ts` iterates. The MCPB's `pack:signed` runs
+ * `probes/probe-mount-discovery.ts` iterates. The MCPB's `deploy.sh` runs
  * this first, so each release ships a fresh one — commit the result. The
  * long-running clients rerun the same refresh monthly.
  *
@@ -55,7 +55,7 @@ async function main() {
 }
 
 // Exit as soon as the file is written: a resolution abandoned at its timeout
-// can still be mid-request for minutes, and `pack:signed` waits on this.
+// can still be mid-request for minutes, and `deploy.sh` waits on this.
 main().then(
   () => process.exit(0),
   (err: unknown) => {
