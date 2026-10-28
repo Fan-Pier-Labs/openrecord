@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+#
 # Releases the Claude Desktop extension, start to finish:
 #   1. installs dependencies
 #   2. refreshes the bundled MyChart directory list from Epic (a few minutes)
