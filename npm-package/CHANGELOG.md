@@ -1,6 +1,6 @@
 # Changelog
 
-## Next major — search reads a refreshed list instead of fetching (breaking)
+## 2.2.0 — search reads a refreshed list instead of fetching (breaking)
 
 `searchMyChartDirectory` no longer fetches Epic's directory. It searches the result of the
 refresh that builds the package's checked-in list: Epic's directory with every login URL checked

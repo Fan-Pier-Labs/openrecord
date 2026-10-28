@@ -112,7 +112,8 @@
         your own device and reads your records there. Fan Pier Labs does not operate a server that
         holds your medical records, and there is no OpenRecord account containing a copy of them.
         Two things do leave your device: the question you send to an AI model, and — on the desktop
-        tools only — anonymous usage data. Both are described in full below.
+        tools only — usage data, which from the Claude Desktop extension includes who you are. Both
+        are described in full below.
       </p>
 
       <h2>Who this covers</h2>
@@ -240,7 +241,7 @@
         The site is static files on Amazon S3 served through Amazon CloudFront. AWS records standard
         request logs, which include IP addresses. There are no analytics services, advertising
         networks, or third-party tracking scripts on the site itself. The desktop clients do report
-        anonymous usage, which is the next section.
+        usage, which is the next section.
       </p>
       <p>
         If you enter your email address in the waitlist form, we store it and use it to tell you when
@@ -257,8 +258,9 @@
       <p>An event is sent when the tool starts, and when a login begins. Each one carries:</p>
       <ul>
         <li>
-          A random identifier created the first time you run it and kept in a cache folder. It is not
-          derived from your name, your account, or anything about your machine.
+          A random identifier created the first time you run it and kept in
+          <code>~/.openrecord.json</code>, one per computer, shared by the command-line tool and the
+          extension. It is not derived from your name, your account, or anything about your machine.
         </li>
         <li>
           The event name, and for login events <strong>the hostname of the MyChart portal you are
@@ -277,10 +279,12 @@
       </p>
       <p>
         When one of those tools fails, the extension also sends <strong>the error: its message and
-        stack trace</strong>, with the same tool, portal, email, username and IP address. An error
-        message can repeat a detail MyChart gave it, such as the name of a family member whose record
-        you have access to or the name of a file. Errors go to <strong>Sentry</strong>, a third-party
-        error-tracking service, as well as to the two places below.
+        stack trace</strong>, with the same tool, portal, email, username and IP address. Error
+        messages are written to leave out anything from your record — a family member's name, a file
+        name, what a MyChart page said. Claude is shown those details; we are not. The exception is an
+        error raised inside a third-party library the tool uses, which can quote part of what MyChart
+        sent. Errors go to <strong>Sentry</strong>, a third-party error-tracking service, as well as to
+        the two places below.
       </p>
       <p>
         These go to Amplitude, a third-party analytics product, and to our own logging endpoint on AWS.
