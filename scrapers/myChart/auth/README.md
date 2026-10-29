@@ -53,7 +53,7 @@ wrapper safe (see [`../core/`](../core/)).
 | --- | --- |
 | `POST /api/passkey-management/GenerateCreateRequest` | WebAuthn creation options |
 | `POST /api/passkey-management/CreatePasskey` | submit the new credential |
-| `POST /api/passkey-management/LoadPasskeyInfo` | list registered passkeys |
+| `POST /api/passkey-management/LoadPasskeyInfo` | list registered passkeys: `passkeys` (or `Passkeys`) at the top, or under `data` (`{ success, data: { passkeys, lastAuthentication } }`, seen on 1 live instance) |
 | `POST /api/passkey-management/DeletePasskey` | remove one |
 | `POST /api/secondary-validation/GetTwoFactorInfo` | current 2FA settings |
 | `POST /api/secondary-validation/VerifyPasswordAndUpdateContact` | re-verify the password before changing 2FA |
