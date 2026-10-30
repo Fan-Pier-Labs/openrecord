@@ -84,7 +84,7 @@ US). It keeps Epic's URL.
 
 [`refreshDirectory.ts`](refreshDirectory.ts) runs that over the whole directory, retrying
 anything down once at the end. It backs `mychart-cli --action list-mycharts` and
-`fetch-mychart-instances.ts`, which the MCPB's `pack:signed` runs before every release,
+`fetch-mychart-instances.ts`, which the MCPB's `deploy.sh` runs before every release,
 leaving the refreshed file to commit. Both JSON files are written sorted by `slgId`, keys in
 order (`toSortedJson`), so a diff shows only what changed.
 
