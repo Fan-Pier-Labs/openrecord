@@ -55,14 +55,11 @@ everything pre-login — mount discovery, `DoLogin`, 2FA, terms, the keepalive p
 themselves — so the renewal path is built entirely from raw calls (plus `autoRenew: false`
 wrapped ones) and a renewal can never end up awaiting its own single-flight promise.
 
-`sessionRenewal.ts` is a **leaf module** for the same reason: both callers
-(`makeAuthenticatedRequest` on a bounce, `sessionStore` when a heartbeat finds the session
-dead) import it statically without a cycle.
+`sessionRenewal.ts` is a **leaf module** for the same reason, so its one caller imports it
+statically without a cycle.
 
 ```
-makeAuthenticatedRequest ─┐
-                          ├─→ sessionRenewal ─→ (nothing)
-sessionStore ─────────────┘
+makeAuthenticatedRequest ─→ sessionRenewal ─→ (nothing)
 proxyContext ─→ makeAuthenticatedRequest
 ```
 
@@ -80,6 +77,19 @@ proxyContext ─→ makeAuthenticatedRequest
   (`refreshTimeout = 1140000`) and force-logs-out at 20 (`sessionTimeout = 1200000`). It is
   reset only by real user interaction or by clicking "stay logged in". **The keepalive pings
   do not reset it.** It is browser JavaScript and irrelevant to a scraper.
+
+### Only a real request logs back in
+
+Every renewal is a real sign-in on the patient's account, and a loop of them can get the
+account locked.
+
+So **a dead heartbeat only marks the session expired.** It stops the pings and never signs
+in. The next real request renews on demand, and its success puts the session back in the
+ping rotation.
+
+Every such re-login sends a `scraper_relogin` telemetry event: the hostname, the path that
+bounced, and whether the re-login worked. If a host's re-logins track its request count,
+sessions there aren't sticking, and that host is worth investigating.
 
 ## The antiforgery token
 

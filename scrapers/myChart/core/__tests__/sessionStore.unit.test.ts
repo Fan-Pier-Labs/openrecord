@@ -126,6 +126,26 @@ describe('sessionStore keepalive', () => {
     expect(callCount).toBe(2)
   })
 
+  it('never signs in from the heartbeat, even with a re-login hook wired', async () => {
+    let logins = 0
+    const req = {
+      makeRequest: async () => ({ status: 200, headers: new Headers(), text: async () => '0' }),
+      getCookieInfo: () => ({ count: 5, names: [] }),
+      hostname: 'test.example.com',
+      reauthenticate: async () => { logins++; return true },
+    } as unknown as MyChartRequest
+    sessionStore.set('no-relogin', req)
+
+    await sessionStore.runKeepalive()
+    // A real request succeeding puts it back in rotation; the next dead ping
+    // still only marks it expired.
+    sessionStore.registerForKeepalive(req)
+    await sessionStore.runKeepalive()
+
+    expect(logins).toBe(0)
+    expect(sessionStore.getEntry('no-relogin')!.status).toBe('expired')
+  })
+
   it('startKeepalive is idempotent', () => {
     const stop1 = sessionStore.startKeepalive()
     const stop2 = sessionStore.startKeepalive()
