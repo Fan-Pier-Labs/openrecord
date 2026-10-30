@@ -81,12 +81,7 @@ proxyContext ─→ makeAuthenticatedRequest
 ### Only a real request logs back in
 
 Every renewal is a real sign-in on the patient's account, and a loop of them can get the
-account locked. The keepalive used to renew a session whose heartbeat said "dead". In
-October 2026 one Desktop-extension install signed in to one instance with its passkey
-**every 30 seconds for 16 hours**, because each ping reported the freshly renewed session
-dead. Why that instance's heartbeat said "dead" is **unverified (1 instance, never observed
-signed in)**. From outside, its keepalive endpoints, cookies (including its load-balancer
-persistence cookies) and Epic build all match instances where the same heartbeat works.
+account locked.
 
 So **a dead heartbeat only marks the session expired.** It stops the pings and never signs
 in. The next real request renews on demand, and its success puts the session back in the
