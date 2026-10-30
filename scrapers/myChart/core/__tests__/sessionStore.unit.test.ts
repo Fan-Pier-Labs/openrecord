@@ -4,6 +4,14 @@ import { describe, it, expect, afterEach } from 'bun:test'
 import { sessionStore } from '../sessionStore'
 import type { MyChartRequest } from '../myChartRequest'
 
+// What /Home serves once MyChart has dropped the session: its login page.
+const SIGNED_OUT_HOME = '<form action="/MyChart/Authentication/Login/DoLogin" method="post"></form>'
+const SIGNED_IN_HOME = '<html><body><div id="md_home_index"></div></body></html>'
+
+function homeResponse(body: string) {
+  return { status: 200, url: 'https://test.example.com/MyChart/Home', headers: new Headers({ 'content-type': 'text/html' }), text: async () => body }
+}
+
 function makeMockRequest(overrides: { status?: number; location?: string; body?: string } = {}) {
   const status = overrides.status ?? 200
   const body = overrides.body ?? '1'
@@ -11,7 +19,8 @@ function makeMockRequest(overrides: { status?: number; location?: string; body?:
   if (overrides.location) headers.set('Location', overrides.location)
 
   return {
-    makeRequest: async () => ({ status, headers, text: async () => body }),
+    makeRequest: async ({ path }: { path?: string }) =>
+      path === '/Home' ? homeResponse(SIGNED_OUT_HOME) : { status, headers, text: async () => body },
     serialize: async () => '{}',
     getCookieInfo: () => ({ count: 5, names: ['cookie1'] }),
     hostname: 'test.example.com',
@@ -124,6 +133,70 @@ describe('sessionStore keepalive', () => {
     sessionStore.set('count-me', req)
     await sessionStore.runKeepalive()
     expect(callCount).toBe(2)
+  })
+
+  describe('renewal', () => {
+    function makeRenewableRequest() {
+      const state = { body: '0', home: SIGNED_OUT_HOME, homeFetches: 0, renewals: 0 }
+      const request = {
+        makeRequest: async ({ path }: { path?: string }) => {
+          if (path !== '/Home') return { status: 200, headers: new Headers(), text: async () => state.body }
+          state.homeFetches++
+          return homeResponse(state.home)
+        },
+        getCookieInfo: () => ({ count: 5, names: [] }),
+        hostname: 'test.example.com',
+        reauthenticate: async () => { state.renewals++; return true },
+      } as unknown as MyChartRequest
+      return { request, state }
+    }
+
+    it('stops renewing a session the heartbeat reports dead again right after a renewal', async () => {
+      const { request, state } = makeRenewableRequest()
+      sessionStore.set('loop', request)
+
+      await sessionStore.runKeepalive()
+      expect(state.renewals).toBe(1)
+      expect(sessionStore.getEntry('loop')!.status).toBe('logged_in')
+
+      await sessionStore.runKeepalive()
+      expect(state.renewals).toBe(1)
+      expect(sessionStore.getEntry('loop')!.status).toBe('expired')
+
+      // A real request renewing it puts it back in rotation, but the
+      // heartbeat still doesn't log in again on its own.
+      sessionStore.registerForKeepalive(request)
+      await sessionStore.runKeepalive()
+      expect(state.renewals).toBe(1)
+      expect(sessionStore.getEntry('loop')!.status).toBe('expired')
+    })
+
+    it('renews again once a ping has reported the renewed session alive', async () => {
+      const { request, state } = makeRenewableRequest()
+      sessionStore.set('recovers', request)
+
+      await sessionStore.runKeepalive()
+      state.body = '1'
+      await sessionStore.runKeepalive()
+      state.body = '0'
+      await sessionStore.runKeepalive()
+
+      expect(state.renewals).toBe(2)
+      expect(sessionStore.getEntry('recovers')!.status).toBe('logged_in')
+    })
+
+    it('believes a signed-in /Home over a heartbeat that says the session is dead', async () => {
+      const { request, state } = makeRenewableRequest()
+      state.home = SIGNED_IN_HOME
+      sessionStore.set('lying-heartbeat', request)
+
+      await sessionStore.runKeepalive()
+      await sessionStore.runKeepalive()
+
+      expect(state.renewals).toBe(0)
+      expect(state.homeFetches).toBe(1)
+      expect(sessionStore.getEntry('lying-heartbeat')!.status).toBe('logged_in')
+    })
   })
 
   it('startKeepalive is idempotent', () => {

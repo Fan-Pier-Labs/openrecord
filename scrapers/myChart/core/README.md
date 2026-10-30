@@ -81,6 +81,29 @@ proxyContext ─→ makeAuthenticatedRequest
   reset only by real user interaction or by clicking "stay logged in". **The keepalive pings
   do not reset it.** It is browser JavaScript and irrelevant to a scraper.
 
+### Automatic re-login has limits
+
+Every renewal is a real sign-in on the patient's account, and a loop of them can get the
+account locked. In October 2026 a single Desktop-extension install signed in to one
+instance with its passkey **every 30 seconds for 16 hours** (about 1,800 sign-ins). Each
+time, the heartbeat reported the freshly renewed session dead on the very next ping. Why
+that instance's heartbeat said "dead" is **unverified (1 instance, never observed signed
+in)**. From outside, its keepalive endpoints, cookies (including its load-balancer
+persistence cookies) and Epic build all match instances where the same heartbeat works.
+
+So three guards apply, none of which depend on knowing the cause:
+
+- **A dead heartbeat is checked against a real page.** Before re-logging in, `sessionStore`
+  loads `/Home` and applies the same signed-out test `makeAuthenticatedRequest` does. If it
+  is still signed in, that session's heartbeat is ignored from then on.
+- **The keepalive renews once per death.** If a session it renewed is signed out again
+  before any ping has seen it alive, the keepalive marks it expired instead of renewing.
+  The next real request still renews on demand.
+- **At most 10 automatic re-logins per session per hour** (`sessionRenewal.ts`), across
+  every path. Past that, renewal throws `AutoReloginPausedError` and makes no attempt until
+  the user agrees and the client calls `resumeAutomaticRelogin` (the MCPB's
+  `resume_sign_in` tool).
+
 ## The antiforgery token
 
 MyChart's `/api/*` endpoints reject a POST without a `__RequestVerificationToken`. Chart

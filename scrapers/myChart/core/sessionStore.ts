@@ -18,6 +18,7 @@
 
 import type { MyChartRequest } from './myChartRequest';
 import { renewMyChartSession } from './sessionRenewal';
+import { looksLikeSignedOutPage } from './signedOutPage';
 import { logger } from '../../../shared/logger';
 
 const KEEPALIVE_INTERVAL_MS = 30 * 1000; // 30 seconds, matches MyChart's own JS interval
@@ -36,6 +37,10 @@ class SessionStore {
   private intervalHandle: ReturnType<typeof setInterval> | null = null;
   private keepAliveCounter = 0;
   private readonly keepAliveErrors = new Map<string, number>();
+  /** Tokens the keepalive renewed that no ping has since reported alive. */
+  private readonly renewedSinceAlive = new Set<string>();
+  /** Tokens whose heartbeat reported them dead while /Home showed them signed in. */
+  private readonly heartbeatUnreliable = new Set<string>();
   private autoTokenCounter = 0;
 
   /** Store a session. */
@@ -68,6 +73,8 @@ class SessionStore {
   delete(token: string) {
     this.sessions.delete(token);
     this.keepAliveErrors.delete(token);
+    this.renewedSinceAlive.delete(token);
+    this.heartbeatUnreliable.delete(token);
   }
 
   /** Check if a session exists. */
@@ -210,7 +217,7 @@ class SessionStore {
       // If keepalive.asp also returns "0" we log it, but it doesn't drive expiry alone.
       if (dotNetBody.trim() === '0') {
         logger.warn(`[keepalive] ${label} (${host}): EXPIRED — /Home/KeepAlive returned "0" (keepalive.asp=${aspBody.trim()})`);
-        entry.status = await this.tryRenew(entry) ? 'logged_in' : 'expired';
+        await this.renewOrExpire(token, entry);
         return;
       }
       if (aspBody.trim() === '0') {
@@ -219,6 +226,7 @@ class SessionStore {
 
       if (dotNetStatus === 200 || aspStatus === 200) {
         this.keepAliveErrors.delete(token);
+        this.renewedSinceAlive.delete(token);
         const infoAfter = entry.request.getCookieInfo();
         logger.debug(`[keepalive] ${label} (${host}): ALIVE | cookies: ${infoBefore.count} -> ${infoAfter.count}`);
         return;
@@ -229,7 +237,7 @@ class SessionStore {
         `[keepalive] ${label} (${host}): EXPIRED — neither endpoint returned 200 | ` +
         `KeepAlive: ${dotNetStatus} -> "${dotNetLocation}" | keepalive.asp: ${aspStatus} -> "${aspLocation}"`
       );
-      entry.status = await this.tryRenew(entry) ? 'logged_in' : 'expired';
+      await this.renewOrExpire(token, entry);
     } catch (err) {
       const errorCount = (this.keepAliveErrors.get(token) ?? 0) + 1;
       this.keepAliveErrors.set(token, errorCount);
@@ -254,6 +262,47 @@ class SessionStore {
    * pings (absolute timeouts exist server-side). Single-flighted with any
    * concurrent scraper-triggered renewal by renewMyChartSession.
    */
+  private async renewOrExpire(token: string, entry: SessionEntry) {
+    if (this.heartbeatUnreliable.has(token)) return;
+
+    // The heartbeat is a hint; a real page is the evidence. If the session
+    // still loads a signed-in page, this host's keepalive answers "dead" for a
+    // live session, and re-logging in would just repeat on every ping.
+    if (await this.stillSignedIn(entry.request)) {
+      logger.warn(`[keepalive] ${entry.hostname}: heartbeat says expired but /Home is signed in — ignoring this session's heartbeat`);
+      this.heartbeatUnreliable.add(token);
+      this.renewedSinceAlive.delete(token);
+      return;
+    }
+
+    // Signed out again, and no ping has seen it alive since the keepalive last
+    // renewed it: renewing again would log in with the user's credentials every
+    // 30s for as long as the client runs. Stop; the next real request still
+    // renews on demand.
+    if (this.renewedSinceAlive.has(token)) {
+      logger.warn(`[keepalive] ${entry.hostname}: dead again since the last renewal — not renewing from the keepalive`);
+      entry.status = 'expired';
+      return;
+    }
+    if (await this.tryRenew(entry)) {
+      this.renewedSinceAlive.add(token);
+      entry.status = 'logged_in';
+    } else {
+      entry.status = 'expired';
+    }
+  }
+
+  /** The same signed-out test makeAuthenticatedRequest applies to every real request. */
+  private async stillSignedIn(request: MyChartRequest): Promise<boolean> {
+    try {
+      const res = await request.makeRequest({ path: '/Home' });
+      if (res.status !== 200 || /\/authentication\/login/i.test(res.url ?? '')) return false;
+      return !looksLikeSignedOutPage(await res.text());
+    } catch {
+      return false;
+    }
+  }
+
   private async tryRenew(entry: SessionEntry): Promise<boolean> {
     if (!entry.request.reauthenticate) return false;
     try {
