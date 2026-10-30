@@ -77,7 +77,6 @@ import {
   isConnected,
   clearSession,
   adoptSession,
-  openSession,
 } from './session-manager';
 import {
   accountId,
@@ -104,7 +103,6 @@ import { saveFilePayload, saveTextFile } from './save-file';
 import { reportToolCall } from './tool-telemetry';
 import { withUpdateNotice } from './update-notice';
 import { detailedMessage } from '../../shared/detailedError';
-import { AutoReloginPausedError, resumeAutomaticRelogin } from '../../scrapers/myChart/core/sessionRenewal';
 
 // ── Result helpers ──────────────────────────────────────────────────────────
 
@@ -129,11 +127,7 @@ function errorResult(message: string): ToolResult {
 const caughtErrors = new WeakMap<ToolResult, unknown>();
 
 function caughtErrorResult(err: unknown): ToolResult {
-  const result = errorResult(
-    err instanceof AutoReloginPausedError
-      ? `${detailedMessage(err)} Only if they say yes, call resume_sign_in for this account and then retry.`
-      : detailedMessage(err),
-  );
+  const result = errorResult(detailedMessage(err));
   caughtErrors.set(result, err);
   return result;
 }
@@ -998,24 +992,6 @@ export function registerAllTools(rawServer: McpServer): void {
       clearSession(id);
       removeAccount(match.hostname, match.username);
       return textResult(`Forgot ${id}. Credentials, passkey, and session cache have been deleted from disk.`);
-    },
-  );
-
-  server.registerTool(
-    'resume_sign_in',
-    {
-      description:
-        'Let OpenRecord sign back in to an account automatically again after it paused itself for signing in too many ' +
-        'times in an hour. Call this ONLY after the user has explicitly said yes to trying again — never on your own.',
-      inputSchema: {
-        account: z.string().describe('Account id from list_accounts (`username@hostname`).'),
-      } satisfies ZodRawShape,
-      ...toolMeta('Resume automatic sign-in', { readOnlyHint: false, openWorldHint: false }),
-    },
-    ({ account }) => {
-      const session = openSession(account);
-      if (session) resumeAutomaticRelogin(session);
-      return textResult(`Automatic sign-in for ${account} is allowed again. Retry the request.`);
     },
   );
 

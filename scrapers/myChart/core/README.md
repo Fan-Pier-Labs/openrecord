@@ -88,14 +88,13 @@ dead. Why that instance's heartbeat said "dead" is **unverified (1 instance, nev
 signed in)**. From outside, its keepalive endpoints, cookies (including its load-balancer
 persistence cookies) and Epic build all match instances where the same heartbeat works.
 
-So:
+So **a dead heartbeat only marks the session expired.** It stops the pings and never signs
+in. The next real request renews on demand, and its success puts the session back in the
+ping rotation.
 
-- **A dead heartbeat only marks the session expired.** It stops the pings and never signs
-  in. The next real request renews on demand, and its success puts the session back in
-  the ping rotation.
-- **At most 10 automatic re-logins per session per hour** (`sessionRenewal.ts`). Past
-  that, renewal throws `AutoReloginPausedError` and makes no attempt until the user agrees
-  and the client calls `resumeAutomaticRelogin` (the MCPB's `resume_sign_in` tool).
+Every such re-login sends a `scraper_relogin` telemetry event: the hostname, the path that
+bounced, and whether the re-login worked. If a host's re-logins track its request count,
+sessions there aren't sticking, and that host is worth investigating.
 
 ## The antiforgery token
 

@@ -21,48 +21,19 @@
 
 import type { MyChartRequest } from './myChartRequest';
 import { logger } from '../../../shared/logger';
-import { DetailedError } from '../../../shared/detailedError';
-
-// A session that needs more re-logins than this in an hour isn't going to stay
-// up, and each attempt is a real sign-in on the patient's account — enough of
-// them in a row can get it locked.
-const MAX_RENEWALS_PER_HOUR = 10;
-const HOUR_MS = 60 * 60 * 1000;
 
 // Per-request-object renewal state. WeakMap rather than fields on the class so
 // the transport stays serialization-clean.
-type RenewalState = { renewPromise: Promise<boolean> | null; attempts: number[] };
+type RenewalState = { renewPromise: Promise<boolean> | null };
 const renewalStates = new WeakMap<MyChartRequest, RenewalState>();
 
 function stateFor(mychartRequest: MyChartRequest): RenewalState {
   let state = renewalStates.get(mychartRequest);
   if (!state) {
-    state = { renewPromise: null, attempts: [] };
+    state = { renewPromise: null };
     renewalStates.set(mychartRequest, state);
   }
   return state;
-}
-
-/**
- * Automatic re-login has hit its hourly cap for this session. Clients show the
- * detailed message and sign in again only once the user says to
- * (`resumeAutomaticRelogin`).
- */
-export class AutoReloginPausedError extends DetailedError {
-  constructor(hostname: string) {
-    super(
-      `Automatic re-login paused after ${MAX_RENEWALS_PER_HOUR} attempts in an hour`,
-      `The MyChart session for ${hostname} kept ending, and OpenRecord has already signed back in automatically ` +
-        `${MAX_RENEWALS_PER_HOUR} times in the past hour, so it has stopped doing so on its own: repeated sign-ins ` +
-        `can get a MyChart account locked. Ask the user whether to try signing in again before doing so.`,
-    );
-    this.name = 'AutoReloginPausedError';
-  }
-}
-
-/** The user has agreed to sign in again: lift the hourly cap for this session. */
-export function resumeAutomaticRelogin(mychartRequest: MyChartRequest): void {
-  stateFor(mychartRequest).attempts = [];
 }
 
 /**
@@ -70,23 +41,13 @@ export function resumeAutomaticRelogin(mychartRequest: MyChartRequest): void {
  * restore the active proxy patient if the session had been switched to one.
  *
  * Single-flight per request object: concurrent callers all await the same
- * renewal. Throws `AutoReloginPausedError` instead of starting an attempt past
- * the hourly cap.
+ * renewal.
  */
 export async function renewMyChartSession(mychartRequest: MyChartRequest): Promise<boolean> {
   const state = stateFor(mychartRequest);
-  if (!state.renewPromise) {
-    const now = Date.now();
-    state.attempts = state.attempts.filter((t) => now - t < HOUR_MS);
-    if (state.attempts.length >= MAX_RENEWALS_PER_HOUR) {
-      logger.warn(`Automatic re-login for ${mychartRequest.hostname} is paused: ${state.attempts.length} attempts in the past hour.`);
-      throw new AutoReloginPausedError(mychartRequest.hostname);
-    }
-    state.attempts.push(now);
-    state.renewPromise = doRenew(mychartRequest).finally(() => {
+  state.renewPromise ??= doRenew(mychartRequest).finally(() => {
       state.renewPromise = null;
     });
-  }
   return state.renewPromise;
 }
 

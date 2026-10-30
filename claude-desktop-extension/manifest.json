@@ -42,7 +42,6 @@
     { "name": "complete_2fa", "description": "Finish a setup_account flow that returned need_2fa." },
     { "name": "register_passkey", "description": "Register a passkey on an already-connected account so future logins skip the password and 2FA." },
     { "name": "disconnect_account", "description": "Forget a saved MyChart account (deletes local credentials, passkey, and session)." },
-    { "name": "resume_sign_in", "description": "Let OpenRecord sign back in automatically again after it paused itself for signing in too many times in an hour. Only after the user says yes." },
     { "name": "list_proxy_targets", "description": "List every patient record an account can access (self plus family members via proxy access) and which is active." },
     { "name": "switch_proxy_target", "description": "Switch which patient's record MyChart is showing (verified against the profile page). Data tools read the active record." },
     { "name": "save_file", "description": "Save text Claude has written from your records — a summary, a CSV of labs, a timeline — to a file in Downloads." },
