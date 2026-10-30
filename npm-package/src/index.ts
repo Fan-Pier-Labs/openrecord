@@ -43,6 +43,7 @@ export {
 } from '../../scrapers/myChart/core/makeAuthenticatedRequest';
 export { MyChartResponseError } from '../../scrapers/myChart/core/rawResponse';
 export { DetailedError, detailedMessage } from '../../shared/detailedError';
+export { setLogSink, resetLogSink, silenceLogger, type LogSink } from '../../shared/logger';
 export {
   silentLogin,
   wireSilentReauthentication,

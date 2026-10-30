@@ -380,6 +380,22 @@ family member, a document, a provider, what MyChart's page said — is a `Detail
 to error reporting; `detailedMessage` is the full explanation for the user. `detailedMessage(err)`
 returns it for a `DetailedError` and `err.message` for anything else.
 
+## Logging
+
+The scrapers log progress (HTTP statuses, login steps, diagnostics) through one logger, which
+writes to `console` by default. Some lines name the account or the patient, so a server that keeps
+its logs should route or drop them:
+
+```ts
+import { setLogSink, silenceLogger, resetLogSink } from 'mychart-cli';
+
+silenceLogger();                                              // drop every line
+setLogSink((level, args) => { if (level === 'error') myLogger.error(...args); }); // or route them
+resetLogSink();                                               // back to console
+```
+
+The sink is process-wide, like the logger.
+
 ## Imaging and CLO image conversion
 
 MyChart serves imaging through Epic's eUnity viewer as **CLO** files, a compressed pixel format.
