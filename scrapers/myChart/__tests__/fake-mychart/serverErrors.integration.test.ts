@@ -151,4 +151,21 @@ describe('a failing data endpoint is an error in every output mode', () => {
     const error = await failureOf(session, 'get_care_team', 'concise')
     expect(error).toBeInstanceOf(MyChartResponseError)
   })
+
+  it('a {path, contains} outage fails one item and leaves its siblings answering', async () => {
+    type Provider = { ID: string | null; npi: string | null }
+    const providers = async () =>
+      ((await executeCapability(session, 'get_care_team', { mode: 'json' })) as { ProvidersList: Provider[] }).ProvidersList
+
+    await setFailingEndpoints(HOST, [])
+    const before = (await providers()).filter((p) => p.npi !== null)
+    expect(before.length).toBeGreaterThan(1)
+    const [down, ...up] = before
+
+    // The bio request's body is `{"id":"<ID>"}`, so only that provider's fails.
+    await setFailingEndpoints(HOST, [{ path: 'api/Providers/GetProviderBioPrivate', contains: down!.ID! }])
+    const after = await providers()
+    expect(after.find((p) => p.ID === down!.ID)!.npi).toBeNull()
+    for (const p of up) expect(after.find((q) => q.ID === p.ID)!.npi).toBe(p.npi)
+  })
 })
