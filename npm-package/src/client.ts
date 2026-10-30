@@ -320,9 +320,9 @@ export class MyChartClient {
 
   /**
    * Enroll in the shared keepalive: MyChart's two keepalive endpoints pinged
-   * on the official client's 30s cadence, with automatic renewal when a
-   * heartbeat finds the session dead (if renewal credentials are wired). The
-   * shared interval is unref'd, so it never holds the event loop open.
+   * on the official client's 30s cadence. A dead heartbeat only marks the
+   * session expired; the next request renews it (if renewal credentials are
+   * wired). The shared interval is unref'd, so it never holds the event loop open.
    */
   private startKeepalive() {
     if (this.closed) return;

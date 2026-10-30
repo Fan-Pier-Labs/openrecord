@@ -12,9 +12,9 @@
  *   ladder (saved passkey with signature-counter retry → saved password →
  *   TOTP secret).
  * - Every session carries a `reauthenticate` hook, so an expiry mid-scrape is
- *   renewed transparently by makeAuthenticatedRequest (and proactively by the
- *   keepalive when a heartbeat reports the session dead) instead of failing
- *   the tool call.
+ *   renewed transparently by makeAuthenticatedRequest instead of failing the
+ *   tool call. (The keepalive never renews: a dead heartbeat only marks the
+ *   session expired until the next real request.)
  * - Persists cookie state to disk after login and after every renewal so a
  *   Claude Desktop restart doesn't force a fresh login.
  *

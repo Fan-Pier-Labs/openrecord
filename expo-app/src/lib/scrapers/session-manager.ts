@@ -326,8 +326,8 @@ export function getAllSessions(): Array<{ accountId: string; hostname: string; s
  * (passkey with counter retry → password → TOTP secret; scrapers/http.ts
  * picks the on-device transport so iOS keeps managing cookies) and enroll it
  * in the shared 30-second keepalive heartbeat. From then on, expiry mid-scrape is renewed
- * transparently by makeAuthenticatedRequest, and a heartbeat that finds the
- * session dead renews it proactively through the same hook.
+ * transparently by makeAuthenticatedRequest. A heartbeat that finds the
+ * session dead only marks it expired; the next request renews it.
  *
  * Credentials are re-read from secure storage at renewal time so a passkey
  * registered (or a password updated) after connect still counts.
