@@ -74,6 +74,9 @@ export interface CredsStep {
 }
 
 export type Step =
+  // `next` is what the user picked on the import-or-manual choice.
+  | { kind: 'disclaimer'; next: 'consent' | 'picker' }
+  | { kind: 'declined' }
   | { kind: 'start'; error: string | null }
   | { kind: 'demoConnecting' }
   | { kind: 'choose' }
@@ -103,6 +106,9 @@ export const initialState: State = { step: { kind: 'start', error: null }, scann
 export const DEMO_LOGIN = { hostname: 'fake-mychart.fanpierlabs.com', username: 'homer', password: 'donuts123' };
 
 export type Action =
+  | { type: 'chooseMethod'; next: 'consent' | 'picker' }
+  | { type: 'agree' }
+  | { type: 'decline' }
   | { type: 'back' }
   | { type: 'goReal' }
   | { type: 'connectDemo' }
@@ -191,6 +197,10 @@ function importFailed(state: State, message: string): State {
   return { ...state, step: accountsStep(message) };
 }
 
+function methodStep(next: 'consent' | 'picker'): Step {
+  return next === 'consent' ? { kind: 'consent', error: null } : { kind: 'picker' };
+}
+
 function withError(step: Step, error: string | null): Step {
   return 'error' in step ? { ...step, error } : step;
 }
@@ -202,6 +212,8 @@ export function reducer(state: State, action: Action): State {
       switch (step.kind) {
         case 'choose':
           return { ...state, step: { kind: 'start', error: null } };
+        case 'disclaimer':
+          return { ...state, step: { kind: 'choose' } };
         case 'consent':
         case 'picker':
           return { ...state, step: home(state) };
@@ -216,6 +228,15 @@ export function reducer(state: State, action: Action): State {
         default:
           return state;
       }
+
+    case 'chooseMethod':
+      return { ...state, step: { kind: 'disclaimer', next: action.next } };
+
+    case 'agree':
+      return step.kind === 'disclaimer' ? { ...state, step: methodStep(step.next) } : state;
+
+    case 'decline':
+      return { ...state, step: { kind: 'declined' } };
 
     case 'goReal':
       return { ...state, step: { kind: 'choose' } };
@@ -353,6 +374,8 @@ export function reducer(state: State, action: Action): State {
 }
 
 const TITLES: Record<Exclude<Step['kind'], 'accounts'>, string> = {
+  disclaimer: 'Before you continue',
+  declined: 'Setup cancelled',
   start: 'Connect to MyChart',
   demoConnecting: 'Connecting to the fake MyChart',
   choose: 'Connect to MyChart',
@@ -514,3 +537,6 @@ export function demoAccount(result: unknown): string | null {
 export function demoDoneMessage(account: string): string {
   return `I connected the fake MyChart demo account ${account}. Its records are fictional test data, not a real patient. Please continue with my original request.`;
 }
+
+/** What Exit on the disclaimer says to the conversation, so Claude doesn't carry on with setup. */
+export const DECLINED_MESSAGE = "I didn't agree to OpenRecord's disclaimer, so I don't want to connect MyChart. Don't set up an account.";

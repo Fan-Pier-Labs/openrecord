@@ -416,6 +416,10 @@ button:disabled:hover { background: var(--accent); }
   font-size: 12px;
   color: var(--text-3);
 }
+/* The as-is / not-affiliated disclaimer, the first screen. */
+.disclaimer-card { border-color: #e0b100; }
+.disclaimer-icon { font-size: 22px; line-height: 1; }
+.actions .link-btn { align-self: center; }
 /* Steps to let the scan read a browser macOS blocked. */
 .access-card {
   display: flex;

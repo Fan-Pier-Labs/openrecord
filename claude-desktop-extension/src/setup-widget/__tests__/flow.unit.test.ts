@@ -3,6 +3,7 @@
 import { describe, expect, test } from 'bun:test';
 import {
   accountsView,
+  DECLINED_MESSAGE,
   demoDoneMessage,
   errorText,
   initialState,
@@ -39,6 +40,41 @@ const scanned = run([
 ]);
 
 const loggedIn = (over: Record<string, unknown> = {}) => ({ state: 'logged_in', account: 'homer@mychart.example.org', passkey_saved: false, ...over });
+
+describe('the disclaimer', () => {
+  test('comes after the import-or-manual choice, and agreeing goes on to what was picked', () => {
+    const toImport = run([{ type: 'goReal' }, { type: 'chooseMethod', next: 'consent' }]);
+    expect(toImport.step).toEqual({ kind: 'disclaimer', next: 'consent' });
+    expect(stepTitle(toImport)).toBe('Before you continue');
+    expect(run([{ type: 'agree' }], toImport).step).toEqual({ kind: 'consent', error: null });
+
+    const toManual = run([{ type: 'goReal' }, { type: 'chooseMethod', next: 'picker' }, { type: 'agree' }]);
+    expect(toManual.step).toEqual({ kind: 'picker' });
+  });
+
+  test('is asked again every time the choice is made, even after agreeing', () => {
+    const state = run([
+      { type: 'goReal' },
+      { type: 'chooseMethod', next: 'consent' },
+      { type: 'agree' },
+      { type: 'back' },
+      { type: 'chooseMethod', next: 'picker' },
+    ]);
+    expect(state.step).toEqual({ kind: 'disclaimer', next: 'picker' });
+  });
+
+  test('back returns to the choice without agreeing', () => {
+    const state = run([{ type: 'goReal' }, { type: 'chooseMethod', next: 'picker' }, { type: 'back' }]);
+    expect(state.step).toEqual({ kind: 'choose' });
+  });
+
+  test('exiting ends setup with nothing connected, and tells Claude not to carry on', () => {
+    const state = run([{ type: 'goReal' }, { type: 'chooseMethod', next: 'consent' }, { type: 'decline' }]);
+    expect(state.step).toEqual({ kind: 'declined' });
+    expect(state.connected).toEqual([]);
+    expect(DECLINED_MESSAGE).toContain("Don't set up an account");
+  });
+});
 
 describe('the first screen', () => {
   test('opens on real-or-fake, and real accounts go on to the import-or-manual choice', () => {
