@@ -42,14 +42,35 @@ const scanned = run([
 const loggedIn = (over: Record<string, unknown> = {}) => ({ state: 'logged_in', account: 'homer@mychart.example.org', passkey_saved: false, ...over });
 
 describe('the disclaimer', () => {
-  test('opens first; agreeing goes on to real-or-fake', () => {
-    expect(initialState.step).toEqual({ kind: 'disclaimer' });
-    expect(stepTitle(initialState)).toBe('Before you continue');
-    expect(run([{ type: 'agree' }]).step).toEqual({ kind: 'start', error: null });
+  test('comes after the import-or-manual choice, and agreeing goes on to what was picked', () => {
+    const toImport = run([{ type: 'goReal' }, { type: 'chooseMethod', next: 'consent' }]);
+    expect(toImport.step).toEqual({ kind: 'disclaimer', next: 'consent' });
+    expect(stepTitle(toImport)).toBe('Before you continue');
+    expect(run([{ type: 'agree' }], toImport).step).toEqual({ kind: 'consent', error: null });
+
+    const toManual = run([{ type: 'goReal' }, { type: 'chooseMethod', next: 'picker' }, { type: 'agree' }]);
+    expect(toManual.step).toEqual({ kind: 'picker' });
+  });
+
+  test('is asked once: back to the choice and picking again skips it', () => {
+    const state = run([
+      { type: 'goReal' },
+      { type: 'chooseMethod', next: 'consent' },
+      { type: 'agree' },
+      { type: 'back' },
+      { type: 'chooseMethod', next: 'picker' },
+    ]);
+    expect(state.step).toEqual({ kind: 'picker' });
+  });
+
+  test('back returns to the choice without agreeing', () => {
+    const state = run([{ type: 'goReal' }, { type: 'chooseMethod', next: 'picker' }, { type: 'back' }]);
+    expect(state.step).toEqual({ kind: 'choose' });
+    expect(state.agreed).toBe(false);
   });
 
   test('exiting ends setup with nothing connected, and tells Claude not to carry on', () => {
-    const state = run([{ type: 'decline' }]);
+    const state = run([{ type: 'goReal' }, { type: 'chooseMethod', next: 'consent' }, { type: 'decline' }]);
     expect(state.step).toEqual({ kind: 'declined' });
     expect(state.connected).toEqual([]);
     expect(DECLINED_MESSAGE).toContain("Don't set up an account");
@@ -57,8 +78,9 @@ describe('the disclaimer', () => {
 });
 
 describe('the first screen', () => {
-  test('real accounts go on to the import-or-manual choice', () => {
-    const real = run([{ type: 'agree' }, { type: 'goReal' }]);
+  test('opens on real-or-fake, and real accounts go on to the import-or-manual choice', () => {
+    expect(initialState.step).toEqual({ kind: 'start', error: null });
+    const real = run([{ type: 'goReal' }]);
     expect(real.step.kind).toBe('choose');
     expect(run([{ type: 'back' }], real).step.kind).toBe('start');
   });

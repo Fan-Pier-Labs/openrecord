@@ -72,6 +72,7 @@ export function App({ host }: { host: Host }) {
         return (
           <Disclaimer
             onAgree={() => dispatch({ type: 'agree' })}
+            onBack={back}
             onExit={() => {
               dispatch({ type: 'decline' });
               finish(DECLINED_MESSAGE);
@@ -85,7 +86,13 @@ export function App({ host }: { host: Host }) {
       case 'demoConnecting':
         return <DemoConnecting />;
       case 'choose':
-        return <Choose onImport={goConsent} onManual={goPicker} onBack={back} />;
+        return (
+          <Choose
+            onImport={() => dispatch({ type: 'chooseMethod', next: 'consent' })}
+            onManual={() => dispatch({ type: 'chooseMethod', next: 'picker' })}
+            onBack={back}
+          />
+        );
       case 'consent':
         return <Consent step={step} onScan={scan} onBack={back} />;
       case 'accounts':

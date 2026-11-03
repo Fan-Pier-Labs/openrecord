@@ -4,11 +4,7 @@ How a user connects MyChart accounts through the Claude Desktop extension's setu
 (`get_setup_widget`, a React app in [`claude-desktop-extension/src/setup-widget/`](../claude-desktop-extension/src/setup-widget/);
 the flow below is the reducer in `flow.ts`).
 
-The first screen is a disclaimer: OpenRecord is provided as-is and used at the user's own risk,
-isn't affiliated with Epic or MyChart, and may violate Epic's terms of service. **I agree** goes on;
-**Exit** ends the widget and tells the chat the user declined, so Claude doesn't carry on with setup.
-
-The next screen asks whether to connect **real MyChart accounts** or **use a fake MyChart**.
+The first screen asks whether to connect **real MyChart accounts** or **use a fake MyChart**.
 The fake one signs in to `fake-mychart.fanpierlabs.com` as its no-2FA test patient in one click
 and ends the widget, skipping everything below.
 
@@ -19,6 +15,11 @@ enforces it wherever a login is saved (`setup_account`, `connect_imported_accoun
 any real account is saved, because making room would delete the user's real logins and passkeys,
 so that only happens if the user disconnects them.
 
+After the user picks import or manual, a disclaimer says OpenRecord is provided as-is and used
+at the user's own risk, isn't affiliated with Epic or MyChart, and may violate Epic's terms of
+service. **I agree** goes on to what they picked; **Exit** ends the widget and tells the chat the
+user declined, so Claude doesn't carry on with setup. It is asked once per widget.
+
 Real accounts are connected **one at a time**. Nearly every portal asks for a 2FA code, so each
 account runs to the end (sign-in, code, passkey offer) before the widget asks about the
 next one. After every account the user lands on the same list, which offers another
@@ -26,15 +27,15 @@ import (while any are left), a manual sign-in, or **I'm done**.
 
 ```mermaid
 flowchart TD
-    start([Setup widget opens]) --> disclaimer{Disclaimer<br/>as-is, not affiliated with Epic}
-    disclaimer -- Exit --> declined([Message to the chat:<br/>the user declined, don't set up])
-    disclaimer -- I agree --> realfake{Real accounts or<br/>a fake MyChart?}
+    start([Setup widget opens]) --> realfake{Real accounts or<br/>a fake MyChart?}
     realfake -- Use a fake MyChart --> demo[[setup_account<br/>fake-mychart.fanpierlabs.com<br/>as homer]]
     demo -- logged_in --> demodone([Message to the chat:<br/>the fake account, fictional data])
     demo -- failed, or real accounts<br/>already saved --> realfake
     realfake -- Connect my real accounts --> choose{Import or<br/>enter manually?}
-    choose -- Import from your browser --> consent
-    choose -- Enter manually --> picker
+    choose -- Import from your browser<br/>or Enter manually --> disclaimer{Disclaimer<br/>as-is, not affiliated with Epic}
+    disclaimer -- Exit --> declined([Message to the chat:<br/>the user declined, don't set up])
+    disclaimer -- I agree, import --> consent
+    disclaimer -- I agree, manual --> picker
 
     subgraph IMPORT [Import from your browser]
         consent[Permission screen<br/>what is read, what stays local] -- Allow --> scan[[import_browser_passwords<br/>macOS keychain prompt]]

@@ -74,7 +74,8 @@ export interface CredsStep {
 }
 
 export type Step =
-  | { kind: 'disclaimer' }
+  // `next` is what the user picked on the import-or-manual choice.
+  | { kind: 'disclaimer'; next: 'consent' | 'picker' }
   | { kind: 'declined' }
   | { kind: 'start'; error: string | null }
   | { kind: 'demoConnecting' }
@@ -94,9 +95,11 @@ export interface State {
   /** null until the browser has been searched, and again once its import ids expire. */
   scanned: Scanned | null;
   connected: Connected[];
+  /** Agreed to the disclaimer; it is asked once per widget. */
+  agreed: boolean;
 }
 
-export const initialState: State = { step: { kind: 'disclaimer' }, scanned: null, connected: [] };
+export const initialState: State = { step: { kind: 'start', error: null }, scanned: null, connected: [], agreed: false };
 
 /**
  * The deployed fake-mychart (scrapers/list-all-mycharts' SANDBOX_INSTANCE),
@@ -105,6 +108,7 @@ export const initialState: State = { step: { kind: 'disclaimer' }, scanned: null
 export const DEMO_LOGIN = { hostname: 'fake-mychart.fanpierlabs.com', username: 'homer', password: 'donuts123' };
 
 export type Action =
+  | { type: 'chooseMethod'; next: 'consent' | 'picker' }
   | { type: 'agree' }
   | { type: 'decline' }
   | { type: 'back' }
@@ -195,6 +199,10 @@ function importFailed(state: State, message: string): State {
   return { ...state, step: accountsStep(message) };
 }
 
+function methodStep(next: 'consent' | 'picker'): Step {
+  return next === 'consent' ? { kind: 'consent', error: null } : { kind: 'picker' };
+}
+
 function withError(step: Step, error: string | null): Step {
   return 'error' in step ? { ...step, error } : step;
 }
@@ -206,6 +214,8 @@ export function reducer(state: State, action: Action): State {
       switch (step.kind) {
         case 'choose':
           return { ...state, step: { kind: 'start', error: null } };
+        case 'disclaimer':
+          return { ...state, step: { kind: 'choose' } };
         case 'consent':
         case 'picker':
           return { ...state, step: home(state) };
@@ -221,8 +231,12 @@ export function reducer(state: State, action: Action): State {
           return state;
       }
 
+    case 'chooseMethod':
+      if (!state.agreed) return { ...state, step: { kind: 'disclaimer', next: action.next } };
+      return { ...state, step: methodStep(action.next) };
+
     case 'agree':
-      return { ...state, step: { kind: 'start', error: null } };
+      return step.kind === 'disclaimer' ? { ...state, agreed: true, step: methodStep(step.next) } : state;
 
     case 'decline':
       return { ...state, step: { kind: 'declined' } };

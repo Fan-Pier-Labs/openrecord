@@ -26,10 +26,11 @@ const onEnter = (fn: () => void) => (e: KeyboardEvent<HTMLInputElement>) => {
   }
 };
 
-/** Shown before anything else; nothing is read or signed in to until the user agrees. */
-export function Disclaimer({ onAgree, onExit }: { onAgree: () => void; onExit: () => void }) {
+/** Shown after the import-or-manual choice; no browser is read and no portal signed in to until the user agrees. */
+export function Disclaimer({ onAgree, onExit, onBack }: { onAgree: () => void; onExit: () => void; onBack: () => void }) {
   return (
     <div className="step">
+      <BackLink onClick={onBack} />
       <div className="passkey-card disclaimer-card">
         <span className="disclaimer-icon" aria-hidden="true">⚠️</span>
         <ul>
