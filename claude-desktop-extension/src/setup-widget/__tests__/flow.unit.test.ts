@@ -52,7 +52,7 @@ describe('the disclaimer', () => {
     expect(toManual.step).toEqual({ kind: 'picker' });
   });
 
-  test('is asked once: back to the choice and picking again skips it', () => {
+  test('is asked again every time the choice is made, even after agreeing', () => {
     const state = run([
       { type: 'goReal' },
       { type: 'chooseMethod', next: 'consent' },
@@ -60,13 +60,12 @@ describe('the disclaimer', () => {
       { type: 'back' },
       { type: 'chooseMethod', next: 'picker' },
     ]);
-    expect(state.step).toEqual({ kind: 'picker' });
+    expect(state.step).toEqual({ kind: 'disclaimer', next: 'picker' });
   });
 
   test('back returns to the choice without agreeing', () => {
     const state = run([{ type: 'goReal' }, { type: 'chooseMethod', next: 'picker' }, { type: 'back' }]);
     expect(state.step).toEqual({ kind: 'choose' });
-    expect(state.agreed).toBe(false);
   });
 
   test('exiting ends setup with nothing connected, and tells Claude not to carry on', () => {

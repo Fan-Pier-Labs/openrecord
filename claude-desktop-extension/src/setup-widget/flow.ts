@@ -95,11 +95,9 @@ export interface State {
   /** null until the browser has been searched, and again once its import ids expire. */
   scanned: Scanned | null;
   connected: Connected[];
-  /** Agreed to the disclaimer; it is asked once per widget. */
-  agreed: boolean;
 }
 
-export const initialState: State = { step: { kind: 'start', error: null }, scanned: null, connected: [], agreed: false };
+export const initialState: State = { step: { kind: 'start', error: null }, scanned: null, connected: [] };
 
 /**
  * The deployed fake-mychart (scrapers/list-all-mycharts' SANDBOX_INSTANCE),
@@ -232,11 +230,10 @@ export function reducer(state: State, action: Action): State {
       }
 
     case 'chooseMethod':
-      if (!state.agreed) return { ...state, step: { kind: 'disclaimer', next: action.next } };
-      return { ...state, step: methodStep(action.next) };
+      return { ...state, step: { kind: 'disclaimer', next: action.next } };
 
     case 'agree':
-      return step.kind === 'disclaimer' ? { ...state, agreed: true, step: methodStep(step.next) } : state;
+      return step.kind === 'disclaimer' ? { ...state, step: methodStep(step.next) } : state;
 
     case 'decline':
       return { ...state, step: { kind: 'declined' } };

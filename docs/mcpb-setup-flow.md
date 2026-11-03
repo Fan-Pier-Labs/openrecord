@@ -18,7 +18,8 @@ so that only happens if the user disconnects them.
 After the user picks import or manual, a disclaimer says OpenRecord is provided as-is and used
 at the user's own risk, isn't affiliated with Epic or MyChart, and may violate Epic's terms of
 service. **I agree** goes on to what they picked; **Exit** ends the widget and tells the chat the
-user declined, so Claude doesn't carry on with setup. It is asked once per widget.
+user declined, so Claude doesn't carry on with setup. It is asked every
+time the user makes that choice.
 
 Real accounts are connected **one at a time**. Nearly every portal asks for a 2FA code, so each
 account runs to the end (sign-in, code, passkey offer) before the widget asks about the
