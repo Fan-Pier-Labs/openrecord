@@ -27,7 +27,7 @@ The same code runs at release and monthly. `fetchResolvedMyChartDirectory` in
 ```mermaid
 flowchart TD
     epic["Epic's directory<br/>GET mychart.org/cached-api/help/organizations/<br/>~1,400 organizations"]
-    epic --> parse["parseDirectoryPayload<br/>drop entries with no login URL,<br/>merge same name + same URL"]
+    epic --> parse["parseDirectoryPayload<br/>drop entries with no login URL,<br/>merge same name + same portal<br/>(hostname + mount, any case)"]
     parse --> each["resolveLoginUrl, for every organization<br/>(24 at a time)"]
     each --> retry["retry everything down, once"]
     retry --> out["entries: url, directoryUrl when corrected,<br/>down: true when unconfirmed"]
@@ -47,10 +47,10 @@ flowchart TD
     follow --> reached{"got a page?"}
     reached -- "no answer, TLS error, 4xx/5xx,<br/>or 60 s timeout" --> down["down<br/>keep Epic's URL, mark down: true"]
     reached -- yes --> isLogin{"MyChart login page?"}
-    isLogin -- yes --> login["login<br/>keep Epic's URL"]
+    isLogin -- yes --> login["up<br/>keep Epic's URL"]
     isLogin -- no --> links["MyChart links on that page<br/>(5 by rank, then 5 that read like a portal)"]
     links --> linkLogin{"one serves a<br/>MyChart login page?"}
-    linkLogin -- yes --> linked["linked<br/>url = that portal,<br/>directoryUrl = Epic's"]
+    linkLogin -- yes --> linked["up<br/>url = that portal,<br/>directoryUrl = Epic's"]
     linkLogin -- no --> down
 ```
 
