@@ -374,8 +374,7 @@ claude-desktop-extension/
 ├── smoke.mjs               # boots the built bundle and speaks MCP to it
 ├── icon.png                # 256×256 extension icon
 ├── scripts/
-│   ├── verify-native-binaries.mjs # refuses to pack without every platform's keyring binary
-│   └── sign-mcpb.mjs              # signs a release with the Developer ID (see below)
+│   └── verify-native-binaries.mjs # refuses to pack without every platform's keyring binary
 └── src/
     ├── index.ts            # stdio entry
     ├── tools.ts            # account meta tools + one tool per shared capability
@@ -394,7 +393,6 @@ bun run build      # tsc --noEmit, then tsup → dist/server.cjs
 bun run dev        # tsup watch mode — rebuilds dist/server.cjs on every save
 bun run smoke      # build, then boot the bundle and speak MCP to it (see below)
 bun run pack       # build + run `mcpb pack` → openrecord.mcpb
-bun run pack:signed # pack, then sign with the Developer ID (see below)
 ```
 
 > **Smoke test.** Everything else in this package tests the TypeScript sources
@@ -470,74 +468,24 @@ manifest launches `node dist/server.cjs` directly — don't ship `mcpmon`). Keep
 
 ### Publishing a release
 
-The splash page's Claude Desktop button downloads
-`https://openrecord.fanpierlabs.com/openrecord.mcpb`. Pack (or `pack:signed`) from `main`, then:
+Bump the version in both `manifest.json` (what `mcpb_version.json` is generated from, so
+installed copies learn about the update) and `package.json` (a test holds the two equal) in a
+PR. Once it is merged, from a clean checkout of `main`:
 
 ```bash
-aws --profile fanpierlabs --region us-east-2 s3 cp openrecord.mcpb s3://openrecord-fanpierlabs-com/openrecord.mcpb \
-  --content-type application/octet-stream --content-disposition 'attachment; filename="openrecord.mcpb"' \
-  --cache-control "public, max-age=300"
+./deploy.sh
 ```
 
-The short TTL means a re-upload is live within five minutes without a CloudFront invalidation.
+It installs, refreshes `scrapers/list-all-mycharts/mychart-instances.json` from Epic's
+directory (a few minutes' crawl), packs, uploads to
+`https://openrecord.fanpierlabs.com/openrecord.mcpb` (the splash page's Claude Desktop
+button), invalidates CloudFront, checks the live file matches what was packed, then runs
+`openrecord-splash/deploy.sh` to publish `mcpb_version.json`. That manifest also carries the
+`mychart-cli` version, so publish a bumped CLI to npm before running it. Commit a refreshed
+directory list in a PR afterwards — the script says so when it changed.
 
-`pack:signed` first refreshes `scrapers/list-all-mycharts/mychart-instances.json` — Epic's
-directory with every login URL checked, a few minutes' crawl — so the release bundles a
-current list. Commit the refreshed file in a PR. If Epic's directory is unreachable the
-refresh fails the pack; `bun run pack && bun run sign` releases with the checked-in list.
-Bump the version first, in both `manifest.json` (what `mcpb_version.json` is generated from, so
-installed copies learn about the update) and `package.json` (a test holds the two equal).
-
-### Signing a release
-
-```bash
-bun run pack:signed   # pack, then sign with the Fan Pier Labs Developer ID
-```
-
-`scripts/sign-mcpb.mjs` appends a PKCS#7 signature made with
-`Developer ID Application: Fan Pier Labs LLC (CA25MAKF9Z)`, then checks its own
-work: `openssl cms -verify` over the exact bytes that were signed, and
-`security verify-cert -p codeSign` over the chain — a policy that also rejects
-an expired certificate, or one not valid for code signing.
-
-**One-time setup.** `mcpb sign` wants the private key as a PEM file, and the
-Developer ID key lives in the login keychain, which will not hand one out.
-Export the identity once — Keychain Access → **login** → **My Certificates** →
-right-click the Developer ID → **Export…** — save it as
-`~/.config/fan-pier-labs/mcpb-signing.p12`, then store the passphrase it asked
-for:
-
-```bash
-security add-generic-password -s mcpb-signing-p12 -a "$USER" -w
-```
-
-The script unpacks that bundle into a 0700 temp directory it deletes on the way
-out, and passes the passphrase through the environment rather than argv.
-`MCPB_SIGNING_P12` and `MCPB_SIGNING_P12_PASSWORD` (for CI) override the
-defaults. Sign a freshly packed bundle — signing appends, so signing twice
-nests one signature inside the next.
-
-**What a signature buys today: nothing a user can see.** Both the `mcpb verify`
-CLI (2.1.2) and the copy of that code bundled in Claude Desktop (1.34493.1)
-verify a bundle by calling node-forge's `pkcs7.verify()`, which is a stub that
-throws `PKCS#7 signature verification not yet implemented`; the caller catches
-that and returns `status: "unsigned"`. **Every `.mcpb` reads as unsigned, signed
-or not** — including one signed by `mcpb sign` itself. Nothing downstream can
-tell the difference: the install preview, the `certificateFingerprint` recorded
-in `extensions-installations.json`, and the `signature_info` sent to the
-`can_install` API all see `unsigned`.
-
-Signing anyway is cheap insurance for when that is fixed, and it is what the
-**Require signed extensions** setting (`isDxtSignatureRequired`, off by default,
-and enforceable by enterprise policy — "Reject desktop extensions that are not
-signed by a trusted publisher") will gate on. Two things to know when it starts
-to matter:
-
-- **A Developer ID is a macOS-only credential here.** Verification runs against
-  the OS trust store, so Windows would build the chain against the Windows root
-  store, which does not carry Apple's roots — a Developer ID signature would
-  read as untrusted there even once the verifier works. Windows users need a
-  certificate from a CA in the Microsoft root program.
-- **The verifier takes `certificates[0]` as the signer** rather than following
-  the `SignerInfo`, which is why the chain is passed to `mcpb sign` via `-i`
-  (leaf first) instead of being folded into the certificate file.
+**Don't sign the bundle.** `mcpb sign` appends a PKCS#7 block after the zip's end record, and
+Claude Desktop reads extensions with `yauzl`, which requires that record to be the file's last
+bytes — a signed 2.1.0 failed to install with "Invalid comment length". Signing also bought
+nothing: Claude Desktop's verifier is unimplemented and reports every bundle, signed or not, as
+`unsigned`. `deploy.sh` refuses to upload a bundle that doesn't end with the end record.
