@@ -11,7 +11,6 @@ import {
 import { getBackendSession } from "@/lib/backend/session";
 import type { MyChartInstance } from "@/lib/mychart-instances";
 import { WelcomeStep } from "./steps/welcome-step";
-import { DisclaimerStep } from "./steps/disclaimer-step";
 import { GoogleStep } from "./steps/google-step";
 import { AiStep } from "./steps/ai-step";
 import { PickerStep } from "./steps/picker-step";
@@ -19,7 +18,7 @@ import { MyChartStep } from "./steps/mychart-step";
 import { TwoFaStep } from "./steps/twofa-step";
 import { PasskeyStep } from "./steps/passkey-step";
 
-type Step = "welcome" | "disclaimer" | "google" | "ai" | "picker" | "mychart" | "twofa" | "passkey";
+type Step = "welcome" | "google" | "ai" | "picker" | "mychart" | "twofa" | "passkey";
 
 /**
  * Onboarding orchestrator. Owns the current step and the cross-step state
@@ -62,16 +61,7 @@ export default function OnboardingScreen() {
   }
 
   if (step === "welcome") {
-    return <WelcomeStep onGetStarted={() => setStep("disclaimer")} />;
-  }
-
-  if (step === "disclaimer") {
-    return (
-      <DisclaimerStep
-        onAgree={() => setStep("google")}
-        onExit={() => setStep("welcome")}
-      />
-    );
+    return <WelcomeStep onGetStarted={() => setStep("google")} />;
   }
 
   if (step === "google") {

@@ -28,7 +28,6 @@ export const styles = StyleSheet.create({
     maxWidth: 320,
   },
   bodyEm: { color: "#000", fontWeight: "600" },
-  warningIcon: { fontSize: 48, marginBottom: 12 },
   disclosureCard: {
     width: "100%",
     backgroundColor: "#f7f7f7",
