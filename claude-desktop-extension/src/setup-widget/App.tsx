@@ -1,10 +1,10 @@
 // Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
 
 import { useEffect, useReducer, useState } from 'react';
-import { DEMO_LOGIN, demoAccount, demoDoneMessage, initialState, reducer, setupDoneMessage, stepTitle, type FoundLogin } from './flow';
+import { DECLINED_MESSAGE, DEMO_LOGIN, demoAccount, demoDoneMessage, initialState, reducer, setupDoneMessage, stepTitle, type FoundLogin } from './flow';
 import type { Host } from './host';
 import { Picker } from './Picker';
-import { Accounts, Choose, Connecting, Consent, Creds, DemoConnecting, Done, Passkey, Start, TwoFa } from './steps';
+import { Accounts, Choose, Connecting, Consent, Creds, Declined, DemoConnecting, Disclaimer, Done, Passkey, Start, TwoFa } from './steps';
 
 /**
  * Interactive setup widget, served as the ui://openrecord/setup MCP App. The
@@ -68,6 +68,18 @@ export function App({ host }: { host: Host }) {
 
   const body = (() => {
     switch (step.kind) {
+      case 'disclaimer':
+        return (
+          <Disclaimer
+            onAgree={() => dispatch({ type: 'agree' })}
+            onExit={() => {
+              dispatch({ type: 'decline' });
+              finish(DECLINED_MESSAGE);
+            }}
+          />
+        );
+      case 'declined':
+        return <Declined />;
       case 'start':
         return <Start step={step} onReal={() => dispatch({ type: 'goReal' })} onDemo={() => void connectDemo()} />;
       case 'demoConnecting':

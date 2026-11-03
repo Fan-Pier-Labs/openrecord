@@ -74,6 +74,8 @@ export interface CredsStep {
 }
 
 export type Step =
+  | { kind: 'disclaimer' }
+  | { kind: 'declined' }
   | { kind: 'start'; error: string | null }
   | { kind: 'demoConnecting' }
   | { kind: 'choose' }
@@ -94,7 +96,7 @@ export interface State {
   connected: Connected[];
 }
 
-export const initialState: State = { step: { kind: 'start', error: null }, scanned: null, connected: [] };
+export const initialState: State = { step: { kind: 'disclaimer' }, scanned: null, connected: [] };
 
 /**
  * The deployed fake-mychart (scrapers/list-all-mycharts' SANDBOX_INSTANCE),
@@ -103,6 +105,8 @@ export const initialState: State = { step: { kind: 'start', error: null }, scann
 export const DEMO_LOGIN = { hostname: 'fake-mychart.fanpierlabs.com', username: 'homer', password: 'donuts123' };
 
 export type Action =
+  | { type: 'agree' }
+  | { type: 'decline' }
   | { type: 'back' }
   | { type: 'goReal' }
   | { type: 'connectDemo' }
@@ -216,6 +220,12 @@ export function reducer(state: State, action: Action): State {
         default:
           return state;
       }
+
+    case 'agree':
+      return { ...state, step: { kind: 'start', error: null } };
+
+    case 'decline':
+      return { ...state, step: { kind: 'declined' } };
 
     case 'goReal':
       return { ...state, step: { kind: 'choose' } };
@@ -353,6 +363,8 @@ export function reducer(state: State, action: Action): State {
 }
 
 const TITLES: Record<Exclude<Step['kind'], 'accounts'>, string> = {
+  disclaimer: 'Before you continue',
+  declined: 'Setup cancelled',
   start: 'Connect to MyChart',
   demoConnecting: 'Connecting to the fake MyChart',
   choose: 'Connect to MyChart',
@@ -514,3 +526,6 @@ export function demoAccount(result: unknown): string | null {
 export function demoDoneMessage(account: string): string {
   return `I connected the fake MyChart demo account ${account}. Its records are fictional test data, not a real patient. Please continue with my original request.`;
 }
+
+/** What Exit on the disclaimer says to the conversation, so Claude doesn't carry on with setup. */
+export const DECLINED_MESSAGE = "I didn't agree to OpenRecord's disclaimer, so I don't want to connect MyChart. Don't set up an account.";

@@ -3,6 +3,7 @@
 import { describe, expect, test } from 'bun:test';
 import {
   accountsView,
+  DECLINED_MESSAGE,
   demoDoneMessage,
   errorText,
   initialState,
@@ -40,10 +41,24 @@ const scanned = run([
 
 const loggedIn = (over: Record<string, unknown> = {}) => ({ state: 'logged_in', account: 'homer@mychart.example.org', passkey_saved: false, ...over });
 
+describe('the disclaimer', () => {
+  test('opens first; agreeing goes on to real-or-fake', () => {
+    expect(initialState.step).toEqual({ kind: 'disclaimer' });
+    expect(stepTitle(initialState)).toBe('Before you continue');
+    expect(run([{ type: 'agree' }]).step).toEqual({ kind: 'start', error: null });
+  });
+
+  test('exiting ends setup with nothing connected, and tells Claude not to carry on', () => {
+    const state = run([{ type: 'decline' }]);
+    expect(state.step).toEqual({ kind: 'declined' });
+    expect(state.connected).toEqual([]);
+    expect(DECLINED_MESSAGE).toContain("Don't set up an account");
+  });
+});
+
 describe('the first screen', () => {
-  test('opens on real-or-fake, and real accounts go on to the import-or-manual choice', () => {
-    expect(initialState.step).toEqual({ kind: 'start', error: null });
-    const real = run([{ type: 'goReal' }]);
+  test('real accounts go on to the import-or-manual choice', () => {
+    const real = run([{ type: 'agree' }, { type: 'goReal' }]);
     expect(real.step.kind).toBe('choose');
     expect(run([{ type: 'back' }], real).step.kind).toBe('start');
   });

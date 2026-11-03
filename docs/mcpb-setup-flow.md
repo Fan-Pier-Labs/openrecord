@@ -4,7 +4,11 @@ How a user connects MyChart accounts through the Claude Desktop extension's setu
 (`get_setup_widget`, a React app in [`claude-desktop-extension/src/setup-widget/`](../claude-desktop-extension/src/setup-widget/);
 the flow below is the reducer in `flow.ts`).
 
-The first screen asks whether to connect **real MyChart accounts** or **use a fake MyChart**.
+The first screen is a disclaimer: OpenRecord is provided as-is and used at the user's own risk,
+isn't affiliated with Epic or MyChart, and may violate Epic's terms of service. **I agree** goes on;
+**Exit** ends the widget and tells the chat the user declined, so Claude doesn't carry on with setup.
+
+The next screen asks whether to connect **real MyChart accounts** or **use a fake MyChart**.
 The fake one signs in to `fake-mychart.fanpierlabs.com` as its no-2FA test patient in one click
 and ends the widget, skipping everything below.
 
@@ -22,7 +26,9 @@ import (while any are left), a manual sign-in, or **I'm done**.
 
 ```mermaid
 flowchart TD
-    start([Setup widget opens]) --> realfake{Real accounts or<br/>a fake MyChart?}
+    start([Setup widget opens]) --> disclaimer{Disclaimer<br/>as-is, not affiliated with Epic}
+    disclaimer -- Exit --> declined([Message to the chat:<br/>the user declined, don't set up])
+    disclaimer -- I agree --> realfake{Real accounts or<br/>a fake MyChart?}
     realfake -- Use a fake MyChart --> demo[[setup_account<br/>fake-mychart.fanpierlabs.com<br/>as homer]]
     demo -- logged_in --> demodone([Message to the chat:<br/>the fake account, fictional data])
     demo -- failed, or real accounts<br/>already saved --> realfake

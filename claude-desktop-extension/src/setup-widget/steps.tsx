@@ -26,6 +26,34 @@ const onEnter = (fn: () => void) => (e: KeyboardEvent<HTMLInputElement>) => {
   }
 };
 
+/** Shown before anything else; nothing is read or signed in to until the user agrees. */
+export function Disclaimer({ onAgree, onExit }: { onAgree: () => void; onExit: () => void }) {
+  return (
+    <div className="step">
+      <div className="passkey-card disclaimer-card">
+        <span className="disclaimer-icon" aria-hidden="true">⚠️</span>
+        <ul>
+          <li><strong>Provided as-is.</strong> OpenRecord comes without warranty of any kind, and you use it at your own risk.</li>
+          <li><strong>Not affiliated with Epic or MyChart.</strong> OpenRecord is an independent project, not endorsed or sponsored by Epic Systems Corporation.</li>
+          <li><strong>It may violate Epic's terms of service.</strong> By continuing, you accept that risk.</li>
+        </ul>
+      </div>
+      <div className="actions">
+        <button type="button" onClick={onAgree}>I agree</button>
+        <button className="link-btn" type="button" onClick={onExit}>Exit</button>
+      </div>
+    </div>
+  );
+}
+
+export function Declined() {
+  return (
+    <div className="step">
+      <p className="step-sub">Nothing was connected. Open setup again whenever you want to agree and continue.</p>
+    </div>
+  );
+}
+
 /** The first screen: the user's real accounts, or the fake MyChart in one click. */
 export function Start({ step, onReal, onDemo }: { step: StepOf<'start'>; onReal: () => void; onDemo: () => void }) {
   return (
