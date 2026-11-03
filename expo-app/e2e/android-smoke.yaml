@@ -27,10 +27,16 @@ appId: com.fanpierlabs.openrecord
 - assertVisible: "OpenRecord"
 - takeScreenshot: e2e-welcome
 
-# Navigate: welcome -> Google sign-in step. This is the last screen reachable
-# without real credentials; the flow asserts it and stops.
+# Navigate: welcome -> disclaimer -> Google sign-in step. This is the last
+# screen reachable without real credentials; the flow asserts it and stops.
 - tapOn:
     id: "welcome-get-started"
+- extendedWaitUntil:
+    visible:
+      id: "disclaimer-agree"
+    timeout: 15000
+- tapOn:
+    id: "disclaimer-agree"
 - extendedWaitUntil:
     visible: "Sign in with Google"
     timeout: 15000
