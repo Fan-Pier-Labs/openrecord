@@ -1,5 +1,9 @@
 # mychart-cli
 
+> ⚠️ **`mychart-cli` is provided as-is, without warranty of any kind, and you use it at your own
+> risk.** It is an independent project and is not affiliated with, endorsed by, or sponsored by Epic
+> Systems Corporation or MyChart. Using it may violate Epic's terms of service.
+
 Read and act on an Epic MyChart patient portal from your terminal or your Node.js code. Sign in
 (password + 2FA, authenticator app, or passkey), pull any part of the chart (labs, medications,
 visits and clinical notes, messages, imaging, bills, insurance, and more), and act on it: message
