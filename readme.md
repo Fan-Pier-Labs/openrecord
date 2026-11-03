@@ -1,5 +1,10 @@
 # OpenRecord
 
+> [!WARNING]
+> **OpenRecord is provided as-is, without warranty of any kind, and you use it at your own risk.**
+> It is an independent project and is not affiliated with, endorsed by, or sponsored by Epic
+> Systems Corporation or MyChart. Using it may violate Epic's terms of service.
+
 **[Homepage](https://openrecord.fanpierlabs.com/)** · **[Download the Claude Desktop extension](https://openrecord.fanpierlabs.com/openrecord.mcpb)**
 
 **Let AI manage your healthcare.** Ask Claude to request a prescription refill, message your doctor to schedule an appointment, review your latest lab results, or update your insurance information — all through a natural conversation. OpenRecord connects to Epic MyChart patient portals and exposes 50+ tools for reading and managing your health data, with full write support — send messages, request refills, and update your insurance information, not just view it.
