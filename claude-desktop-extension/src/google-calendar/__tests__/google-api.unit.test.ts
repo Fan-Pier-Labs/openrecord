@@ -123,7 +123,12 @@ describe('CalendarClient', () => {
     expect(JSON.parse(calls.at(-1)!.body)).toEqual({ summary: 'MyChart Appointments', timeZone: 'America/New_York' });
 
     google(() => [500, null]);
-    await expect(client().calendarExists('mine')).rejects.toThrow('calendar lookup failed (HTTP 500)');
+    await expect(client().calendarExists('mine')).rejects.toThrow('calendar lookup failed (HTTP 500).');
+    // Google's reason is what tells the user what to fix.
+    google(() => [403, { error: { message: 'Google Calendar API has not been used in project 1 before or it is disabled.' } }]);
+    await expect(client().createCalendar('UTC')).rejects.toThrow(
+      'calendar creation failed (HTTP 403): Google Calendar API has not been used in project 1 before or it is disabled.',
+    );
     await expect(client().createCalendar('UTC')).rejects.toThrow('calendar creation failed');
   });
 

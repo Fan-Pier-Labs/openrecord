@@ -167,22 +167,26 @@ export class CalendarClient {
     return { status: res.status, json };
   }
 
-  private fail(what: string, status: number): never {
-    throw new Error(`Google Calendar ${what} failed (HTTP ${status}).`);
+  // Google's own explanation — e.g. "Google Calendar API has not been used in
+  // project N … Enable it by visiting …" — is the actionable part, and it is
+  // about the API, never the chart, so it goes in the message.
+  private fail(what: string, res: { status: number; json: unknown }): never {
+    const reason = (res.json as { error?: { message?: string } } | null)?.error?.message;
+    throw new Error(`Google Calendar ${what} failed (HTTP ${res.status})${reason ? `: ${reason}` : '.'}`);
   }
 
   /** The calendar's id if it still exists — the user may have deleted it in Google Calendar. */
   async calendarExists(id: string): Promise<boolean> {
-    const { status } = await this.call('GET', `/calendars/${encodeURIComponent(id)}`);
-    if (status === 200) return true;
-    if (status === 404 || status === 410) return false;
-    return this.fail('calendar lookup', status);
+    const res = await this.call('GET', `/calendars/${encodeURIComponent(id)}`);
+    if (res.status === 200) return true;
+    if (res.status === 404 || res.status === 410) return false;
+    return this.fail('calendar lookup', res);
   }
 
   async createCalendar(timeZone: string): Promise<string> {
-    const { status, json } = await this.call('POST', '/calendars', { summary: CALENDAR_NAME, timeZone });
-    const id = (json as { id?: string } | null)?.id;
-    if (status !== 200 || !id) return this.fail('calendar creation', status);
+    const res = await this.call('POST', '/calendars', { summary: CALENDAR_NAME, timeZone });
+    const id = (res.json as { id?: string } | null)?.id;
+    if (res.status !== 200 || !id) return this.fail('calendar creation', res);
     return id;
   }
 
@@ -195,9 +199,9 @@ export class CalendarClient {
     const cal = encodeURIComponent(calendarId);
     const put = await this.call('PUT', `/calendars/${cal}/events/${event.id}`, event);
     if (put.status === 200) return;
-    if (put.status !== 404) this.fail('event update', put.status);
+    if (put.status !== 404) this.fail('event update', put);
     const post = await this.call('POST', `/calendars/${cal}/events`, event);
-    if (post.status !== 200) this.fail('event insert', post.status);
+    if (post.status !== 200) this.fail('event insert', post);
   }
 
   /** Ids of this account's events starting after `timeMin`. */
@@ -207,9 +211,9 @@ export class CalendarClient {
     do {
       const params = new URLSearchParams({ privateExtendedProperty: privateProperty, timeMin, maxResults: '250', singleEvents: 'true' });
       if (pageToken) params.set('pageToken', pageToken);
-      const { status, json } = await this.call('GET', `/calendars/${encodeURIComponent(calendarId)}/events?${params}`);
-      if (status !== 200) this.fail('event listing', status);
-      const page = json as { items?: Array<{ id: string }>; nextPageToken?: string };
+      const res = await this.call('GET', `/calendars/${encodeURIComponent(calendarId)}/events?${params}`);
+      if (res.status !== 200) this.fail('event listing', res);
+      const page = res.json as { items?: Array<{ id: string }>; nextPageToken?: string };
       ids.push(...(page.items ?? []).map((e) => e.id));
       pageToken = page.nextPageToken;
     } while (pageToken);
@@ -217,8 +221,8 @@ export class CalendarClient {
   }
 
   async deleteEvent(calendarId: string, id: string): Promise<void> {
-    const { status } = await this.call('DELETE', `/calendars/${encodeURIComponent(calendarId)}/events/${id}`);
+    const res = await this.call('DELETE', `/calendars/${encodeURIComponent(calendarId)}/events/${id}`);
     // Already gone is the outcome we wanted.
-    if (status !== 204 && status !== 200 && status !== 404 && status !== 410) this.fail('event delete', status);
+    if (![200, 204, 404, 410].includes(res.status)) this.fail('event delete', res);
   }
 }
