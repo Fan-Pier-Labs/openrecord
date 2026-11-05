@@ -13,7 +13,7 @@ setLogSink((level, args) => {
  * so it runs the extension's own TypeScript — the same scrapers, credential
  * store and passkeys — with no Node install.
  *
- *   openrecord-calendar tray        the menu-bar item (what the LaunchAgent starts at login)
+ *   openrecord-calendar tray        the menu-bar (macOS) or notification-area (Windows) icon, started at login
  *   openrecord-calendar connect     Google consent in the browser; creates the calendar
  *   openrecord-calendar sync        one sync pass over every saved MyChart account
  *   openrecord-calendar disconnect  revoke Google access and forget the token
@@ -31,6 +31,8 @@ import type { SyncVisit } from './events';
 import { accessTokenFor, authorizeInBrowser, CalendarClient, revoke } from './google-api';
 import { connectAccessToken, ensureCalendar, syncAccount } from './sync';
 import { runTray } from './tray';
+import { runTrayWindows } from './tray-windows';
+import { system32 } from './applet';
 import { clearRefreshToken, readRefreshToken, readState, saveRefreshToken, writeState } from './store';
 
 type Result = { ok: boolean } & Record<string, unknown>;
@@ -39,7 +41,7 @@ async function connect(): Promise<Result> {
   const { accessToken, reusedGrant } = await connectAccessToken(
     readRefreshToken(),
     accessTokenFor,
-    () => authorizeInBrowser((url) => execFile('open', [url])),
+    () => authorizeInBrowser(openBrowser),
     saveRefreshToken,
   );
   // The calendar ID outlives a disconnect, so turning sync back on finds the same calendar.
@@ -47,6 +49,13 @@ async function connect(): Promise<Result> {
   const calendarId = await ensureCalendar(new CalendarClient(accessToken), savedId);
   writeState({ ...readState(), calendarId, connectedAt: new Date().toISOString() });
   return { ok: true, calendarId, reusedGrant, reusedCalendar: calendarId === savedId };
+}
+
+function openBrowser(url: string): void {
+  // rundll32 hands the URL to the default browser without a shell, so the `&`s
+  // in Google's consent URL are never parsed as command separators.
+  if (process.platform === 'win32') execFile(system32('rundll32'), ['url.dll,FileProtocolHandler', url], { windowsHide: true });
+  else execFile('open', [url]);
 }
 
 async function fetchVisits(account: string): Promise<SyncVisit[]> {
@@ -91,7 +100,10 @@ async function disconnect(): Promise<Result> {
 const COMMANDS: Record<string, () => Promise<Result>> = { connect, sync, disconnect };
 
 async function main(): Promise<void> {
-  if (process.argv[2] === 'tray') runTray(process.execPath);
+  if (process.argv[2] === 'tray') {
+    if (process.platform === 'win32') runTrayWindows(process.execPath);
+    runTray(process.execPath);
+  }
   const command = COMMANDS[process.argv[2] ?? ''];
   let result: Result;
   if (!command) {

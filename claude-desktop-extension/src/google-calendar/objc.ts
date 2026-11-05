@@ -13,22 +13,29 @@
 
 import { CFunction, dlopen, FFIType, JSCallback, ptr, type Pointer } from 'bun:ffi';
 
-const runtime = dlopen('/usr/lib/libobjc.A.dylib', {
-  objc_getClass: { args: [FFIType.ptr], returns: FFIType.ptr },
-  sel_registerName: { args: [FFIType.ptr], returns: FFIType.ptr },
-  objc_allocateClassPair: { args: [FFIType.ptr, FFIType.ptr, FFIType.u64], returns: FFIType.ptr },
-  objc_registerClassPair: { args: [FFIType.ptr], returns: FFIType.void },
-  class_addMethod: { args: [FFIType.ptr, FFIType.ptr, FFIType.ptr, FFIType.ptr], returns: FFIType.bool },
-  objc_msgSend: { args: [], returns: FFIType.void },
-}).symbols;
+function load() {
+  const symbols = dlopen('/usr/lib/libobjc.A.dylib', {
+    objc_getClass: { args: [FFIType.ptr], returns: FFIType.ptr },
+    sel_registerName: { args: [FFIType.ptr], returns: FFIType.ptr },
+    objc_allocateClassPair: { args: [FFIType.ptr, FFIType.ptr, FFIType.u64], returns: FFIType.ptr },
+    objc_registerClassPair: { args: [FFIType.ptr], returns: FFIType.void },
+    class_addMethod: { args: [FFIType.ptr, FFIType.ptr, FFIType.ptr, FFIType.ptr], returns: FFIType.bool },
+    objc_msgSend: { args: [], returns: FFIType.void },
+  }).symbols;
+  // Loading AppKit registers its classes with the runtime; any one symbol will do.
+  dlopen('/System/Library/Frameworks/AppKit.framework/AppKit', { NSApplicationLoad: { args: [], returns: FFIType.bool } });
+  return symbols;
+}
 
-// Loading AppKit registers its classes with the runtime; any one symbol will do.
-dlopen('/System/Library/Frameworks/AppKit.framework/AppKit', { NSApplicationLoad: { args: [], returns: FFIType.bool } });
+// Loaded on first use, not at import: the binary that imports this also runs
+// on Windows, where these libraries don't exist.
+let loaded: ReturnType<typeof load> | undefined;
+const runtime = () => (loaded ??= load());
 
 export type Id = Pointer | null;
 
 // bun:ffi sets `.ptr` on every symbol at runtime; its declared types leave it off.
-const MSG_SEND = (runtime.objc_msgSend as unknown as { ptr: Pointer }).ptr;
+const msgSendPtr = () => (runtime().objc_msgSend as unknown as { ptr: Pointer }).ptr;
 type FfiType = (typeof FFIType)[keyof typeof FFIType];
 
 const cstr = (s: string) => Buffer.from(`${s}\0`);
@@ -38,7 +45,7 @@ export function sel(name: string): Pointer {
   let s = selectors.get(name);
   if (!s) {
     const buf = cstr(name);
-    s = runtime.sel_registerName(ptr(buf))!;
+    s = runtime().sel_registerName(ptr(buf))!;
     selectors.set(name, s);
   }
   return s;
@@ -46,7 +53,7 @@ export function sel(name: string): Pointer {
 
 export function cls(name: string): Pointer {
   const buf = cstr(name);
-  const c = runtime.objc_getClass(ptr(buf));
+  const c = runtime().objc_getClass(ptr(buf));
   if (!c) throw new Error(`Objective-C class ${name} not found`);
   return c;
 }
@@ -56,7 +63,7 @@ function sender(returns: FfiType, args: FfiType[]): (...args: unknown[]) => unkn
   const key = `${returns}(${args.join(',')})`;
   let fn = senders.get(key);
   if (!fn) {
-    fn = CFunction({ ptr: MSG_SEND, args: [FFIType.ptr, FFIType.ptr, ...args], returns }) as unknown as (...args: unknown[]) => unknown;
+    fn = CFunction({ ptr: msgSendPtr(), args: [FFIType.ptr, FFIType.ptr, ...args], returns }) as unknown as (...args: unknown[]) => unknown;
     senders.set(key, fn);
   }
   return fn;
@@ -88,7 +95,7 @@ const keepAlive: JSCallback[] = [];
  */
 export function defineHandler(className: string, methods: Record<string, (arg: Id) => void>): Id {
   const nameBuf = cstr(className);
-  const klass = runtime.objc_allocateClassPair(cls('NSObject'), ptr(nameBuf), 0);
+  const klass = runtime().objc_allocateClassPair(cls('NSObject'), ptr(nameBuf), 0);
   if (!klass) throw new Error(`Could not define Objective-C class ${className}`);
   const types = cstr('v@:@');
   for (const [selector, fn] of Object.entries(methods)) {
@@ -97,8 +104,8 @@ export function defineHandler(className: string, methods: Record<string, (arg: I
       returns: FFIType.void,
     });
     keepAlive.push(cb);
-    runtime.class_addMethod(klass, sel(selector), cb.ptr, ptr(types));
+    runtime().class_addMethod(klass, sel(selector), cb.ptr, ptr(types));
   }
-  runtime.objc_registerClassPair(klass);
+  runtime().objc_registerClassPair(klass);
   return msg(klass, 'new');
 }

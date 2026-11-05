@@ -77,6 +77,13 @@ coverageThreshold = { lines = 0.75, functions = 0.75 }
 #     — the login and keepalive paths. Lifecycle and resolution are covered.
 #   npm-package/src/client.ts (45%/1%)
 #     — the library surface.
+#   claude-desktop-extension/src/google-calendar/{objc,win32,tray,tray-windows}.ts
+#     — the calendar sync's native tray glue: AppKit through the Objective-C
+#       runtime, and Win32. It only runs inside a macOS or Windows desktop
+#       session, never on the Linux CI runner. Everything decidable is kept out
+#       of these four and measured normally: tray-menu.ts (when to sync, what
+#       the menu says), tray-icon.ts, win32-structs.ts (byte layouts), and
+#       native-loading.unit.test.ts proves importing them loads nothing.
 #   openrecord-demo-lambda/src/spend.mjs (41%/86%)
 #     — createDynamoSpendStore needs the AWS SDK, absent locally by design. The
 #       pure pricing and ledger logic is covered.
@@ -99,4 +106,8 @@ coveragePathIgnorePatterns = [
   "scrapers/myChart/eunity/imagingDirectDownload.ts",
   "npm-package/src/client.ts",
   "openrecord-demo-lambda/src/spend.mjs",
+  "claude-desktop-extension/src/google-calendar/objc.ts",
+  "claude-desktop-extension/src/google-calendar/win32.ts",
+  "claude-desktop-extension/src/google-calendar/tray.ts",
+  "claude-desktop-extension/src/google-calendar/tray-windows.ts",
 ]

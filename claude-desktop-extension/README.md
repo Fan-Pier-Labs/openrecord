@@ -159,7 +159,7 @@ machine and have no counterpart in the other clients.
 > Send a message to Dr. Smith asking about my latest blood pressure reading.
 > Show me my last imaging study.
 
-### Google Calendar sync (macOS)
+### Google Calendar sync (macOS and Windows)
 
 `connect_google_calendar` puts every connected account's upcoming appointments on
 a Google calendar and keeps them there. The setup widget offers it after **I'm
@@ -170,8 +170,8 @@ done** when the accounts have appointments to sync; otherwise ask Claude to
   creates a "MyChart Appointments" calendar and can see and change only that one.
   It never reads the user's other calendars.
 - **All TypeScript, one binary.** `src/google-calendar/worker.ts` is compiled
-  with `bun build --compile --aot` into `openrecord-calendar`, one binary per Mac
-  architecture, using this extension's own scrapers, credential store and passkeys:
+  with `bun build --compile --aot` into `openrecord-calendar`, one binary per OS
+  and architecture (macOS and Windows, arm64 and x64), using this extension's own scrapers, credential store and passkeys:
   `tray` (the menu-bar item), `connect` (loopback + PKCE consent in the
   browser), `sync` (one pass) and `disconnect`.
 - **The menu-bar item** (`tray.ts`) drives AppKit through `bun:ffi` (`objc.ts`).
@@ -182,10 +182,23 @@ done** when the accounts have appointments to sync; otherwise ask Claude to
   reads. It syncs when 4 hours have passed since the last sync, checking every
   15 minutes and on wake, because a timer's clock stops while the Mac sleeps.
   The menu has Sync Now, Open Google Calendar and Turn Off Calendar Sync.
+- **On Windows** the same binary's `tray` mode is a notification-area icon
+  (`tray-windows.ts`, Win32 through `bun:ffi`). It uses the same model: a hidden
+  window's `GetMessageW` loop owns the thread, and clicks, timers and
+  resume-from-sleep call into JS. The sync runs through `CreateProcessW`. The
+  icon is drawn in code (`tray-icon.ts`), and the struct layouts are in
+  `win32-structs.ts`, tested byte for byte. The binary is built GUI-subsystem
+  (`--windows-hide-console`), so no console window opens. It starts at sign-in
+  from the per-user Run key (`HKCU\…\Run`, value "OpenRecord Calendar"), and
+  Windows tools are called by `System32` path. Credential Manager has no
+  per-app access, so there's no "Always Allow" prompt. The Windows binaries are
+  unsigned, and **the tray has not yet been run on a real Windows machine**.
 - **Install.** The tool copies the matching binary to
   `~/.openrecord-mcpb/bin/openrecord-calendar`, runs `connect` and a first `sync`,
   then writes `~/Library/LaunchAgents/com.fanpierlabs.openrecord.calendar.plist`
-  (`openrecord-calendar tray`) so it starts at login.
+  (`openrecord-calendar tray`) so it starts at login. On Windows it installs
+  `openrecord-calendar.exe`, removes the download's `Zone.Identifier` mark, sets
+  the Run key and starts the tray.
 - **Turning it off and on again.** Turn Off revokes the Google grant and drops
   the token and sync status, but keeps the calendar ID in
   `google-calendar.json`. Turning sync back on reuses that calendar: a fresh grant
@@ -207,7 +220,8 @@ done** when the accounts have appointments to sync; otherwise ask Claude to
   `openrecord-calendar`. It's signed with the Developer ID when it's built on a
   machine that has one, so that approval survives updates.
 - **Build.** `bun run build:applet` (part of `bun run pack`) writes
-  `applet/openrecord-calendar-darwin-{arm64,x64}` (about 96 and 106 MB). It bakes
+  `applet/openrecord-calendar-darwin-{arm64,x64}` (about 96 and 106 MB) and
+  `applet/openrecord-calendar-windows-{x64,arm64}.exe` (about 124 and 109 MB). It bakes
   in the Google "Desktop app" OAuth client from
   `~/.config/fan-pier-labs/google-oauth-client.json`, which is never committed,
   and refuses to build an architecture whose `@napi-rs/keyring` binding isn't

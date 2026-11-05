@@ -19,10 +19,12 @@ const LIBRARY = path.join(HOME, 'Library');
 const WORKER = path.join(ROOT, 'bin', 'openrecord-calendar');
 const PLIST = path.join(LIBRARY, 'LaunchAgents', 'com.fanpierlabs.openrecord.calendar.plist');
 const BUNDLED = path.resolve(import.meta.dir, '..', '..', 'applet', `openrecord-calendar-darwin-${process.arch}`);
+const BUNDLED_WIN = path.resolve(import.meta.dir, '..', '..', 'applet', `openrecord-calendar-windows-${process.arch}.exe`);
+const WORKER_WIN = `${WORKER}.exe`;
 
 const files = new Map<string, string>();
 const ours = (p: unknown): p is string =>
-  typeof p === 'string' && (p.startsWith(ROOT) || p.startsWith(LIBRARY) || p === BUNDLED);
+  typeof p === 'string' && (p.startsWith(ROOT) || p.startsWith(LIBRARY) || p === BUNDLED || p === BUNDLED_WIN);
 const enoent = () => Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
 
 const fsMock = {
@@ -54,22 +56,36 @@ const fsMock = {
 void mock.module('fs', () => fsMock);
 void mock.module('node:fs', () => fsMock);
 
+// The file name of a macOS or a Windows path, whichever the code under test built.
+const base = (file: string) => file.split(/[\\/]/).pop()!;
+
 /** Every command run, and what the calendar binary answers per subcommand. */
 let commands: string[][] = [];
 let replies: Record<string, string> = {};
 let bootstrapFails = false;
+let runKeySet = false;
+let launched: string[][] = [];
 type Done = (err: Error | null, stdout: string, stderr: string) => void;
 void mock.module('child_process', () => ({
   execFile: (file: string, args: string[], _opts: unknown, done: Done) => {
-    commands.push([path.basename(file), ...args]);
-    if (file === WORKER) {
+    commands.push([base(file), ...args]);
+    if (file === WORKER || file === WORKER_WIN) {
       const out = replies[args[0]!];
       done(out === undefined ? Object.assign(new Error('crashed'), { code: 1 }) : null, out ?? '', '');
     } else if (args[0] === 'bootstrap' && bootstrapFails) {
       done(Object.assign(new Error('bootstrap'), { code: 5 }), '', '');
     } else {
+      if (base(file) === 'reg.exe' && args[0] === 'add') runKeySet = true;
       done(null, '', '');
     }
+  },
+  execFileSync: (file: string, args: string[]) => {
+    if (base(file) === 'reg.exe' && args[0] === 'query' && runKeySet) return '';
+    throw new Error('not found');
+  },
+  spawn: (file: string, args: string[]) => {
+    launched.push([base(file), ...args]);
+    return { unref() {} };
   },
 }));
 
@@ -86,6 +102,52 @@ beforeEach(() => {
   commands = [];
   replies = { connect: '{"ok":true}', sync: '{"ok":true,"synced":2,"accounts":[]}' };
   bootstrapFails = false;
+  runKeySet = false;
+  launched = [];
+});
+
+describe('on Windows', () => {
+  const asWindows = async (fn: () => Promise<void>) => {
+    Object.defineProperty(process, 'platform', { value: 'win32' });
+    try {
+      await fn();
+    } finally {
+      Object.defineProperty(process, 'platform', { value: 'darwin' });
+    }
+  };
+
+  it('stops the old tray, installs the .exe, connects, syncs, and starts the tray now and at every sign-in', async () => {
+    files.set(BUNDLED_WIN, 'exe');
+    files.set(`${WORKER_WIN}:Zone.Identifier`, '[ZoneTransfer]');
+    await asWindows(async () => {
+      expect(applet.calendarSyncStatus().enabled).toBe(false);
+      const { sync } = await applet.connectGoogleCalendar();
+      expect(sync.synced).toBe(2);
+      files.set(path.join(ROOT, 'google-calendar.json'), JSON.stringify({ connectedAt: 'x' }));
+      expect(applet.calendarSyncStatus().enabled).toBe(true);
+    });
+    expect(commands.map((c) => c.slice(0, 2).join(' '))).toEqual([
+      'taskkill.exe /F', 'openrecord-calendar.exe connect', 'openrecord-calendar.exe sync', 'reg.exe add',
+    ]);
+    const regAdd = commands.at(-1)!;
+    expect(regAdd.slice(1, 5)).toEqual(['add', applet.RUN_KEY, '/v', applet.RUN_VALUE]);
+    expect(regAdd.at(-2)).toBe(`"${WORKER_WIN}" tray`);
+    expect(launched).toEqual([['openrecord-calendar.exe', 'tray']]);
+    expect(files.get(WORKER_WIN)).toBe('exe');
+    expect(files.has(`${WORKER_WIN}:Zone.Identifier`)).toBe(false); // download mark removed
+  });
+
+  it('refuses on a build without the Windows binary, and on Linux', async () => {
+    await asWindows(async () => {
+      await expect(applet.connectGoogleCalendar()).rejects.toThrow('does not include Google Calendar sync for this computer');
+    });
+    Object.defineProperty(process, 'platform', { value: 'linux' });
+    try {
+      await expect(applet.connectGoogleCalendar()).rejects.toThrow('needs macOS or Windows');
+    } finally {
+      Object.defineProperty(process, 'platform', { value: 'darwin' });
+    }
+  });
 });
 
 describe('connectGoogleCalendar', () => {
@@ -119,13 +181,7 @@ describe('connectGoogleCalendar', () => {
 
   it('refuses where it cannot run', async () => {
     files.delete(BUNDLED);
-    await expect(applet.connectGoogleCalendar()).rejects.toThrow('does not include Google Calendar sync for this Mac');
-    Object.defineProperty(process, 'platform', { value: 'win32' });
-    try {
-      await expect(applet.connectGoogleCalendar()).rejects.toThrow('needs macOS');
-    } finally {
-      Object.defineProperty(process, 'platform', { value: 'darwin' });
-    }
+    await expect(applet.connectGoogleCalendar()).rejects.toThrow('does not include Google Calendar sync for this computer');
     expect(commands).toEqual([]);
   });
 });
@@ -170,5 +226,19 @@ describe('buildAuthUrl', () => {
     expect(url.searchParams.get('access_type')).toBe('offline');
     expect(url.searchParams.get('code_challenge_method')).toBe('S256');
     expect(url.searchParams.get('redirect_uri')).toBe('http://127.0.0.1:5555');
+  });
+});
+
+describe('system32', () => {
+  it('names Windows tools by absolute path', () => {
+    const saved = process.env.SystemRoot;
+    process.env.SystemRoot = 'D:\\Win';
+    try {
+      expect(applet.system32('reg')).toBe('D:\\Win\\System32\\reg.exe');
+      delete process.env.SystemRoot;
+      expect(applet.system32('reg')).toBe('C:\\Windows\\System32\\reg.exe');
+    } finally {
+      if (saved !== undefined) process.env.SystemRoot = saved;
+    }
   });
 });
