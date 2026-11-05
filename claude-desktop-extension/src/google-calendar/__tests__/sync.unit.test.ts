@@ -3,8 +3,8 @@
 import { describe, expect, it } from 'bun:test';
 
 import type { CalendarEvent, SyncVisit } from '../events';
-import type { CalendarClient } from '../google-api';
-import { ensureCalendar, syncAccount } from '../sync';
+import { GoogleTokenError, type CalendarClient } from '../google-api';
+import { connectAccessToken, ensureCalendar, syncAccount } from '../sync';
 
 /** An in-memory calendar with the client's surface. */
 function fakeClient(existing: string[] = [], calendars: string[] = []) {
@@ -53,5 +53,34 @@ describe('ensureCalendar', () => {
     expect(await ensureCalendar(fakeClient([], ['mine']).client, 'mine')).toBe('mine');
     expect(await ensureCalendar(fakeClient([], []).client, 'mine')).toBe('new-cal');
     expect(await ensureCalendar(fakeClient().client, undefined)).toBe('new-cal');
+  });
+});
+
+describe('connectAccessToken', () => {
+  const run = async (saved: string | undefined, refresh: (t: string) => Promise<string>) => {
+    const consents: string[] = [];
+    const saves: string[] = [];
+    const result = await connectAccessToken(saved, refresh, async () => { consents.push('asked'); return 'fresh'; }, (t) => saves.push(t));
+    return { result, consents, saves };
+  };
+
+  it('reuses a saved grant Google still honours, without asking the user again', async () => {
+    const { result, consents, saves } = await run('saved', async (t) => `access-for-${t}`);
+    expect(result).toEqual({ accessToken: 'access-for-saved', reusedGrant: true });
+    expect(consents).toEqual([]);
+    expect(saves).toEqual([]);
+  });
+
+  it('asks again only when Google calls the saved grant dead, and saves the new one', async () => {
+    const refresh = async (t: string) => { if (t === 'saved') throw new GoogleTokenError('invalid_grant'); return `access-for-${t}`; };
+    const { result, consents, saves } = await run('saved', refresh);
+    expect(result).toEqual({ accessToken: 'access-for-fresh', reusedGrant: false });
+    expect(consents).toEqual(['asked']);
+    expect(saves).toEqual(['fresh']);
+    expect((await run(undefined, async (t) => `access-for-${t}`)).consents).toEqual(['asked']);
+  });
+
+  it('does not send the user to Google over a network failure', async () => {
+    await expect(run('saved', async () => { throw new Error('offline'); })).rejects.toThrow('offline');
   });
 });

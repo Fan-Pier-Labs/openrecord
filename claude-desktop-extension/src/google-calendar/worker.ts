@@ -29,19 +29,24 @@ import { accountId, readAccountIdentities } from '../credential-store';
 import { clearAllSessions, resolveSession } from '../session-manager';
 import type { SyncVisit } from './events';
 import { accessTokenFor, authorizeInBrowser, CalendarClient, revoke } from './google-api';
-import { ensureCalendar, syncAccount } from './sync';
+import { connectAccessToken, ensureCalendar, syncAccount } from './sync';
 import { runTray } from './tray';
-import { clearRefreshToken, clearState, readRefreshToken, readState, saveRefreshToken, writeState } from './store';
+import { clearRefreshToken, readRefreshToken, readState, saveRefreshToken, writeState } from './store';
 
 type Result = { ok: boolean } & Record<string, unknown>;
 
 async function connect(): Promise<Result> {
-  const refreshToken = await authorizeInBrowser((url) => execFile('open', [url]));
-  saveRefreshToken(refreshToken);
-  const client = new CalendarClient(await accessTokenFor(refreshToken));
-  const calendarId = await ensureCalendar(client, readState().calendarId);
+  const { accessToken, reusedGrant } = await connectAccessToken(
+    readRefreshToken(),
+    accessTokenFor,
+    () => authorizeInBrowser((url) => execFile('open', [url])),
+    saveRefreshToken,
+  );
+  // The calendar ID outlives a disconnect, so turning sync back on finds the same calendar.
+  const savedId = readState().calendarId;
+  const calendarId = await ensureCalendar(new CalendarClient(accessToken), savedId);
   writeState({ ...readState(), calendarId, connectedAt: new Date().toISOString() });
-  return { ok: true, calendarId };
+  return { ok: true, calendarId, reusedGrant, reusedCalendar: calendarId === savedId };
 }
 
 async function fetchVisits(account: string): Promise<SyncVisit[]> {
@@ -75,7 +80,11 @@ async function disconnect(): Promise<Result> {
   // Best effort: the local token goes either way, and an offline revoke must not keep it.
   if (refreshToken) await revoke(refreshToken).catch(() => {});
   clearRefreshToken();
-  clearState();
+  // Keep only the calendar ID. Google won't let this scope list calendars, so
+  // once the ID is gone the app can never find its calendar again, and turning
+  // sync back on would leave a second "MyChart Appointments" beside the first.
+  const { calendarId } = readState();
+  writeState(calendarId ? { calendarId } : {});
   return { ok: true };
 }
 

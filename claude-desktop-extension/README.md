@@ -186,6 +186,15 @@ done** when the accounts have appointments to sync; otherwise ask Claude to
   `~/.openrecord-mcpb/bin/openrecord-calendar`, runs `connect` and a first `sync`,
   then writes `~/Library/LaunchAgents/com.fanpierlabs.openrecord.calendar.plist`
   (`openrecord-calendar tray`) so it starts at login.
+- **Turning it off and on again.** Turn Off revokes the Google grant and drops
+  the token and sync status, but keeps the calendar ID in
+  `google-calendar.json`. Turning sync back on reuses that calendar: a fresh grant
+  can still reach a calendar the app created under a revoked one (checked
+  against real Google). A new calendar is made only if the user deleted the old
+  one. The ID matters because `calendar.app.created` can't list calendars, so a
+  lost ID can never be recovered and would leave a second "MyChart
+  Appointments" beside the first. `connect` also reuses a grant Google still
+  honours, and only asks for consent again on `invalid_grant`.
 - **What it writes.** Visit type and provider, clinic and address (or "Video
   visit"), arrival time and clinic phone. Each event's id is derived from
   (account, CSN), so a re-sync updates the same event. Future events whose visit

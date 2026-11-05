@@ -52,10 +52,6 @@ export function writeState(state: CalendarState): void {
   try { fs.chmodSync(STATE_PATH, 0o600); } catch { /* best effort */ }
 }
 
-export function clearState(): void {
-  try { fs.unlinkSync(STATE_PATH); } catch { /* ignore */ }
-}
-
 const tokenSlot: FileSlot = {
   read() {
     try {

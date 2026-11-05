@@ -65,6 +65,13 @@ export function buildAuthUrl(redirectUri: string, codeChallenge: string, state: 
   return `${AUTH_URL}?${params}`;
 }
 
+/** Google refused a token request; `code` is its OAuth error, e.g. `invalid_grant` for a revoked or expired grant. */
+export class GoogleTokenError extends Error {
+  constructor(readonly code: string) {
+    super(`Google sign-in failed (${code}).`);
+  }
+}
+
 async function tokenRequest(body: Record<string, string>): Promise<{ access_token: string; refresh_token?: string; scope?: string }> {
   const res = await scraperFetch(TOKEN_URL, {
     method: 'POST',
@@ -74,7 +81,7 @@ async function tokenRequest(body: Record<string, string>): Promise<{ access_toke
   const json = (await res.json().catch(() => ({}))) as { access_token?: string; refresh_token?: string; scope?: string; error?: string };
   if (!res.ok || !json.access_token) {
     // `invalid_grant` on a refresh means the user revoked access or the token aged out.
-    throw new Error(`Google sign-in failed (${json.error ?? `HTTP ${res.status}`}).`);
+    throw new GoogleTokenError(json.error ?? `HTTP ${res.status}`);
   }
   return json as { access_token: string; refresh_token?: string; scope?: string };
 }

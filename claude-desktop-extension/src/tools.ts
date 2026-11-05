@@ -1032,7 +1032,7 @@ export function registerAllTools(rawServer: McpServer): void {
     {
       description:
         "Sync the user's upcoming MyChart appointments (every connected account) to their Google Calendar, and keep them in sync every 4 hours. " +
-        'Only call this when the user has asked for it. It opens Google sign-in in their browser and waits for them to finish; ' +
+        'Only call this when the user has asked for it. Unless this Mac already holds a working Google grant, it opens Google sign-in in their browser and waits for them to finish; ' +
         'access is limited to one new calendar it creates ("MyChart Appointments") and it cannot read their other calendars. ' +
         'It then adds a menu-bar item that starts at login and runs the sync. macOS only.',
       inputSchema: {} satisfies ZodRawShape,

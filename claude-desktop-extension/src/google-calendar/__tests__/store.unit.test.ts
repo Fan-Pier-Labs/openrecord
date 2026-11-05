@@ -12,14 +12,11 @@ const ROOT = path.join(os.homedir(), '.openrecord-mcpb');
 beforeEach(() => memfs.reset());
 
 describe('calendar state', () => {
-  it('is empty until written, round-trips, is private, and clears', () => {
+  it('is empty until written, round-trips, and is private', () => {
     expect(store.readState()).toEqual({});
     store.writeState({ calendarId: 'cal', connectedAt: '2026-11-05T00:00:00Z' });
     expect(store.readState()).toEqual({ calendarId: 'cal', connectedAt: '2026-11-05T00:00:00Z' });
     expect(memfs.modeOf(path.join(ROOT, 'google-calendar.json'))).toBe(0o600);
-    store.clearState();
-    expect(store.readState()).toEqual({});
-    store.clearState();
   });
 
   it('reads a corrupt file as no state rather than throwing', () => {

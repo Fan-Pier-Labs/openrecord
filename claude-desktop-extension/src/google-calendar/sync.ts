@@ -8,7 +8,7 @@
 
 import { detailedMessage } from '../../../shared/detailedError';
 import { ACCOUNT_PROPERTY, visitToEvent, type CalendarEvent, type SyncVisit } from './events';
-import type { CalendarClient } from './google-api';
+import { GoogleTokenError, type CalendarClient } from './google-api';
 import type { AccountSyncResult } from './store';
 
 /** Reads one account's upcoming visits — `get_upcoming_visits` in `json` mode. */
@@ -44,4 +44,28 @@ export async function syncAccount(
 export async function ensureCalendar(client: CalendarClient, savedId: string | undefined): Promise<string> {
   if (savedId && (await client.calendarExists(savedId))) return savedId;
   return client.createCalendar(Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC');
+}
+
+/**
+ * An access token for `connect`: from the saved grant while Google still honours
+ * it, so turning sync on again (or a second connect) never sends the user back
+ * through consent for nothing. Only a grant Google calls dead — revoked, or
+ * expired — falls back to consent; a network failure is an error, not a prompt.
+ */
+export async function connectAccessToken(
+  saved: string | undefined,
+  refresh: (refreshToken: string) => Promise<string>,
+  consent: () => Promise<string>,
+  save: (refreshToken: string) => void,
+): Promise<{ accessToken: string; reusedGrant: boolean }> {
+  if (saved) {
+    try {
+      return { accessToken: await refresh(saved), reusedGrant: true };
+    } catch (err) {
+      if (!(err instanceof GoogleTokenError && err.code === 'invalid_grant')) throw err;
+    }
+  }
+  const refreshToken = await consent();
+  save(refreshToken);
+  return { accessToken: await refresh(refreshToken), reusedGrant: false };
 }
