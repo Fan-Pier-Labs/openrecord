@@ -2,6 +2,7 @@
 
 import type { ScanResult } from '../browser-import';
 import type { MyChartDirectoryMatch } from '../../../scrapers/list-all-mycharts/searchDirectory';
+import { isSyncableVisit, type SyncVisit } from '../google-calendar/events';
 
 /**
  * The setup widget's flow, as a reducer: which step is showing, what the
@@ -88,16 +89,22 @@ export type Step =
   // `back` is the sign-in to return to; null means the login came from an import.
   | { kind: 'twofa'; instance: Instance; pendingId: string; delivery: Delivery | null; back: CredsStep | null; error: string | null }
   | { kind: 'passkey'; instance: Instance; account: string; storage: string; error: string | null }
+  | { kind: 'checkingAppointments' }
+  | { kind: 'calendarOffer'; count: number; error: string | null }
   | { kind: 'done' };
+
+/** How the Google Calendar offer went: how many it synced, 'declined', or null when it wasn't offered. */
+export type CalendarOutcome = { synced: number } | 'declined' | null;
 
 export interface State {
   step: Step;
   /** null until the browser has been searched, and again once its import ids expire. */
   scanned: Scanned | null;
   connected: Connected[];
+  calendar: CalendarOutcome;
 }
 
-export const initialState: State = { step: { kind: 'start', error: null }, scanned: null, connected: [] };
+export const initialState: State = { step: { kind: 'start', error: null }, scanned: null, connected: [], calendar: null };
 
 /**
  * The deployed fake-mychart (scrapers/list-all-mycharts' SANDBOX_INSTANCE),
@@ -125,7 +132,11 @@ export type Action =
   | { type: 'skipPasskey' }
   | { type: 'error'; message: string }
   | { type: 'clearError' }
-  | { type: 'done' };
+  | { type: 'done' }
+  // One get_upcoming_visits (json mode) result per connected account, and list_accounts.
+  | { type: 'appointmentsChecked'; visits: unknown[]; accounts: unknown; canSync: boolean }
+  | { type: 'calendarResult'; result: unknown }
+  | { type: 'skipCalendar' };
 
 /** The fields the login tools return. Every one is optional: a result is whatever the tool sent. */
 interface ToolReply {
@@ -368,8 +379,27 @@ export function reducer(state: State, action: Action): State {
     case 'clearError':
       return 'error' in step && step.error ? { ...state, step: withError(step, null) } : state;
 
+    // Before finishing, see whether there is anything worth offering to put on a calendar.
     case 'done':
-      return state.connected.length ? { ...state, step: { kind: 'done' } } : state;
+      return state.connected.length ? { ...state, step: { kind: 'checkingAppointments' } } : state;
+
+    case 'appointmentsChecked': {
+      if (step.kind !== 'checkingAppointments') return state;
+      const count = action.visits.reduce<number>((n, r) => n + syncableCount(r), 0);
+      const syncing = (reply(action.accounts) as { calendarSync?: { enabled?: boolean } }).calendarSync?.enabled === true;
+      if (count > 0 && action.canSync && !syncing) return { ...state, step: { kind: 'calendarOffer', count, error: null } };
+      return { ...state, step: { kind: 'done' } };
+    }
+
+    case 'calendarResult': {
+      if (step.kind !== 'calendarOffer') return state;
+      const r = reply(action.result) as ToolReply & { synced?: number };
+      if (r.state === 'connected') return { ...state, calendar: { synced: r.synced ?? 0 }, step: { kind: 'done' } };
+      return { ...state, step: { ...step, error: errorText(action.result, 'Google Calendar was not connected.') } };
+    }
+
+    case 'skipCalendar':
+      return step.kind === 'calendarOffer' ? { ...state, calendar: 'declined', step: { kind: 'done' } } : state;
   }
 }
 
@@ -385,6 +415,8 @@ const TITLES: Record<Exclude<Step['kind'], 'accounts'>, string> = {
   creds: 'Sign in to MyChart',
   twofa: 'Two-step verification',
   passkey: 'Set up a passkey?',
+  checkingAppointments: 'Connected',
+  calendarOffer: 'Add your appointments to Google Calendar?',
   done: 'Connected',
 };
 
@@ -510,11 +542,17 @@ export function typedHostname(query: string): string | null {
   return labels.length > 1 && labels.every(Boolean) ? url.host : null;
 }
 
+/** How many visits in one get_upcoming_visits (json mode) result a calendar sync would add. */
+export function syncableCount(result: unknown): number {
+  const visits = (reply(result) as { visits?: unknown }).visits;
+  return Array.isArray(visits) ? (visits as SyncVisit[]).filter(isSyncableVisit).length : 0;
+}
+
 /**
  * What "I'm done" says to the conversation. It reports how the passkey offer
  * went per account rather than asking Claude to make it again.
  */
-export function setupDoneMessage(accounts: { account: string; passkey: PasskeyOutcome }[]): string {
+export function setupDoneMessage(accounts: { account: string; passkey: PasskeyOutcome }[], calendar: CalendarOutcome = null): string {
   const list = (xs: { account: string }[]) => xs.map((a) => a.account).join(', ');
   let msg = accounts.length === 1
     ? `My MyChart account ${accounts[0]!.account} is now connected.`
@@ -523,6 +561,8 @@ export function setupDoneMessage(accounts: { account: string; passkey: PasskeyOu
   const declined = accounts.filter((a) => a.passkey === null);
   if (registered.length) msg += ` A passkey is now saved for ${list(registered)}.`;
   if (declined.length) msg += ` I chose not to set up a passkey for ${list(declined)} right now, so do not offer one again.`;
+  if (calendar === 'declined') msg += ' I chose not to sync my appointments to Google Calendar, so do not offer that again.';
+  else if (calendar) msg += ` I also connected Google Calendar: ${calendar.synced} upcoming appointment(s) are on my "MyChart Appointments" calendar and will stay in sync.`;
   const which = accounts.length === 1 ? 'the account' : 'the accounts';
   return `${msg} Access ${which} and tell me a summary of my current health history, status, appointments and bills.`;
 }
