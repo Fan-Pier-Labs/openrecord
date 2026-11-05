@@ -103,6 +103,7 @@ import { saveFilePayload, saveTextFile } from './save-file';
 import { reportToolCall } from './tool-telemetry';
 import { withUpdateNotice } from './update-notice';
 import { detailedMessage } from '../../shared/detailedError';
+import { calendarSyncStatus, connectGoogleCalendar } from './google-calendar/applet';
 
 // ── Result helpers ──────────────────────────────────────────────────────────
 
@@ -743,7 +744,7 @@ export function registerAllTools(rawServer: McpServer): void {
             // otherwise a locked keychain downgrades storage silently and
             // nobody ever finds out.
             text: JSON.stringify(
-              { count: accounts.length, secretStorage: secretBackend(), accounts: accountList },
+              { count: accounts.length, secretStorage: secretBackend(), calendarSync: calendarSyncStatus(), accounts: accountList },
               null,
               2,
             ),
@@ -1018,6 +1019,40 @@ export function registerAllTools(rawServer: McpServer): void {
       try {
         const savedTo = saveTextFile(file_name, content);
         return jsonResult({ saved_to: savedTo, size_bytes: Buffer.byteLength(content) });
+      } catch (err) {
+        return caughtErrorResult(err);
+      }
+    },
+  );
+
+  // Mac-only and machine-local (it installs a menu-bar app), like the account
+  // tools above — so it is hand-written here, not a shared capability.
+  server.registerTool(
+    'connect_google_calendar',
+    {
+      description:
+        "Sync the user's upcoming MyChart appointments (every connected account) to their Google Calendar, and keep them in sync every 4 hours. " +
+        'Only call this when the user has asked for it. Unless this Mac already holds a working Google grant, it opens Google sign-in in their browser and waits for them to finish; ' +
+        'access is limited to one new calendar it creates ("MyChart Appointments") and it cannot read their other calendars. ' +
+        'It then adds a menu-bar item that starts at login and runs the sync. macOS only.',
+      inputSchema: {} satisfies ZodRawShape,
+      ...toolMeta('Sync appointments to Google Calendar', { readOnlyHint: false, destructiveHint: false, openWorldHint: true }),
+    },
+    async () => {
+      try {
+        const { sync } = await connectGoogleCalendar();
+        const failed = (sync.accounts ?? []).filter((a) => a.error);
+        return jsonResult({
+          state: 'connected',
+          synced: sync.synced ?? 0,
+          accounts: sync.accounts ?? [],
+          message:
+            `Google Calendar is connected. ${sync.synced ?? 0} upcoming appointment(s) are on the "MyChart Appointments" calendar. ` +
+            'A calendar icon is now in the menu bar; it starts at login and syncs every 4 hours, and its menu has "Turn Off Calendar Sync". ' +
+            'Tell the user that macOS may later ask whether openrecord-calendar may use OpenRecord\'s saved MyChart sign-in from the keychain, and to choose "Always Allow" so background syncs can sign in.' +
+            (failed.length ? ` These accounts could not be synced yet: ${failed.map((a) => `${a.account} (${a.error})`).join('; ')}.` : '') +
+            (!sync.ok && !sync.accounts ? ` The first sync did not finish: ${sync.error ?? 'unknown error'}. The app will retry.` : ''),
+        });
       } catch (err) {
         return caughtErrorResult(err);
       }

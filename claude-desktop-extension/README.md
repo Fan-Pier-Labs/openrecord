@@ -159,6 +159,63 @@ machine and have no counterpart in the other clients.
 > Send a message to Dr. Smith asking about my latest blood pressure reading.
 > Show me my last imaging study.
 
+### Google Calendar sync (macOS)
+
+`connect_google_calendar` puts every connected account's upcoming appointments on
+a Google calendar and keeps them there. The setup widget offers it after **I'm
+done** when the accounts have appointments to sync; otherwise ask Claude to
+"sync my appointments to Google Calendar".
+
+- **Scope.** The only Google scope requested is `calendar.app.created`: OpenRecord
+  creates a "MyChart Appointments" calendar and can see and change only that one.
+  It never reads the user's other calendars.
+- **All TypeScript, one binary.** `src/google-calendar/worker.ts` is compiled
+  with `bun build --compile --aot` into `openrecord-calendar`, one binary per Mac
+  architecture, using this extension's own scrapers, credential store and passkeys:
+  `tray` (the menu-bar item), `connect` (loopback + PKCE consent in the
+  browser), `sync` (one pass) and `disconnect`.
+- **The menu-bar item** (`tray.ts`) drives AppKit through `bun:ffi` (`objc.ts`).
+  `[NSApp run]` owns the main thread, and menu clicks, timers and wake
+  notifications call straight into JS, so the process sleeps in the run loop
+  while idle (0% CPU, about 80 MB). A sync runs as a child process of the same
+  binary, started with NSTask, and writes its outcome to the state file the menu
+  reads. It syncs when 4 hours have passed since the last sync, checking every
+  15 minutes and on wake, because a timer's clock stops while the Mac sleeps.
+  The menu has Sync Now, Open Google Calendar and Turn Off Calendar Sync.
+- **Install.** The tool copies the matching binary to
+  `~/.openrecord-mcpb/bin/openrecord-calendar`, runs `connect` and a first `sync`,
+  then writes `~/Library/LaunchAgents/com.fanpierlabs.openrecord.calendar.plist`
+  (`openrecord-calendar tray`) so it starts at login.
+- **Turning it off and on again.** Turn Off revokes the Google grant and drops
+  the token and sync status, but keeps the calendar ID in
+  `google-calendar.json`. Turning sync back on reuses that calendar: a fresh grant
+  can still reach a calendar the app created under a revoked one (checked
+  against real Google). A new calendar is made only if the user deleted the old
+  one. The ID matters because `calendar.app.created` can't list calendars, so a
+  lost ID can never be recovered and would leave a second "MyChart
+  Appointments" beside the first. `connect` also reuses a grant Google still
+  honours, and only asks for consent again on `invalid_grant`.
+- **What it writes.** Visit type and provider, clinic and address (or "Video
+  visit"), arrival time and clinic phone. Each event's id is derived from
+  (account, CSN), so a re-sync updates the same event. Future events whose visit
+  is gone are deleted, but only after that account's read succeeded. A failed
+  read never empties the calendar. Canceled visits are left off.
+- **Keychain.** The binary stores the Google refresh token itself
+  (`google-calendar:refresh-token`, same `openrecord-mcpb` service). The MyChart
+  passwords and passkeys it reads were created by the MCPB, so the first
+  background sign-in raises macOS's "Always Allow" prompt for
+  `openrecord-calendar`. It's signed with the Developer ID when it's built on a
+  machine that has one, so that approval survives updates.
+- **Build.** `bun run build:applet` (part of `bun run pack`) writes
+  `applet/openrecord-calendar-darwin-{arm64,x64}` (about 96 and 106 MB). It bakes
+  in the Google "Desktop app" OAuth client from
+  `~/.config/fan-pier-labs/google-oauth-client.json`, which is never committed,
+  and refuses to build an architecture whose `@napi-rs/keyring` binding isn't
+  installed. Without that binding the binary would silently fall back to file
+  storage and never see the MCPB's keychain items. State lives in
+  `~/.openrecord-mcpb/google-calendar.json`, which `list_accounts` reports as
+  `calendarSync`.
+
 ### Imaging
 
 `download_imaging_study` returns each picture as an image content block, so
