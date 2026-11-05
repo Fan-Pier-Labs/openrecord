@@ -53,7 +53,3 @@ node_modules/@napi-rs/*
 *.mcpb
 *.log
 .DS_Store
-
-# Swift source for the calendar menu-bar app; scripts/build-calendar-applet.ts
-# builds it into applet/, which ships.
-calendar-applet/

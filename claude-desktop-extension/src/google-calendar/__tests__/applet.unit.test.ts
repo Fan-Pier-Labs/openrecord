@@ -18,11 +18,11 @@ describe('parseWorkerOutput', () => {
 });
 
 describe('launchAgentPlist', () => {
-  it('starts the app at login, escaping the path', () => {
-    const plist = launchAgentPlist('/Users/a&b/Applications/OpenRecord Calendar.app/Contents/MacOS/OpenRecordCalendar');
+  it('starts the menu-bar mode at login, escaping the path', () => {
+    const plist = launchAgentPlist('/Users/a&b/.openrecord-mcpb/bin/openrecord-calendar');
     expect(plist).toContain(`<string>${AGENT_LABEL}</string>`);
     expect(plist).toContain('<key>RunAtLoad</key>\n  <true/>');
-    expect(plist).toContain('/Users/a&amp;b/Applications/');
+    expect(plist).toContain('<string>/Users/a&amp;b/.openrecord-mcpb/bin/openrecord-calendar</string>\n    <string>tray</string>');
   });
 });
 

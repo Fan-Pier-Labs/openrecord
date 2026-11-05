@@ -1034,7 +1034,7 @@ export function registerAllTools(rawServer: McpServer): void {
         "Sync the user's upcoming MyChart appointments (every connected account) to their Google Calendar, and keep them in sync every 4 hours. " +
         'Only call this when the user has asked for it. It opens Google sign-in in their browser and waits for them to finish; ' +
         'access is limited to one new calendar it creates ("MyChart Appointments") and it cannot read their other calendars. ' +
-        'It then installs the OpenRecord Calendar menu-bar app, which starts at login and runs the sync. macOS only.',
+        'It then adds a menu-bar item that starts at login and runs the sync. macOS only.',
       inputSchema: {} satisfies ZodRawShape,
       ...toolMeta('Sync appointments to Google Calendar', { readOnlyHint: false, destructiveHint: false, openWorldHint: true }),
     },
@@ -1048,8 +1048,8 @@ export function registerAllTools(rawServer: McpServer): void {
           accounts: sync.accounts ?? [],
           message:
             `Google Calendar is connected. ${sync.synced ?? 0} upcoming appointment(s) are on the "MyChart Appointments" calendar. ` +
-            'The OpenRecord Calendar menu-bar app is installed; it starts at login and syncs every 4 hours, and its menu has "Turn Off Calendar Sync". ' +
-            'Tell the user that macOS may later ask whether openrecord-calendar-sync may use OpenRecord\'s saved MyChart sign-in from the keychain, and to choose "Always Allow" so background syncs can sign in.' +
+            'A calendar icon is now in the menu bar; it starts at login and syncs every 4 hours, and its menu has "Turn Off Calendar Sync". ' +
+            'Tell the user that macOS may later ask whether openrecord-calendar may use OpenRecord\'s saved MyChart sign-in from the keychain, and to choose "Always Allow" so background syncs can sign in.' +
             (failed.length ? ` These accounts could not be synced yet: ${failed.map((a) => `${a.account} (${a.error})`).join('; ')}.` : '') +
             (!sync.ok && !sync.accounts ? ` The first sync did not finish: ${sync.error ?? 'unknown error'}. The app will retry.` : ''),
         });

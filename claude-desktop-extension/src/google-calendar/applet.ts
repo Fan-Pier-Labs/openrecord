@@ -1,11 +1,11 @@
 // Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
 
 /**
- * The MCPB's side of calendar sync: install the "OpenRecord Calendar"
- * menu-bar app, drive its worker binary through Google consent and a first
- * sync, then register it to start at login.
+ * The MCPB's side of calendar sync: install the `openrecord-calendar` binary
+ * (one per architecture ships in applet/), drive it through Google consent and
+ * a first sync, then register its menu-bar mode to start at login.
  *
- * The MCPB never holds the Google token itself. The worker binary does the
+ * The MCPB never holds the Google token itself. The binary does the
  * consent flow and stores the token, so the token's keychain item belongs to
  * the program that reads it every four hours. That item is the only one it
  * creates; the MyChart passwords and passkeys it reads are the MCPB's (the
@@ -19,16 +19,15 @@ import * as path from 'path';
 
 import { readState, type LastSync } from './store';
 
-const APP_NAME = 'OpenRecord Calendar.app';
-const WORKER_NAME = 'openrecord-calendar-sync';
-const APP_EXECUTABLE = 'OpenRecordCalendar';
 export const AGENT_LABEL = 'com.fanpierlabs.openrecord.calendar';
+export const AGENT_PLIST = path.join(os.homedir(), 'Library', 'LaunchAgents', `${AGENT_LABEL}.plist`);
+export const SYNC_LOG = path.join(os.homedir(), 'Library', 'Logs', 'OpenRecord Calendar.log');
 
-// `__dirname` is dist/ once bundled; the build puts the app in applet/ beside it.
-const BUNDLED_APP = path.resolve(__dirname, '..', 'applet', APP_NAME);
-const INSTALLED_APP = path.join(os.homedir(), 'Applications', APP_NAME);
-const WORKER = path.join(INSTALLED_APP, 'Contents', 'MacOS', WORKER_NAME);
-const AGENT_PLIST = path.join(os.homedir(), 'Library', 'LaunchAgents', `${AGENT_LABEL}.plist`);
+// `__dirname` is dist/ once bundled; the build puts the binaries in applet/ beside it.
+const bundledBinary = () => path.resolve(__dirname, '..', 'applet', `openrecord-calendar-darwin-${process.arch}`);
+// Beside the credentials it reads, and outside the extension, so an extension
+// update can't pull it out from under a running menu-bar item.
+const WORKER = path.join(os.homedir(), '.openrecord-mcpb', 'bin', 'openrecord-calendar');
 
 // Consent waits up to 5 minutes inside the worker; a sync is a few portal reads per account.
 const CONNECT_TIMEOUT_MS = 6 * 60_000;
@@ -44,8 +43,7 @@ export interface WorkerResult {
 /** Why calendar sync can't run on this machine, or null when it can. */
 export function unsupportedReason(): string | null {
   if (process.platform !== 'darwin') return 'Google Calendar sync needs macOS: it runs from a menu-bar app.';
-  if (process.arch !== 'arm64') return 'Google Calendar sync needs a Mac with Apple silicon.';
-  if (!fs.existsSync(BUNDLED_APP)) return 'This build of OpenRecord does not include the calendar menu-bar app.';
+  if (!fs.existsSync(bundledBinary())) return 'This build of OpenRecord does not include Google Calendar sync for this Mac.';
   return null;
 }
 
@@ -74,15 +72,18 @@ async function runWorker(command: string, timeout: number): Promise<WorkerResult
 
 const guiDomain = () => `gui/${process.getuid?.() ?? 501}`;
 
-/** Stop a running copy and put a fresh one in ~/Applications, so an updated extension updates the app. */
-async function installApp(): Promise<void> {
+/** Stop a running copy and install a fresh one, so an updated extension updates the binary. */
+async function installBinary(): Promise<void> {
   await run('/bin/launchctl', ['bootout', `${guiDomain()}/${AGENT_LABEL}`], 10_000);
-  fs.rmSync(INSTALLED_APP, { recursive: true, force: true });
-  fs.mkdirSync(path.dirname(INSTALLED_APP), { recursive: true });
-  fs.cpSync(BUNDLED_APP, INSTALLED_APP, { recursive: true });
-  // Copied out of an extension Claude unpacked from a download, the bundle can
+  fs.mkdirSync(path.dirname(WORKER), { recursive: true });
+  // Copy to a temp name and rename over: never a half-written binary at WORKER.
+  const temp = `${WORKER}.new`;
+  fs.copyFileSync(bundledBinary(), temp);
+  fs.chmodSync(temp, 0o755);
+  fs.renameSync(temp, WORKER);
+  // Copied out of an extension Claude unpacked from a download, the binary can
   // carry the download's quarantine flag, which would stop launchd starting it.
-  await run('/usr/bin/xattr', ['-dr', 'com.apple.quarantine', INSTALLED_APP], 10_000);
+  await run('/usr/bin/xattr', ['-d', 'com.apple.quarantine', WORKER], 10_000);
 }
 
 const xmlEscape = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -97,6 +98,7 @@ export function launchAgentPlist(executable: string): string {
   <key>ProgramArguments</key>
   <array>
     <string>${xmlEscape(executable)}</string>
+    <string>tray</string>
   </array>
   <key>RunAtLoad</key>
   <true/>
@@ -112,20 +114,20 @@ export function launchAgentPlist(executable: string): string {
 /** Start at every login, and now. */
 async function startAtLogin(): Promise<void> {
   fs.mkdirSync(path.dirname(AGENT_PLIST), { recursive: true });
-  fs.writeFileSync(AGENT_PLIST, launchAgentPlist(path.join(INSTALLED_APP, 'Contents', 'MacOS', APP_EXECUTABLE)));
+  fs.writeFileSync(AGENT_PLIST, launchAgentPlist(WORKER));
   const { code } = await run('/bin/launchctl', ['bootstrap', guiDomain(), AGENT_PLIST], 10_000);
-  if (code !== 0) throw new Error('Could not start the OpenRecord Calendar menu-bar app (launchctl bootstrap failed).');
+  if (code !== 0) throw new Error('Could not start the OpenRecord Calendar menu-bar item (launchctl bootstrap failed).');
 }
 
 export interface ConnectOutcome {
   sync: WorkerResult;
 }
 
-/** Install the app, run Google consent in the browser, sync once, and start the app at login. */
+/** Install the binary, run Google consent in the browser, sync once, and start the menu-bar item at login. */
 export async function connectGoogleCalendar(): Promise<ConnectOutcome> {
   const unsupported = unsupportedReason();
   if (unsupported) throw new Error(unsupported);
-  await installApp();
+  await installBinary();
   const connected = await runWorker('connect', CONNECT_TIMEOUT_MS);
   if (!connected.ok) throw new Error(connected.error ?? 'Google Calendar was not connected.');
   const sync = await runWorker('sync', SYNC_TIMEOUT_MS);

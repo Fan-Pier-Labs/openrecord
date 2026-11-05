@@ -8,16 +8,17 @@ setLogSink((level, args) => {
 });
 
 /**
- * The calendar sync worker: compiled with `bun build --compile` into a single
- * binary inside the menu-bar app (scripts/build-calendar-applet.ts), so the
- * sync runs the extension's own TypeScript — the same scrapers, the same
- * credential store and the same passkeys — with no Node install.
+ * `openrecord-calendar`: Google Calendar sync as one self-contained binary,
+ * compiled with `bun build --compile --aot` (scripts/build-calendar-applet.ts),
+ * so it runs the extension's own TypeScript — the same scrapers, credential
+ * store and passkeys — with no Node install.
  *
- *   openrecord-calendar-sync connect     Google consent in the browser; creates the calendar
- *   openrecord-calendar-sync sync        one sync pass over every saved MyChart account
- *   openrecord-calendar-sync disconnect  revoke Google access and forget the token
+ *   openrecord-calendar tray        the menu-bar item (what the LaunchAgent starts at login)
+ *   openrecord-calendar connect     Google consent in the browser; creates the calendar
+ *   openrecord-calendar sync        one sync pass over every saved MyChart account
+ *   openrecord-calendar disconnect  revoke Google access and forget the token
  *
- * Each prints one JSON object to stdout and exits 0 on success, 1 on failure.
+ * All but `tray` print one JSON object to stdout and exit 0 on success, 1 on failure.
  */
 
 import { execFile } from 'child_process';
@@ -29,6 +30,7 @@ import { clearAllSessions, resolveSession } from '../session-manager';
 import type { SyncVisit } from './events';
 import { accessTokenFor, authorizeInBrowser, CalendarClient, revoke } from './google-api';
 import { ensureCalendar, syncAccount } from './sync';
+import { runTray } from './tray';
 import { clearRefreshToken, clearState, readRefreshToken, readState, saveRefreshToken, writeState } from './store';
 
 type Result = { ok: boolean } & Record<string, unknown>;
@@ -80,10 +82,11 @@ async function disconnect(): Promise<Result> {
 const COMMANDS: Record<string, () => Promise<Result>> = { connect, sync, disconnect };
 
 async function main(): Promise<void> {
+  if (process.argv[2] === 'tray') runTray(process.execPath);
   const command = COMMANDS[process.argv[2] ?? ''];
   let result: Result;
   if (!command) {
-    result = { ok: false, error: `Usage: openrecord-calendar-sync <${Object.keys(COMMANDS).join('|')}>` };
+    result = { ok: false, error: `Usage: openrecord-calendar <tray|${Object.keys(COMMANDS).join('|')}>` };
   } else {
     try {
       result = await command();

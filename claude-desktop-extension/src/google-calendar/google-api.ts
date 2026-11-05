@@ -20,10 +20,15 @@ import type { AddressInfo } from 'net';
 import { scraperFetch } from '../../../scrapers/http';
 import type { CalendarEvent } from './events';
 
-// A "Desktop app" OAuth client. Google documents that an installed app's
-// client secret is not confidential — PKCE is what protects the exchange.
-export const GOOGLE_CLIENT_ID = '';
-const GOOGLE_CLIENT_SECRET = '';
+// A "Desktop app" OAuth client, baked into the worker binary at build time
+// (scripts/build-calendar-applet.ts, from ~/.config/fan-pier-labs/google-oauth-client.json)
+// so it never sits in git. Google documents that an installed app's client
+// secret is not confidential, and PKCE is what protects the exchange, but a
+// public repo with one in it trips secret scanning all the same.
+declare const __GOOGLE_OAUTH_CLIENT_ID__: string | undefined;
+declare const __GOOGLE_OAUTH_CLIENT_SECRET__: string | undefined;
+export const GOOGLE_CLIENT_ID = typeof __GOOGLE_OAUTH_CLIENT_ID__ === 'string' ? __GOOGLE_OAUTH_CLIENT_ID__ : '';
+const GOOGLE_CLIENT_SECRET = typeof __GOOGLE_OAUTH_CLIENT_SECRET__ === 'string' ? __GOOGLE_OAUTH_CLIENT_SECRET__ : '';
 
 export const SCOPE = 'https://www.googleapis.com/auth/calendar.app.created';
 const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
