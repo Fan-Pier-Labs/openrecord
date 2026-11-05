@@ -59,8 +59,8 @@ export function App({ host }: { host: Host }) {
       host.callTool('list_accounts', {}),
       ...state.connected.map((c) => host.callTool('get_upcoming_visits', { account: c.account, mode: 'json' })),
     ]);
-    // The sync runs from a macOS menu-bar app.
-    const canSync = navigator.userAgent.includes('Mac');
+    // The sync runs from a macOS menu-bar or Windows tray icon.
+    const canSync = /Mac|Windows/.test(navigator.userAgent);
     const next = reducer({ ...state, step: { kind: 'checkingAppointments' } }, { type: 'appointmentsChecked', visits, accounts, canSync });
     dispatch({ type: 'appointmentsChecked', visits, accounts, canSync });
     if (next.step.kind === 'done') finish(setupDoneMessage(state.connected));
