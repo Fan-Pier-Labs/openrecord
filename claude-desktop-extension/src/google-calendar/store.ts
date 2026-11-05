@@ -78,4 +78,3 @@ export const readRefreshToken = (): string | undefined => readSecret(TOKEN_KEY, 
 export const saveRefreshToken = (token: string): void => writeSecret(TOKEN_KEY, token, tokenSlot);
 export const clearRefreshToken = (): void => clearSecret(TOKEN_KEY, tokenSlot);
 
-export const _calendarPaths = { STATE_PATH, TOKEN_FILE };

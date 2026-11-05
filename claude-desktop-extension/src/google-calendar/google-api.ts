@@ -27,8 +27,8 @@ import type { CalendarEvent } from './events';
 // public repo with one in it trips secret scanning all the same.
 declare const __GOOGLE_OAUTH_CLIENT_ID__: string | undefined;
 declare const __GOOGLE_OAUTH_CLIENT_SECRET__: string | undefined;
-export const GOOGLE_CLIENT_ID = typeof __GOOGLE_OAUTH_CLIENT_ID__ === 'string' ? __GOOGLE_OAUTH_CLIENT_ID__ : '';
-const GOOGLE_CLIENT_SECRET = typeof __GOOGLE_OAUTH_CLIENT_SECRET__ === 'string' ? __GOOGLE_OAUTH_CLIENT_SECRET__ : '';
+const clientId = () => (typeof __GOOGLE_OAUTH_CLIENT_ID__ === 'string' ? __GOOGLE_OAUTH_CLIENT_ID__ : '');
+const clientSecret = () => (typeof __GOOGLE_OAUTH_CLIENT_SECRET__ === 'string' ? __GOOGLE_OAUTH_CLIENT_SECRET__ : '');
 
 export const SCOPE = 'https://www.googleapis.com/auth/calendar.app.created';
 const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
@@ -36,13 +36,13 @@ const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const REVOKE_URL = 'https://oauth2.googleapis.com/revoke';
 const CALENDAR_API = 'https://www.googleapis.com/calendar/v3';
 
-export const CALENDAR_NAME = 'MyChart Appointments';
+const CALENDAR_NAME = 'MyChart Appointments';
 
 /** How long the browser consent may take before the flow gives up. */
 const CONSENT_TIMEOUT_MS = 5 * 60_000;
 
 function requireClient(): void {
-  if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
+  if (!clientId() || !clientSecret()) {
     throw new Error('Google Calendar sync is not available in this build: no Google OAuth client is configured.');
   }
 }
@@ -51,7 +51,7 @@ const base64url = (buf: Buffer) => buf.toString('base64url');
 
 export function buildAuthUrl(redirectUri: string, codeChallenge: string, state: string): string {
   const params = new URLSearchParams({
-    client_id: GOOGLE_CLIENT_ID,
+    client_id: clientId(),
     redirect_uri: redirectUri,
     response_type: 'code',
     scope: SCOPE,
@@ -69,7 +69,7 @@ async function tokenRequest(body: Record<string, string>): Promise<{ access_toke
   const res = await scraperFetch(TOKEN_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
-    body: new URLSearchParams({ client_id: GOOGLE_CLIENT_ID, client_secret: GOOGLE_CLIENT_SECRET, ...body }).toString(),
+    body: new URLSearchParams({ client_id: clientId(), client_secret: clientSecret(), ...body }).toString(),
   });
   const json = (await res.json().catch(() => ({}))) as { access_token?: string; refresh_token?: string; scope?: string; error?: string };
   if (!res.ok || !json.access_token) {

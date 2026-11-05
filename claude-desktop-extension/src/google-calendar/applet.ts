@@ -41,7 +41,7 @@ export interface WorkerResult {
 }
 
 /** Why calendar sync can't run on this machine, or null when it can. */
-export function unsupportedReason(): string | null {
+function unsupportedReason(): string | null {
   if (process.platform !== 'darwin') return 'Google Calendar sync needs macOS: it runs from a menu-bar app.';
   if (!fs.existsSync(bundledBinary())) return 'This build of OpenRecord does not include Google Calendar sync for this Mac.';
   return null;

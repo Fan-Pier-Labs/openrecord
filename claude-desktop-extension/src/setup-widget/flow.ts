@@ -543,7 +543,7 @@ export function typedHostname(query: string): string | null {
 }
 
 /** How many visits in one get_upcoming_visits (json mode) result a calendar sync would add. */
-export function syncableCount(result: unknown): number {
+function syncableCount(result: unknown): number {
   const visits = (reply(result) as { visits?: unknown }).visits;
   return Array.isArray(visits) ? (visits as SyncVisit[]).filter(isSyncableVisit).length : 0;
 }
