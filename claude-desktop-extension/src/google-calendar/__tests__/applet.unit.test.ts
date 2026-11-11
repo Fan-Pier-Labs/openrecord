@@ -7,6 +7,7 @@
  */
 
 import { afterAll, beforeEach, describe, expect, it, mock } from 'bun:test';
+import * as crypto from 'node:crypto';
 import * as realFs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -18,11 +19,16 @@ const ROOT = path.join(HOME, '.openrecord-mcpb');
 const LIBRARY = path.join(HOME, 'Library');
 const WORKER = path.join(ROOT, 'bin', 'openrecord-calendar');
 const PLIST = path.join(LIBRARY, 'LaunchAgents', 'com.fanpierlabs.openrecord.calendar.plist');
-const BUNDLED = path.resolve(import.meta.dir, '..', '..', 'applet', `openrecord-calendar-darwin-${process.arch}`);
+// applet.ts resolves applet/ from its own directory's parent: src/ here, the extension root once bundled into dist/.
+const APPLET = path.resolve(import.meta.dir, '..', '..', 'applet');
+const LOCAL_BUILD = path.join(APPLET, `openrecord-calendar-darwin-${process.arch}`);
+const HASHES = path.join(APPLET, 'calendar-binaries.json');
+const LOG = path.join(LIBRARY, 'Logs', 'OpenRecord Calendar.log');
+const sha256 = (s: string) => crypto.createHash('sha256').update(s).digest('hex');
 
 const files = new Map<string, string>();
 const ours = (p: unknown): p is string =>
-  typeof p === 'string' && (p.startsWith(ROOT) || p.startsWith(LIBRARY) || p === BUNDLED);
+  typeof p === 'string' && (p.startsWith(ROOT) || p.startsWith(LIBRARY) || p === LOCAL_BUILD || p === HASHES);
 const enoent = () => Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
 
 const fsMock = {
@@ -75,16 +81,30 @@ void mock.module('child_process', () => ({
 
 const realPlatform = process.platform;
 Object.defineProperty(process, 'platform', { value: 'darwin' });
-afterAll(() => Object.defineProperty(process, 'platform', { value: realPlatform }));
+afterAll(() => {
+  Object.defineProperty(process, 'platform', { value: realPlatform });
+});
 
 const applet = await import('../applet');
 const { buildAuthUrl, SCOPE } = await import('../google-api');
+const { setTestTransport } = await import('../../../../scrapers/http');
+
+/** What the download URL serves, and every URL requested. */
+let served: string | null = null;
+let requested: string[] = [];
 
 beforeEach(() => {
   files.clear();
-  files.set(BUNDLED, 'binary');
+  files.set(LOCAL_BUILD, 'binary');
+  files.set(HASHES, JSON.stringify({ [process.arch]: sha256('binary') }));
+  served = null;
+  requested = [];
+  setTestTransport(async (url) => {
+    requested.push(url);
+    return served === null ? new Response('', { status: 404 }) : new Response(served);
+  });
   commands = [];
-  replies = { connect: '{"ok":true}', sync: '{"ok":true,"synced":2,"accounts":[]}' };
+  replies = { connect: '{"ok":true}', sync: '{"ok":true,"synced":2,"accounts":[]}', disconnect: '{"ok":true}' };
   bootstrapFails = false;
 });
 
@@ -117,8 +137,37 @@ describe('connectGoogleCalendar', () => {
     await expect(applet.connectGoogleCalendar()).rejects.toThrow('launchctl bootstrap failed');
   });
 
+  it('downloads the released binary when this is not a checkout with its own build', async () => {
+    files.delete(LOCAL_BUILD);
+    served = 'binary';
+    await applet.connectGoogleCalendar();
+    expect(requested).toEqual([`${applet.DOWNLOAD_BASE}openrecord-calendar-darwin-${process.arch}-${sha256('binary')}`]);
+    expect(files.get(WORKER)).toBe('binary');
+  });
+
+  it('refuses a download that is not the released binary, before stopping anything', async () => {
+    files.delete(LOCAL_BUILD);
+    served = 'tampered';
+    await expect(applet.connectGoogleCalendar()).rejects.toThrow('did not match this version');
+    expect(files.has(WORKER)).toBe(false);
+    expect(commands).toEqual([]);
+  });
+
+  it('says so when the download fails', async () => {
+    files.delete(LOCAL_BUILD);
+    await expect(applet.connectGoogleCalendar()).rejects.toThrow('HTTP 404');
+  });
+
+  it('downloads nothing when the released binary is already installed', async () => {
+    files.delete(LOCAL_BUILD);
+    files.set(WORKER, 'binary');
+    await applet.connectGoogleCalendar();
+    expect(requested).toEqual([]);
+    expect(commands.some((c) => c[0] === 'xattr')).toBe(false);
+  });
+
   it('refuses where it cannot run', async () => {
-    files.delete(BUNDLED);
+    files.delete(HASHES);
     await expect(applet.connectGoogleCalendar()).rejects.toThrow('does not include Google Calendar sync for this Mac');
     Object.defineProperty(process, 'platform', { value: 'win32' });
     try {
@@ -127,6 +176,29 @@ describe('connectGoogleCalendar', () => {
       Object.defineProperty(process, 'platform', { value: 'darwin' });
     }
     expect(commands).toEqual([]);
+  });
+});
+
+describe('uninstallGoogleCalendar', () => {
+  it('disconnects through the binary, stops it, and deletes it, its login item and its log', async () => {
+    await applet.connectGoogleCalendar();
+    files.set(LOG, 'log');
+    commands = [];
+    await applet.uninstallGoogleCalendar();
+    expect(commands.map((c) => c.slice(0, 2).join(' '))).toEqual(['openrecord-calendar disconnect', 'launchctl bootout']);
+    for (const f of [WORKER, PLIST, LOG]) expect(files.has(f)).toBe(false);
+    expect(applet.calendarSyncStatus().enabled).toBe(false);
+  });
+
+  it('revokes and forgets Google itself when the binary is already gone, keeping the calendar id', async () => {
+    const state = path.join(ROOT, 'google-calendar.json');
+    files.set(state, JSON.stringify({ calendarId: 'cal', connectedAt: 'x' }));
+    files.set(path.join(ROOT, 'google-calendar-token.json'), JSON.stringify({ refreshToken: 'tok' }));
+    served = '';
+    await applet.uninstallGoogleCalendar();
+    expect(requested.some((u) => u.includes('revoke') && u.includes('token=tok'))).toBe(true);
+    expect(files.has(path.join(ROOT, 'google-calendar-token.json'))).toBe(false);
+    expect(JSON.parse(files.get(state)!)).toEqual({ calendarId: 'cal' });
   });
 });
 

@@ -23,6 +23,10 @@ export interface AccountSyncResult {
   synced: number;
   removed: number;
   error?: string;
+  /** Consecutive failed attempts, while failing. */
+  failures?: number;
+  /** Failed MAX_ATTEMPTS times in a row: scheduled syncs skip this account until Sync Now. */
+  stopped?: true;
 }
 
 export interface LastSync {
@@ -30,8 +34,11 @@ export interface LastSync {
   ok: boolean;
   synced: number;
   accounts: AccountSyncResult[];
-  /** Set when the sync failed before reaching any account (Google, not MyChart). */
+  /** Set when the sync failed before reaching any account (Google, or a crash), not MyChart. */
   error?: string;
+  failures?: number;
+  /** Such a failure MAX_ATTEMPTS times in a row: no scheduled sync runs until Sync Now. */
+  stopped?: true;
 }
 
 export interface CalendarState {

@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from 'bun:test';
 
-import { failureNotice, iconSymbol, isSyncDue, statusLines, SYNC_INTERVAL_MS } from '../tray-menu';
+import { iconSymbol, isSyncDue, RETRY_INTERVAL_MS, statusLines, stopNotice, SYNC_INTERVAL_MS } from '../tray-menu';
 
 const now = new Date('2026-11-05T12:00:00Z');
 const ago = (ms: number) => new Date(now.getTime() - ms).toISOString();
@@ -42,44 +42,50 @@ describe('menu text and icon', () => {
   });
 });
 
-describe('failureNotice', () => {
-  const failed = (at: string, accounts: { account: string; error?: string }[]) => ({
-    at, ok: false, synced: 0, accounts: accounts.map((a) => ({ ...a, synced: 0, removed: 0 })),
+
+describe('retries and stopping', () => {
+  const account = (error?: string, failures?: number, stopped?: true) =>
+    ({ account: 'c@d.org', synced: 0, removed: 0, ...(error && { error }), ...(failures && { failures }), ...(stopped && { stopped }) });
+  const run = (at: string, accounts: ReturnType<typeof account>[], extra: object = {}) =>
+    ({ at, ok: accounts.every((a) => !a.error) && !('error' in extra), synced: 0, accounts, ...extra });
+
+  it('retries a failure after ten minutes instead of four hours', () => {
+    const failing = { connectedAt: ago(0), lastSync: run(ago(RETRY_INTERVAL_MS), [account('Login failed', 1)]) };
+    expect(isSyncDue(failing, now)).toBe(true);
+    expect(isSyncDue({ ...failing, lastSync: run(ago(RETRY_INTERVAL_MS - 60_000), [account('Login failed', 1)]) }, now)).toBe(false);
   });
 
-  it('says nothing when the sync worked', () => {
-    expect(failureNotice(undefined, lastSync(ago(0)))).toBeNull();
+  it('goes back to every four hours once the only failing account has stopped', () => {
+    const stoppedOnly = { connectedAt: ago(0), lastSync: run(ago(RETRY_INTERVAL_MS), [account('Login failed', 3, true)]) };
+    expect(isSyncDue(stoppedOnly, now)).toBe(false);
   });
 
-  it('names the one account that failed', () => {
-    const notice = failureNotice(undefined, failed(ago(0), [{ account: 'a@b.org' }, { account: 'c@d.org', error: 'Login failed' }]));
-    expect(notice?.title).toBe('MyChart calendar sync failed');
-    expect(notice?.body).toBe('c@d.org: Login failed');
+  it('never schedules a sync after a run-level stop', () => {
+    const stopped = { connectedAt: ago(0), lastSync: run(ago(SYNC_INTERVAL_MS * 10), [], { error: 'Google said no.', failures: 3, stopped: true }) };
+    expect(isSyncDue(stopped, now)).toBe(false);
+    expect(statusLines(stopped, false)[0]).toMatch(/^Sync stopped /);
   });
 
-  it('lists several failed accounts', () => {
-    const notice = failureNotice(undefined, failed(ago(0), [{ account: 'a@b.org', error: 'x' }, { account: 'c@d.org', error: 'y' }]));
-    expect(notice?.body).toMatch(/^2 accounts could not sync: a@b\.org, c@d\.org\./);
+  it('says nothing until something has stopped', () => {
+    expect(stopNotice(undefined)).toBeNull();
+    expect(stopNotice(run(ago(0), [account('Login failed', 2)]))).toBeNull();
+    expect(stopNotice(run(ago(0), [], { error: 'Offline.', failures: 2 }))).toBeNull();
   });
 
-  it('reports a failure before any account, like a revoked Google grant', () => {
-    const notice = failureNotice(undefined, { ...failed(ago(0), []), error: 'Google access was revoked' });
-    expect(notice?.body).toBe('Google access was revoked');
-    expect(statusLines({ connectedAt: ago(0), lastSync: { ...failed(ago(0), []), error: 'Google access was revoked' } }, false)[1])
-      .toBe('⚠︎ Google access was revoked');
+  it('names the account that stopped, and the menu says how to start it again', () => {
+    const last = run(ago(0), [account('Login failed', 3, true)]);
+    expect(stopNotice(last)).toMatchObject({ title: 'MyChart calendar sync stopped', body: 'c@d.org failed 3 times in a row: Login failed' });
+    expect(statusLines({ connectedAt: ago(0), lastSync: last }, false)[1]).toContain('choose Sync Now to try again');
   });
 
-  it('treats a run that recorded nothing as unfinished', () => {
-    const before = lastSync(ago(SYNC_INTERVAL_MS));
-    expect(failureNotice(before, before)?.key).toBe('unfinished');
-    expect(failureNotice(undefined, undefined)?.key).toBe('unfinished');
+  it('reports a run-level stop, like a revoked Google grant', () => {
+    const notice = stopNotice(run(ago(0), [], { error: 'Google sign-in failed (invalid_grant).', failures: 3, stopped: true }));
+    expect(notice?.body).toBe('Failed 3 times in a row: Google sign-in failed (invalid_grant). Choose Sync Now to try again.');
   });
 
-  it('gives the same failure the same key, so it is announced once', () => {
-    const a = failureNotice(undefined, failed(ago(SYNC_INTERVAL_MS), [{ account: 'c@d.org', error: 'Login failed' }]));
-    const b = failureNotice(undefined, failed(ago(0), [{ account: 'c@d.org', error: 'Login failed' }]));
-    const c = failureNotice(undefined, failed(ago(0), [{ account: 'c@d.org', error: 'Something else' }]));
+  it('keeps the same key while the same stop persists, so it is announced once', () => {
+    const a = stopNotice(run(ago(SYNC_INTERVAL_MS), [account('Login failed', 3, true)]));
+    const b = stopNotice(run(ago(0), [account('Login failed', 3, true)]));
     expect(a?.key).toBe(b?.key);
-    expect(c?.key).not.toBe(a?.key);
   });
 });

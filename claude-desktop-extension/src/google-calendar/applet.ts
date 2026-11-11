@@ -1,9 +1,14 @@
 // Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
 
 /**
- * The MCPB's side of calendar sync: install the `openrecord-calendar` binary
- * (one per architecture ships in applet/), drive it through Google consent and
- * a first sync, then register its menu-bar mode to start at login.
+ * The MCPB's side of calendar sync: install the `openrecord-calendar` binary,
+ * drive it through Google consent and a first sync, then register its
+ * menu-bar mode to start at login — and take all of that back out again.
+ *
+ * The binary (~100 MB per architecture) is not in the .mcpb: it is downloaded
+ * from beside it (deploy.sh uploads it) the first time sync is turned on, and
+ * installed only if it hashes to what applet/calendar-binaries.json, which
+ * does ship, says this build was released with.
  *
  * The MCPB never holds the Google token itself. The binary does the
  * consent flow and stores the token, so the token's keychain item belongs to
@@ -13,18 +18,24 @@
  */
 
 import { execFile } from 'child_process';
+import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
+import { scraperFetch } from '../../../scrapers/http';
 import { readState, type LastSync } from './store';
+import { disconnectGoogle } from './sync';
 
 export const AGENT_LABEL = 'com.fanpierlabs.openrecord.calendar';
 export const AGENT_PLIST = path.join(os.homedir(), 'Library', 'LaunchAgents', `${AGENT_LABEL}.plist`);
 export const SYNC_LOG = path.join(os.homedir(), 'Library', 'Logs', 'OpenRecord Calendar.log');
 
-// `__dirname` is dist/ once bundled; the build puts the binaries in applet/ beside it.
-const bundledBinary = () => path.resolve(__dirname, '..', 'applet', `openrecord-calendar-darwin-${process.arch}`);
+// `__dirname` is dist/ once bundled; the build writes applet/ beside it.
+const HASHES = () => path.resolve(__dirname, '..', 'applet', 'calendar-binaries.json');
+// Present only in a checkout that ran build:applet; the .mcpb leaves it out.
+const localBuild = () => path.resolve(__dirname, '..', 'applet', `openrecord-calendar-darwin-${process.arch}`);
+export const DOWNLOAD_BASE = 'https://openrecord.fanpierlabs.com/calendar/';
 // Beside the credentials it reads, and outside the extension, so an extension
 // update can't pull it out from under a running menu-bar item.
 const WORKER = path.join(os.homedir(), '.openrecord-mcpb', 'bin', 'openrecord-calendar');
@@ -40,11 +51,39 @@ export interface WorkerResult {
   accounts?: Array<{ account: string; synced: number; removed: number; error?: string }>;
 }
 
+const sha256 = (data: Buffer | string) => crypto.createHash('sha256').update(data).digest('hex');
+
+/** The SHA-256 of the binary this build was released with, for this Mac's architecture. */
+function expectedHash(): string | null {
+  try {
+    const hash = (JSON.parse(fs.readFileSync(HASHES(), 'utf-8')) as Record<string, unknown>)[process.arch];
+    return typeof hash === 'string' ? hash : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Why calendar sync can't run on this machine, or null when it can. */
 function unsupportedReason(): string | null {
   if (process.platform !== 'darwin') return 'Google Calendar sync needs macOS: it runs from a menu-bar app.';
-  if (!fs.existsSync(bundledBinary())) return 'This build of OpenRecord does not include Google Calendar sync for this Mac.';
+  if (!expectedHash()) return 'This build of OpenRecord does not include Google Calendar sync for this Mac.';
   return null;
+}
+
+/** The binary's bytes — a checkout's own build, else downloaded — refused unless they are the released ones. */
+async function fetchBinary(hash: string): Promise<Buffer | string> {
+  let bytes: Buffer | string;
+  if (fs.existsSync(localBuild())) {
+    bytes = fs.readFileSync(localBuild());
+  } else {
+    const res = await scraperFetch(`${DOWNLOAD_BASE}openrecord-calendar-darwin-${process.arch}-${hash}`);
+    if (!res.ok) throw new Error(`Could not download the Google Calendar sync app (HTTP ${res.status}).`);
+    bytes = Buffer.from(await res.arrayBuffer());
+  }
+  if (sha256(bytes) !== hash) {
+    throw new Error('The Google Calendar sync app did not match this version of OpenRecord, so it was not installed.');
+  }
+  return bytes;
 }
 
 function run(file: string, args: string[], timeout: number): Promise<{ code: number; stdout: string }> {
@@ -72,17 +111,23 @@ async function runWorker(command: string, timeout: number): Promise<WorkerResult
 
 const guiDomain = () => `gui/${process.getuid?.() ?? 501}`;
 
-/** Stop a running copy and install a fresh one, so an updated extension updates the binary. */
-async function installBinary(): Promise<void> {
+/**
+ * Make WORKER the binary this build was released with, downloading it only
+ * when it isn't already, then stop any running copy so the new one starts.
+ */
+async function installBinary(hash: string): Promise<void> {
+  const installed = fs.existsSync(WORKER) && sha256(fs.readFileSync(WORKER)) === hash;
+  // Fetched before stopping anything, so a slow or failed download leaves a running menu-bar item alone.
+  const bytes = installed ? null : await fetchBinary(hash);
   await run('/bin/launchctl', ['bootout', `${guiDomain()}/${AGENT_LABEL}`], 10_000);
+  if (!bytes) return;
   fs.mkdirSync(path.dirname(WORKER), { recursive: true });
-  // Copy to a temp name and rename over: never a half-written binary at WORKER.
+  // Write to a temp name and rename over: never a half-written binary at WORKER.
   const temp = `${WORKER}.new`;
-  fs.copyFileSync(bundledBinary(), temp);
+  fs.writeFileSync(temp, bytes);
   fs.chmodSync(temp, 0o755);
   fs.renameSync(temp, WORKER);
-  // Copied out of an extension Claude unpacked from a download, the binary can
-  // carry the download's quarantine flag, which would stop launchd starting it.
+  // A copy of a local build can carry a quarantine flag, which would stop launchd starting it.
   await run('/usr/bin/xattr', ['-d', 'com.apple.quarantine', WORKER], 10_000);
 }
 
@@ -127,7 +172,7 @@ export interface ConnectOutcome {
 export async function connectGoogleCalendar(): Promise<ConnectOutcome> {
   const unsupported = unsupportedReason();
   if (unsupported) throw new Error(unsupported);
-  await installBinary();
+  await installBinary(expectedHash()!);
   const connected = await runWorker('connect', CONNECT_TIMEOUT_MS);
   if (!connected.ok) throw new Error(connected.error ?? 'Google Calendar was not connected.');
   const sync = await runWorker('sync', SYNC_TIMEOUT_MS);
@@ -143,4 +188,18 @@ export interface CalendarSyncStatus {
 export function calendarSyncStatus(): CalendarSyncStatus {
   const state = readState();
   return { enabled: !!state.connectedAt && fs.existsSync(AGENT_PLIST), lastSync: state.lastSync ?? null };
+}
+
+/**
+ * Turn sync off and remove the menu-bar app: revoke Google access, stop it
+ * starting at login, and delete the binary and its log. The calendar ID stays
+ * (see `disconnect` in worker.ts), so turning sync on again reuses the calendar.
+ */
+export async function uninstallGoogleCalendar(): Promise<void> {
+  // The binary created the token's keychain item, so it reads it without a
+  // prompt; in-process is the fallback when the binary is already gone.
+  const viaWorker = fs.existsSync(WORKER) && (await runWorker('disconnect', 3 * 60_000)).ok;
+  if (!viaWorker) await disconnectGoogle();
+  await run('/bin/launchctl', ['bootout', `${guiDomain()}/${AGENT_LABEL}`], 10_000);
+  for (const file of [AGENT_PLIST, WORKER, `${WORKER}.new`, SYNC_LOG]) fs.rmSync(file, { force: true });
 }

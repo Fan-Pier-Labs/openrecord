@@ -28,10 +28,10 @@ import { detailedMessage } from '../../../shared/detailedError';
 import { accountId, readAccountIdentities } from '../credential-store';
 import { clearAllSessions, NeedsHumanSignInError, resolveSessionWithoutUser } from '../session-manager';
 import type { SyncVisit } from './events';
-import { accessTokenFor, authorizeInBrowser, CalendarClient, revoke } from './google-api';
-import { connectAccessToken, ensureCalendar, syncAccount } from './sync';
+import { accessTokenFor, authorizeInBrowser, CalendarClient } from './google-api';
+import { connectAccessToken, disconnectGoogle, ensureCalendar, failedRun, syncAccounts } from './sync';
 import { runTray } from './tray';
-import { clearRefreshToken, readRefreshToken, readState, saveRefreshToken, writeState } from './store';
+import { readRefreshToken, readState, saveRefreshToken, writeState } from './store';
 
 type Result = { ok: boolean } & Record<string, unknown>;
 
@@ -54,7 +54,7 @@ async function fetchVisits(account: string): Promise<SyncVisit[]> {
   // MyChart send one — docs/login-modes.md.
   const session = await resolveSessionWithoutUser(account).catch((err: unknown) => {
     if (err instanceof NeedsHumanSignInError) {
-      throw new Error('MyChart wants a verification code, and background syncs never ask for one. Ask Claude to set up a passkey for this account so it can sync on its own.');
+      throw new Error('MyChart wants a verification code, and background syncs never ask for one. Ask Claude to set up a passkey for this account, then choose Sync Now.');
     }
     throw err;
   });
@@ -65,17 +65,20 @@ async function fetchVisits(account: string): Promise<SyncVisit[]> {
   return result?.visits ?? [];
 }
 
-async function sync(): Promise<Result> {
+/**
+ * `sync --scheduled` is the menu-bar item's timer: it counts consecutive
+ * failures and skips what has failed MAX_ATTEMPTS times. Plain `sync` — Sync
+ * Now, and the first sync after connecting — retries everything from zero.
+ */
+async function sync(scheduled: boolean): Promise<Result> {
   try {
     const refreshToken = readRefreshToken();
     if (!refreshToken) throw new Error('Google Calendar is not connected. Ask Claude to connect Google Calendar again.');
     const client = new CalendarClient(await accessTokenFor(refreshToken));
     const calendarId = await ensureCalendar(client, readState().calendarId);
 
-    const accounts = [];
-    for (const identity of readAccountIdentities()) {
-      accounts.push(await syncAccount(client, calendarId, accountId(identity), fetchVisits));
-    }
+    const ids = readAccountIdentities().map(accountId);
+    const accounts = await syncAccounts(client, calendarId, ids, fetchVisits, readState().lastSync, scheduled);
     const synced = accounts.reduce((n, a) => n + a.synced, 0);
     const ok = accounts.every((a) => !a.error);
     writeState({ ...readState(), calendarId, lastSync: { at: new Date().toISOString(), ok, synced, accounts } });
@@ -84,25 +87,22 @@ async function sync(): Promise<Result> {
     // Recorded, not just returned: the menu-bar item reads the outcome from the
     // state file, and a revoked Google grant must show (and notify) as a failure.
     const error = detailedMessage(err);
-    writeState({ ...readState(), lastSync: { at: new Date().toISOString(), ok: false, synced: 0, accounts: [], error } });
+    const state = readState();
+    writeState({ ...state, lastSync: failedRun(state.lastSync, error, scheduled, new Date()) });
     return { ok: false, error };
   }
 }
 
 async function disconnect(): Promise<Result> {
-  const refreshToken = readRefreshToken();
-  // Best effort: the local token goes either way, and an offline revoke must not keep it.
-  if (refreshToken) await revoke(refreshToken).catch(() => {});
-  clearRefreshToken();
-  // Keep only the calendar ID. Google won't let this scope list calendars, so
-  // once the ID is gone the app can never find its calendar again, and turning
-  // sync back on would leave a second "MyChart Appointments" beside the first.
-  const { calendarId } = readState();
-  writeState(calendarId ? { calendarId } : {});
+  await disconnectGoogle();
   return { ok: true };
 }
 
-const COMMANDS: Record<string, () => Promise<Result>> = { connect, sync, disconnect };
+const COMMANDS: Record<string, () => Promise<Result>> = {
+  connect,
+  sync: () => sync(process.argv.includes('--scheduled')),
+  disconnect,
+};
 
 async function main(): Promise<void> {
   if (process.argv[2] === 'tray') runTray(process.execPath);

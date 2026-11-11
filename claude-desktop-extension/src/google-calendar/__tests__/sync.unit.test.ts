@@ -4,7 +4,7 @@ import { describe, expect, it } from 'bun:test';
 
 import type { CalendarEvent, SyncVisit } from '../events';
 import { GoogleTokenError, type CalendarClient } from '../google-api';
-import { connectAccessToken, ensureCalendar, syncAccount } from '../sync';
+import { connectAccessToken, ensureCalendar, failedRun, syncAccount, syncAccounts } from '../sync';
 
 /** An in-memory calendar with the client's surface. */
 function fakeClient(existing: string[] = [], calendars: string[] = []) {
@@ -45,6 +45,77 @@ describe('syncAccount', () => {
     const result = await syncAccount(client, 'cal', 'a@b.org', async () => { throw new Error('portal down'); });
     expect(result).toEqual({ account: 'a@b.org', synced: 0, removed: 0, error: 'portal down' });
     expect(events.has('kept')).toBe(true);
+  });
+});
+
+describe('syncAccounts — three tries, then stop', () => {
+  const at = '2026-11-05T12:00:00.000Z';
+  const failing = (account: string) => { throw new Error(`down: ${account}`); };
+
+  /** Runs `times` scheduled syncs in a row, each fed the last one's results, and counts MyChart reads. */
+  async function scheduledRuns(times: number, fetch: (account: string) => Promise<SyncVisit[]>) {
+    const reads: string[] = [];
+    let accounts: Awaited<ReturnType<typeof syncAccounts>> = [];
+    for (let i = 0; i < times; i++) {
+      accounts = await syncAccounts(fakeClient().client, 'cal', ['a@b.org', 'c@d.org'],
+        async (account) => { reads.push(account); return fetch(account); },
+        { at, ok: false, synced: 0, accounts }, true);
+    }
+    return { accounts, reads };
+  }
+
+  it('counts consecutive failures of any kind and stops an account at the third', async () => {
+    const { accounts, reads } = await scheduledRuns(3, async (a) => (a === 'c@d.org' ? failing(a) : [visit('1')]));
+    expect(accounts[0]).toEqual({ account: 'a@b.org', synced: 1, removed: 0 });
+    expect(accounts[1]).toMatchObject({ account: 'c@d.org', error: 'down: c@d.org', failures: 3, stopped: true });
+    expect(reads.filter((a) => a === 'c@d.org')).toHaveLength(3);
+  });
+
+  it('never tries a stopped account again on a schedule, but keeps syncing the rest', async () => {
+    const { reads } = await scheduledRuns(5, async (a) => (a === 'c@d.org' ? failing(a) : [visit('1')]));
+    expect(reads.filter((a) => a === 'c@d.org')).toHaveLength(3);
+    expect(reads.filter((a) => a === 'a@b.org')).toHaveLength(5);
+  });
+
+  it('starts a failing account over after a success', async () => {
+    let calls = 0;
+    const { accounts } = await scheduledRuns(4, async (a) => {
+      if (a === 'a@b.org') return [];
+      calls++;
+      return calls === 2 ? [] : failing(a);
+    });
+    // fail, succeed, fail, fail: two in a row, not stopped.
+    expect(accounts[1]).toMatchObject({ failures: 2 });
+    expect(accounts[1]!.stopped).toBeUndefined();
+  });
+
+  it('retries a stopped account from zero on a manual sync', async () => {
+    const stopped = { account: 'c@d.org', synced: 0, removed: 0, error: 'x', failures: 3, stopped: true as const };
+    const reads: string[] = [];
+    const accounts = await syncAccounts(fakeClient().client, 'cal', ['c@d.org'],
+      async (a) => { reads.push(a); throw new Error('still down'); },
+      { at, ok: false, synced: 0, accounts: [stopped] }, false);
+    expect(reads).toEqual(['c@d.org']);
+    expect(accounts[0]).toMatchObject({ failures: 1 });
+    expect(accounts[0]!.stopped).toBeUndefined();
+  });
+});
+
+describe('failedRun', () => {
+  const when = new Date('2026-11-05T12:00:00Z');
+
+  it('stops at the third run-level failure in a row, keeping the accounts\' results', () => {
+    const accounts = [{ account: 'a@b.org', synced: 0, removed: 0, error: 'x', failures: 1 }];
+    const first = failedRun({ at: 'earlier', ok: true, synced: 1, accounts }, 'Google said no.', true, when);
+    expect(first).toMatchObject({ ok: false, error: 'Google said no.', failures: 1, accounts });
+    const third = failedRun(failedRun(first, 'Google said no.', true, when), 'Google said no.', true, when);
+    expect(third).toMatchObject({ failures: 3, stopped: true });
+  });
+
+  it('counts from zero on a manual sync', () => {
+    const stopped = { at: 'earlier', ok: false, synced: 0, accounts: [], error: 'x', failures: 3, stopped: true as const };
+    expect(failedRun(stopped, 'x', false, when)).toMatchObject({ failures: 1 });
+    expect(failedRun(stopped, 'x', false, when).stopped).toBeUndefined();
   });
 });
 

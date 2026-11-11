@@ -105,7 +105,7 @@ import { saveFilePayload, saveTextFile } from './save-file';
 import { reportToolCall } from './tool-telemetry';
 import { withUpdateNotice } from './update-notice';
 import { detailedMessage } from '../../shared/detailedError';
-import { calendarSyncStatus, connectGoogleCalendar } from './google-calendar/applet';
+import { calendarSyncStatus, connectGoogleCalendar, uninstallGoogleCalendar } from './google-calendar/applet';
 
 // ── Result helpers ──────────────────────────────────────────────────────────
 
@@ -1059,7 +1059,8 @@ export function registerAllTools(rawServer: McpServer): void {
     {
       description:
         "Sync the user's upcoming MyChart appointments (every connected account) to their Google Calendar, and keep them in sync every 4 hours. " +
-        'Only call this when the user has asked for it. Unless this Mac already holds a working Google grant, it opens Google sign-in in their browser and waits for them to finish; ' +
+        'Only call this when the user has asked for it. The first time, it downloads the sync app (about 100 MB). ' +
+        'Unless this Mac already holds a working Google grant, it opens Google sign-in in their browser and waits for them to finish; ' +
         'access is limited to one new calendar it creates ("MyChart Appointments") and it cannot read their other calendars. ' +
         'It then adds a menu-bar item that starts at login and runs the sync. macOS only.',
       inputSchema: {} satisfies ZodRawShape,
@@ -1079,6 +1080,31 @@ export function registerAllTools(rawServer: McpServer): void {
             'Tell the user that macOS may later ask whether openrecord-calendar may use OpenRecord\'s saved MyChart sign-in from the keychain, and to choose "Always Allow" so background syncs can sign in.' +
             (failed.length ? ` These accounts could not be synced yet: ${failed.map((a) => `${a.account} (${a.error})`).join('; ')}.` : '') +
             (!sync.ok && !sync.accounts ? ` The first sync did not finish: ${sync.error ?? 'unknown error'}. The app will retry.` : ''),
+        });
+      } catch (err) {
+        return caughtErrorResult(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    'disconnect_google_calendar',
+    {
+      description:
+        'Turn off Google Calendar sync and uninstall its menu-bar app: revokes OpenRecord\'s access to the user\'s Google account, ' +
+        'stops the app starting at login, and deletes it from this Mac. The "MyChart Appointments" calendar and its events stay in Google Calendar, ' +
+        'and connecting again later reuses that calendar. Only call this when the user has asked for it.',
+      inputSchema: {} satisfies ZodRawShape,
+      ...toolMeta('Turn off Google Calendar sync', { readOnlyHint: false, destructiveHint: true, openWorldHint: true }),
+    },
+    async () => {
+      try {
+        await uninstallGoogleCalendar();
+        return jsonResult({
+          state: 'disconnected',
+          message:
+            'Google Calendar sync is off: OpenRecord no longer has access to the Google account, and its menu-bar app is uninstalled. ' +
+            'The "MyChart Appointments" calendar and its events are still in Google Calendar for the user to keep or delete.',
         });
       } catch (err) {
         return caughtErrorResult(err);

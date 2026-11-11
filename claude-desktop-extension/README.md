@@ -187,15 +187,31 @@ done** when the accounts have appointments to sync; otherwise ask Claude to
   nobody is there to type one. An account that has only a password and hits
   2FA fails with a hint to save a passkey. See
   [`docs/login-modes.md`](../docs/login-modes.md).
-- **When a sync fails** — an account, Google, or a run that crashed or hit the
-  10-minute timeout — the icon gets an exclamation mark, the menu says why, and
-  macOS shows a notification (posted with `osascript`, since
-  `UNUserNotificationCenter` refuses a binary that isn't an app bundle). The same
-  failure is announced once, not every four hours.
-- **Install.** The tool copies the matching binary to
-  `~/.openrecord-mcpb/bin/openrecord-calendar`, runs `connect` and a first `sync`,
-  then writes `~/Library/LaunchAgents/com.fanpierlabs.openrecord.calendar.plist`
+- **When a sync fails, three tries, then stop.** Any failure counts: a sign-in
+  MyChart refuses, a network error, Google, or a run that crashed or hit the
+  10-minute timeout. A failure is retried ten minutes later instead of four hours.
+  The third failure in a row stops scheduled syncs, for that account or, when
+  the failure came before any account (Google, a crash), entirely. Repeated
+  rejected passwords can lock a MyChart account. Then macOS shows a
+  notification, once per stop (posted with `osascript`, since
+  `UNUserNotificationCenter` refuses a binary that isn't an app bundle), and the
+  menu says why. **Sync Now** retries everything with the count reset to zero, and so does
+  connecting again.
+- **Install.** The binaries are not in the `.mcpb`, which would be ~200 MB
+  bigger. `deploy.sh` uploads them beside it as
+  `https://openrecord.fanpierlabs.com/calendar/openrecord-calendar-darwin-<arch>-<sha256>`.
+  Content-addressed names make them immutable, so every released bundle keeps
+  finding its own. What ships is `applet/calendar-binaries.json`, the SHA-256 per
+  architecture. On first connect the tool downloads the matching binary and
+  installs it at `~/.openrecord-mcpb/bin/openrecord-calendar` only if the
+  download's hash matches. It downloads nothing when that binary is already
+  installed. A checkout that ran `build:applet` uses its local build instead.
+  It then runs `connect` and a first `sync`, and writes
+  `~/Library/LaunchAgents/com.fanpierlabs.openrecord.calendar.plist`
   (`openrecord-calendar tray`) so it starts at login.
+- **Uninstall.** `disconnect_google_calendar` revokes the Google grant, unloads
+  and deletes the LaunchAgent, and deletes the binary and its log. The calendar
+  ID stays, as with Turn Off.
 - **Turning it off and on again.** Turn Off revokes the Google grant and drops
   the token and sync status, but keeps the calendar ID in
   `google-calendar.json`. Turning sync back on reuses that calendar: a fresh grant
@@ -217,7 +233,8 @@ done** when the accounts have appointments to sync; otherwise ask Claude to
   `openrecord-calendar`. It's signed with the Developer ID when it's built on a
   machine that has one, so that approval survives updates.
 - **Build.** `bun run build:applet` (part of `bun run pack`) writes
-  `applet/openrecord-calendar-darwin-{arm64,x64}` (about 96 and 106 MB). It bakes
+  `applet/openrecord-calendar-darwin-{arm64,x64}` (about 96 and 106 MB) and
+  `applet/calendar-binaries.json`. It bakes
   in the Google "Desktop app" OAuth client from
   `~/.config/fan-pier-labs/google-oauth-client.json`, which is never committed,
   and refuses to build an architecture whose `@napi-rs/keyring` binding isn't

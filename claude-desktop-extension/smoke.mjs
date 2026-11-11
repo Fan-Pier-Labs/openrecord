@@ -220,6 +220,13 @@ async function main() {
     fs.cpSync(napiSrc, path.join(staged, 'node_modules', '@napi-rs'), { recursive: true });
   }
 
+  // The calendar binaries' hashes ship; the binaries themselves are downloaded on demand.
+  const calendarHashes = path.join(HERE, 'applet', 'calendar-binaries.json');
+  if (fs.existsSync(calendarHashes)) {
+    fs.mkdirSync(path.join(staged, 'applet'));
+    fs.copyFileSync(calendarHashes, path.join(staged, 'applet', 'calendar-binaries.json'));
+  }
+
   // A throwaway home directory: the credential store lives under
   // ~/.openrecord-mcpb, and the smoke must neither read the developer's real
   // accounts nor leave anything behind. It also makes list_accounts below

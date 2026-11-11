@@ -22,8 +22,9 @@ import { FFIType } from 'bun:ffi';
 
 import { AGENT_LABEL, AGENT_PLIST, SYNC_LOG } from './applet';
 import { cls, defineHandler, msg, msgTyped, nsstr, sel, type Id } from './objc';
-import { readState, type LastSync } from './store';
-import { failureNotice, iconSymbol, isSyncDue, statusLines } from './tray-menu';
+import { readState, writeState, type LastSync } from './store';
+import { failedRun } from './sync';
+import { iconSymbol, isSyncDue, statusLines, stopNotice } from './tray-menu';
 
 // Check often rather than arming one 4-hour timer: a timer's clock stops
 // while the Mac sleeps, so a laptop opened in the morning would otherwise wait
@@ -65,8 +66,9 @@ export function runTray(executable: string): never {
   let taskStarted = 0;
   let pollTimer: Id = null;
   let syncBefore: LastSync | undefined;
-  // The failure last notified about, so one that persists isn't announced every four hours.
-  let notifiedFailure: string | null = null;
+  let syncScheduled = false;
+  // The stop last announced, so one that persists isn't announced after every later sync.
+  let notifiedStop: string | null = null;
 
   const syncing = () => task !== null && msgTyped<boolean>(task, 'isRunning', FFIType.bool, []);
 
@@ -83,14 +85,17 @@ export function runTray(executable: string): never {
     ]);
   }
 
-  function startSync(): void {
+  // A scheduled sync counts failures toward the stop and skips what has stopped; Sync Now retries everything from zero.
+  function startSync(scheduled: boolean): void {
     if (syncing()) return;
     if (task) msg(task, 'release');
     fs.mkdirSync(path.dirname(SYNC_LOG), { recursive: true });
     fs.writeFileSync(SYNC_LOG, ''); // one run's log at a time, local only
     task = msg(cls('NSTask'), 'new');
     msg(task, 'setExecutableURL:', msg(cls('NSURL'), 'fileURLWithPath:', nsstr(executable)));
-    msg(task, 'setArguments:', msg(cls('NSArray'), 'arrayWithObject:', nsstr('sync')));
+    const args = msg(cls('NSMutableArray'), 'arrayWithObject:', nsstr('sync'));
+    if (scheduled) msg(args, 'addObject:', nsstr('--scheduled'));
+    msg(task, 'setArguments:', args);
     msg(task, 'setStandardOutput:', msg(cls('NSFileHandle'), 'fileHandleWithNullDevice'));
     msg(task, 'setStandardError:', msg(cls('NSFileHandle'), 'fileHandleForWritingAtPath:', nsstr(SYNC_LOG)));
     if (!msgTyped<boolean>(task, 'launchAndReturnError:', FFIType.bool, [[FFIType.ptr, null]])) {
@@ -100,6 +105,7 @@ export function runTray(executable: string): never {
     }
     taskStarted = Date.now();
     syncBefore = readState().lastSync;
+    syncScheduled = scheduled;
     pollTimer = timer(SYNCING_POLL_S, 'poll:', true);
     setIcon();
   }
@@ -132,7 +138,7 @@ export function runTray(executable: string): never {
 
   const handler = defineHandler('ORCalendarTrayHandler', {
     'tick:': () => {
-      if (isSyncDue(readState(), new Date())) startSync();
+      if (isSyncDue(readState(), new Date())) startSync(true);
     },
     'poll:': () => {
       if (syncing()) {
@@ -141,10 +147,15 @@ export function runTray(executable: string): never {
       }
       msg(pollTimer, 'invalidate');
       pollTimer = null;
+      const state = readState();
+      // A run that recorded nothing crashed or hit the timeout: a failure like any other.
+      if (state.lastSync?.at === syncBefore?.at) {
+        writeState({ ...state, lastSync: failedRun(syncBefore, 'The sync stopped before it finished.', syncScheduled, new Date()) });
+      }
       setIcon();
-      const failure = failureNotice(syncBefore, readState().lastSync);
-      if (failure && failure.key !== notifiedFailure) notify(failure.title, failure.body);
-      notifiedFailure = failure?.key ?? null;
+      const stop = stopNotice(readState().lastSync);
+      if (stop && stop.key !== notifiedStop) notify(stop.title, stop.body);
+      notifiedStop = stop?.key ?? null;
     },
     'menuNeedsUpdate:': () => {
       const state = readState();
@@ -159,7 +170,7 @@ export function runTray(executable: string): never {
       addItem('Turn Off Calendar Sync…', 'turnOff:');
       addItem('Quit', 'terminate:', { key: 'q', target: app });
     },
-    'syncNow:': () => startSync(),
+    'syncNow:': () => startSync(false),
     'openCalendar:': () => {
       msg(msg(cls('NSWorkspace'), 'sharedWorkspace'), 'openURL:', msg(cls('NSURL'), 'URLWithString:', nsstr('https://calendar.google.com')));
     },
@@ -182,7 +193,7 @@ export function runTray(executable: string): never {
   timer(CHECK_INTERVAL_S, 'tick:', true);
 
   setIcon();
-  if (isSyncDue(readState(), new Date())) startSync();
+  if (isSyncDue(readState(), new Date())) startSync(true);
   msg(app, 'run');
   process.exit(0);
 }

@@ -4,7 +4,13 @@
  * Build `applet/openrecord-calendar-darwin-{arm64,x64}`: Google Calendar sync
  * (the menu-bar item, the consent flow and the sync itself) as one binary per
  * Mac architecture, from src/google-calendar/worker.ts with
- * `bun build --compile --aot`. The MCPB installs whichever matches the Mac.
+ * `bun build --compile --aot`.
+ *
+ * The binaries (~100 MB each) do not ship in the .mcpb. deploy.sh uploads them
+ * beside it under content-addressed names, and the MCPB downloads the one its
+ * Mac needs when the user turns sync on. What ships is
+ * applet/calendar-binaries.json, each binary's SHA-256, which is both the
+ * download's name and the check the MCPB runs before installing it.
  *
  * The Google OAuth client is baked in from
  * ~/.config/fan-pier-labs/google-oauth-client.json (the JSON Google Cloud
@@ -16,6 +22,7 @@
  */
 
 import { execFileSync } from 'child_process';
+import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
@@ -51,6 +58,7 @@ const identity = /"(Developer ID Application: [^"]+)"/.exec(run('security', ['fi
 fs.rmSync(OUT_DIR, { recursive: true, force: true });
 fs.mkdirSync(OUT_DIR, { recursive: true });
 
+const hashes: Record<string, string> = {};
 for (const arch of ARCHES) {
   // secret-store.ts falls back to a plaintext file when the keyring binding
   // won't load, by design — so a binary built without this arch's binding
@@ -67,5 +75,7 @@ for (const arch of ARCHES) {
   ]);
   run('codesign', ['--force', '--sign', identity, '--identifier', 'com.fanpierlabs.openrecord.calendar', out]);
   run('codesign', ['--verify', '--strict', out]);
+  hashes[arch] = crypto.createHash('sha256').update(fs.readFileSync(out)).digest('hex');
   console.log(`Built ${path.relative(EXTENSION_DIR, out)} (${identity === '-' ? 'ad-hoc signed' : identity})`);
 }
+fs.writeFileSync(path.join(OUT_DIR, 'calendar-binaries.json'), JSON.stringify(hashes, null, 2) + '\n');
