@@ -6,12 +6,10 @@ import * as path from 'path';
 import { setTestTransport } from '../../../../scrapers/http';
 import { installState, markBad } from '../payloads';
 import { checkForUpdate, reportStartupFailure, updateNotice } from '../updater';
-import { BASE_URL, MANIFEST_URL, keyPair, serve, signedPayload, tempDir, versionManifest } from './fixtures';
-
-const { publicKey, privateKey } = keyPair();
+import { BASE_URL, MANIFEST_URL, payload, serve, tempDir, versionManifest } from './fixtures';
 
 function check(versionsDir: string, running = '2.4.0') {
-  return checkForUpdate(running, { versionsDir, baseUrl: BASE_URL, publicKey, manifestUrl: MANIFEST_URL });
+  return checkForUpdate(running, { versionsDir, baseUrl: BASE_URL, manifestUrl: MANIFEST_URL });
 }
 
 afterEach(async () => {
@@ -25,7 +23,7 @@ describe('checkForUpdate', () => {
   it('downloads a newer release silently and prunes what it replaces', async () => {
     const versionsDir = tempDir();
     fs.mkdirSync(path.join(versionsDir, '2.3.0'));
-    const site = signedPayload('2.5.0', privateKey);
+    const site = payload('2.5.0');
     site.set(MANIFEST_URL, versionManifest('2.5.0'));
     serve(site);
     await check(versionsDir);
@@ -44,7 +42,7 @@ describe('checkForUpdate', () => {
 
   it('does not download a release again after it failed to start', async () => {
     const versionsDir = tempDir();
-    const site = signedPayload('2.5.0', privateKey);
+    const site = payload('2.5.0');
     site.set(MANIFEST_URL, versionManifest('2.5.0'));
     serve(site);
     await check(versionsDir);

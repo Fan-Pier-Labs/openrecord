@@ -295,7 +295,7 @@ The short version, for what this extension does:
   `MYCHART_CLI_TELEMETRY_DISABLED=1`.
 - **Self-update.** At startup and daily it reads
   `openrecord.fanpierlabs.com/mcpb_version.json` and, when a newer version is out, downloads
-  its signed server code from the same site (see [Self-update](#self-update)). It sends nothing
+  its server code from the same site (see [Self-update](#self-update)). It sends nothing
   but the requests, which reveal your IP to our CDN, and it runs even with telemetry turned off.
 - **Disconnecting deletes.** `disconnect_account` removes that account's stored
   credentials, passkey, and session from this machine.
@@ -373,11 +373,11 @@ stdio and runs `server.cjs` as a child process: the newest download in
 `mcpb_version.json` advertises; a download takes effect the next time Claude Desktop starts the
 extension.
 
-- **Every download is signed.** `payload.json` lists each file's sha256 and carries an ed25519
-  signature from the key pinned in `src/launcher/install.ts`. Anything that fails a check is
-  discarded. The private key is the `openrecord/mcpb-payload-signing-key` secret, which
-  `deploy.sh` reads to sign each release (`scripts/build-payload.ts`) and upload it to
-  `mcpb-payload/<version>/` before publishing the version number.
+- **Downloads are hash-checked, not signed.** The site's bucket is trusted and HTTPS covers the
+  trip. `payload.json` lists each file's sha256, which catches a release caught mid-upload or a
+  CDN serving one file from the previous release. `deploy.sh` builds it
+  (`scripts/build-payload.ts`) and uploads it to `mcpb-payload/<version>/` before publishing the
+  version number.
 - **Only the server updates.** The launcher, `manifest.json` (tool list, display version) and
   `node_modules/@napi-rs` (a native binary a download can't replace) change only by
   reinstalling. The server reaches the installed keyring through `NODE_PATH`. A release that
@@ -402,7 +402,7 @@ claude-desktop-extension/
 ├── smoke.mjs               # boots the built bundle and speaks MCP to it
 ├── icon.png                # 256×256 extension icon
 ├── scripts/
-│   ├── build-payload.ts    # signs the server payload launchers download (deploy.sh)
+│   ├── build-payload.ts    # builds the server payload launchers download (deploy.sh)
 │   └── verify-native-binaries.mjs # refuses to pack without every platform's keyring binary
 └── src/
     ├── launcher/           # what Claude Desktop runs: self-update + stdio relay to the server
@@ -508,7 +508,7 @@ PR. Once it is merged, from a clean checkout of `main`:
 
 It installs, refreshes `scrapers/list-all-mycharts/mychart-instances.json` from Epic's
 directory (a few minutes' crawl), packs, boots the packed server (`smoke.mjs`), copies the live
-bundle to `openrecord-<old version>.mcpb`, signs the server payload, uploads to
+bundle to `openrecord-<old version>.mcpb`, builds the server payload, uploads to
 `https://openrecord.fanpierlabs.com/openrecord.mcpb` (the splash page's Claude Desktop
 button), invalidates CloudFront, checks the live file matches what was packed, uploads the payload to
 `mcpb-payload/<version>/`, then runs

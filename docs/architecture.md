@@ -309,7 +309,7 @@ either side that isn't semver are all `null`, meaning "couldn't tell", and a cli
 `null`. "We could not reach the site" and "you are up to date" are different facts.
 
 The CLI prints the notice once per run. The MCPB doesn't show a notice: its launcher downloads the
-advertised version itself, signed, and only when that fails does every tool result tell the user to
+advertised version itself, and only when that fails does every tool result tell the user to
 reinstall — see "Self-update" in `claude-desktop-extension/README.md`.
 
 ## Per-host rate limiting (`shared/hostConcurrency.ts`)

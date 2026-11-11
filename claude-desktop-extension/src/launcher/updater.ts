@@ -43,7 +43,7 @@ export function reportStartupFailure(version: string): void {
 
 export async function checkForUpdate(
   runningVersion: string,
-  options: { versionsDir?: string; baseUrl?: string; publicKey?: string; manifestUrl?: string } = {},
+  options: { versionsDir?: string; baseUrl?: string; manifestUrl?: string } = {},
 ): Promise<void> {
   const versionsDir = options.versionsDir ?? VERSIONS_DIR;
   const check = await checkVersion({
@@ -67,7 +67,6 @@ export async function checkForUpdate(
       await installPayload(latest, {
         versionsDir,
         ...(options.baseUrl ? { baseUrl: options.baseUrl } : {}),
-        ...(options.publicKey ? { publicKey: options.publicKey } : {}),
       });
     } catch (err) {
       process.stderr.write(`[openrecord:launcher] update to ${latest} failed: ${String(err)}\n`);

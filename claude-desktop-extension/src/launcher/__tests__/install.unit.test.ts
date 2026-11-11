@@ -1,20 +1,17 @@
 // Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
 
 import { afterEach, describe, expect, it } from 'bun:test';
-import { sign } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import { setTestTransport } from '../../../../scrapers/http';
 import { installPayload } from '../install';
 import { LAUNCHER_ABI, installState, parsePayloadManifest } from '../payloads';
-import { BASE_URL, keyPair, serve, signedPayload, tempDir } from './fixtures';
-
-const { publicKey, privateKey } = keyPair();
+import { BASE_URL, payload, serve, tempDir } from './fixtures';
 
 afterEach(() => setTestTransport(null));
 
-function install(versionsDir: string, key = publicKey) {
-  return installPayload('2.5.0', { versionsDir, baseUrl: BASE_URL, publicKey: key });
+function install(versionsDir: string) {
+  return installPayload('2.5.0', { versionsDir, baseUrl: BASE_URL });
 }
 
 /** Nothing but finished version folders: a failed install leaves no staging folder behind. */
@@ -23,25 +20,18 @@ function entries(dir: string): string[] {
 }
 
 describe('installPayload', () => {
-  it('installs a correctly signed payload into its own folder', async () => {
+  it('installs a payload into its own folder', async () => {
     const versionsDir = tempDir();
-    serve(signedPayload('2.5.0', privateKey, '// server'));
+    serve(payload('2.5.0', '// server'));
     await install(versionsDir);
     expect(installState('2.5.0', versionsDir)).toBe('ready');
     expect(fs.readFileSync(path.join(versionsDir, '2.5.0', 'server.cjs'), 'utf8')).toBe('// server');
     expect(entries(versionsDir)).toEqual(['2.5.0']);
   });
 
-  it('refuses a payload signed by any other key', async () => {
+  it('refuses a file that does not match its hash', async () => {
     const versionsDir = tempDir();
-    serve(signedPayload('2.5.0', keyPair().privateKey));
-    await expect(install(versionsDir)).rejects.toThrow('signature does not verify');
-    expect(entries(versionsDir)).toEqual([]);
-  });
-
-  it('refuses a file that does not match its signed hash', async () => {
-    const versionsDir = tempDir();
-    const site = signedPayload('2.5.0', privateKey);
+    const site = payload('2.5.0');
     site.set(`${BASE_URL}/2.5.0/server.cjs`, Buffer.from('// tampered'));
     serve(site);
     await expect(install(versionsDir)).rejects.toThrow('server.cjs does not match its hash');
@@ -50,12 +40,10 @@ describe('installPayload', () => {
 
   it('refuses a payload that needs a newer launcher', async () => {
     const versionsDir = tempDir();
-    const site = signedPayload('2.5.0', privateKey);
+    const site = payload('2.5.0');
     const manifest = JSON.parse(site.get(`${BASE_URL}/2.5.0/payload.json`)!.toString()) as { launcherAbi: number };
     manifest.launcherAbi = LAUNCHER_ABI + 1;
-    const bytes = Buffer.from(JSON.stringify(manifest));
-    site.set(`${BASE_URL}/2.5.0/payload.json`, bytes);
-    site.set(`${BASE_URL}/2.5.0/payload.json.sig`, Buffer.from(sign(null, bytes, privateKey).toString('base64')));
+    site.set(`${BASE_URL}/2.5.0/payload.json`, Buffer.from(JSON.stringify(manifest)));
     serve(site);
     await expect(install(versionsDir)).rejects.toThrow(`needs launcher ABI ${LAUNCHER_ABI + 1}`);
   });

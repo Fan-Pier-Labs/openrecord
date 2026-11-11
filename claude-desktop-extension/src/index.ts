@@ -20,7 +20,7 @@ setLogSink((level, args) => {
  * setup wizard is in ./setup-flow.ts; session management in ./session-manager.ts.
  *
  * Claude Desktop runs `dist/launcher.cjs`, which runs this bundle (`server.cjs`,
- * or a newer signed download of it) as a child — see src/launcher/. No
+ * or a newer download of it) as a child — see src/launcher/. No
  * user_config is required — all auth happens via the in-chat setup_account
  * tool, which uses MCP elicitation to deterministically collect each field
  * (instance picker → username + password → 2FA → passkey opt-in).
