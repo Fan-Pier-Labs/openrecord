@@ -50,7 +50,7 @@ const fakeFs = {
 await mock.module('fs', () => fakeFs)
 await mock.module('node:fs', () => fakeFs)
 
-const { saveTotpSecret, loadTotpSecret } = await import('../totpStore')
+const { saveTotpSecret, loadTotpSecret, saveTrustedDeviceId, loadTrustedDeviceId } = await import('../totpStore')
 
 const pathFor = (host: string) => path.join(TOTP_DIR, `${host}.txt`)
 
@@ -104,5 +104,21 @@ describe('loadTotpSecret', () => {
   it('returns null rather than throwing when the read fails', async () => {
     // A missing store must degrade to "no secret", not crash the CLI.
     expect(await loadTotpSecret('never-enrolled.example.org')).toBeNull()
+  })
+})
+
+describe('trusted device id', () => {
+  it('round-trips beside the TOTP secret without overwriting it', async () => {
+    await saveTotpSecret('myhealth.stanfordhealthcare.org', 'SEED')
+    await saveTrustedDeviceId('myhealth.stanfordhealthcare.org', 'device-1')
+
+    expect(await loadTrustedDeviceId('myhealth.stanfordhealthcare.org')).toBe('device-1')
+    expect(await loadTotpSecret('myhealth.stanfordhealthcare.org')).toBe('SEED')
+  })
+
+  it('returns null when none is stored, or the file is blank', async () => {
+    expect(await loadTrustedDeviceId('myhealth.stanfordhealthcare.org')).toBeNull()
+    files.set(path.join(TOTP_DIR, 'myhealth.stanfordhealthcare.org.device-id.txt'), ' \n')
+    expect(await loadTrustedDeviceId('myhealth.stanfordhealthcare.org')).toBeNull()
   })
 })
