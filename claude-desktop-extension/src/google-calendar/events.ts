@@ -38,7 +38,11 @@ export interface CalendarEvent {
   extendedProperties: { private: { openrecordAccount: string } };
 }
 
-/** Private extended property every synced event carries, so a sync can find (and prune) only its own. */
+/**
+ * Private extended property every synced event carries, so a sync can find
+ * (and prune) only its own account's. Its value is `accountTag` (sync.ts), a
+ * hash, never the MyChart username: calendars get shared.
+ */
 export const ACCOUNT_PROPERTY = 'openrecordAccount';
 
 const DEFAULT_DURATION_MINUTES = 30;
@@ -57,11 +61,11 @@ export function isSyncableVisit(v: SyncVisit): boolean {
 
 /**
  * Google event ids allow only base32hex (0-9, a-v), so the key is hex-encoded.
- * Deterministic on (account, CSN): re-syncing updates the same event instead
- * of adding a duplicate.
+ * Deterministic on (account tag, CSN): re-syncing updates the same event
+ * instead of adding a duplicate.
  */
-export function eventId(account: string, v: SyncVisit): string {
-  const key = `${account.toLowerCase()}|${visitKey(v) ?? ''}`;
+export function eventId(tag: string, v: SyncVisit): string {
+  const key = `${tag}|${visitKey(v) ?? ''}`;
   let hex = '';
   for (const byte of new TextEncoder().encode(key)) hex += byte.toString(16).padStart(2, '0');
   return `or${hex}`;
@@ -94,7 +98,8 @@ function when(v: SyncVisit): Pick<CalendarEvent, 'start' | 'end'> | null {
   return { start: { dateTime: start.toISOString() }, end: { dateTime: end.toISOString() } };
 }
 
-export function visitToEvent(account: string, v: SyncVisit): CalendarEvent | null {
+/** `tag` is the account's `accountTag`, not its username. */
+export function visitToEvent(tag: string, v: SyncVisit): CalendarEvent | null {
   if (!isSyncableVisit(v)) return null;
   const times = when(v);
   if (!times) return null;
@@ -110,15 +115,15 @@ export function visitToEvent(account: string, v: SyncVisit): CalendarEvent | nul
     dept?.PhoneNumber ? `Clinic phone: ${dept.PhoneNumber}` : null,
     v.organizationName,
   ].filter(Boolean);
-  const footer = `Synced from MyChart (${account}) by OpenRecord. Edits here are overwritten on the next sync.`;
+  const footer = 'Synced from MyChart by OpenRecord. Edits here are overwritten on the next sync.';
 
   return {
-    id: eventId(account, v),
+    id: eventId(tag, v),
     summary,
     ...(location ? { location } : {}),
     description: [...details, ...(details.length ? [''] : []), footer].join('\n'),
     ...times,
     status: 'confirmed',
-    extendedProperties: { private: { [ACCOUNT_PROPERTY]: account.toLowerCase() } },
+    extendedProperties: { private: { [ACCOUNT_PROPERTY]: tag } },
   };
 }

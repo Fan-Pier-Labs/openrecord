@@ -40,10 +40,8 @@ function fail(message: string): never {
   process.exit(1);
 }
 
-if (process.platform !== 'darwin') {
-  console.error('build-calendar-applet: macOS only — skipping. This .mcpb will not offer Google Calendar sync.');
-  process.exit(0);
-}
+// No skipping: a .mcpb packed without these would ship without calendar sync.
+if (process.platform !== 'darwin') fail('Build on a Mac: the calendar binaries need macOS to build and sign.');
 
 let client: { client_id?: string; client_secret?: string } | undefined;
 try {

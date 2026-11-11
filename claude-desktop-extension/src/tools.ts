@@ -1091,9 +1091,9 @@ export function registerAllTools(rawServer: McpServer): void {
     'disconnect_google_calendar',
     {
       description:
-        'Turn off Google Calendar sync and uninstall its menu-bar app: revokes OpenRecord\'s access to the user\'s Google account, ' +
-        'quits the app and stops it starting at login. The "MyChart Appointments" calendar and its events stay in Google Calendar, ' +
-        'and connecting again later reuses that calendar. Only call this when the user has asked for it.',
+        'Turn off Google Calendar sync: revokes OpenRecord\'s access to the user\'s Google account, ' +
+        'quits the menu-bar app and stops it starting at login. The app itself stays on disk at ~/.openrecord-mcpb/bin/openrecord-calendar (about 100 MB) so turning sync back on needs no download. ' +
+        'The "MyChart Appointments" calendar and its events stay in Google Calendar, and connecting again later reuses that calendar. Only call this when the user has asked for it.',
       inputSchema: {} satisfies ZodRawShape,
       ...toolMeta('Turn off Google Calendar sync', { readOnlyHint: false, destructiveHint: true, openWorldHint: true }),
     },
@@ -1104,7 +1104,8 @@ export function registerAllTools(rawServer: McpServer): void {
           state: 'disconnected',
           message:
             'Google Calendar sync is off: OpenRecord no longer has access to the Google account, and its menu-bar app has quit and no longer starts at login. ' +
-            'The "MyChart Appointments" calendar and its events are still in Google Calendar for the user to keep or delete.',
+            'The "MyChart Appointments" calendar and its events are still in Google Calendar for the user to keep or delete. ' +
+            'The app stays at ~/.openrecord-mcpb/bin/openrecord-calendar (about 100 MB) so turning sync back on is fast; deleting that file removes it completely.',
         });
       } catch (err) {
         return caughtErrorResult(err);

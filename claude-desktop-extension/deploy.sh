@@ -88,7 +88,7 @@ echo "==> Smoke-testing the packed server"
 # hash it carries. They go up and are checked before the bundle that needs them.
 HASHES="$EXT_DIR/applet/calendar-binaries.json"
 if [ ! -f "$HASHES" ]; then
-  echo "!! $HASHES is missing — pack did not build the calendar binaries (macOS only)" >&2
+  echo "!! $HASHES is missing — pack did not build the calendar binaries" >&2
   exit 1
 fi
 for ARCH in arm64 x64; do

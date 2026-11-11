@@ -180,7 +180,8 @@ done** when the accounts have appointments to sync; otherwise ask Claude to
   while idle (0% CPU, about 80 MB). A sync runs as a child process of the same
   binary, started with NSTask, and writes its outcome to the state file the menu
   reads. It syncs when 4 hours have passed since the last sync, checking every
-  15 minutes and on wake, because a timer's clock stops while the Mac sleeps.
+  15 minutes and 30 seconds after a wake (once Wi-Fi is back), because a timer's
+  clock stops while the Mac sleeps.
   The menu has Sync Now, Open Google Calendar and Turn Off Calendar Sync.
 - **Signing in to MyChart.** A sync signs in with `machineLogin`
   (`resolveSessionWithoutUser`), so it never makes MyChart send a 2FA code:
@@ -211,8 +212,11 @@ done** when the accounts have appointments to sync; otherwise ask Claude to
   (`openrecord-calendar tray`) so it starts at login.
 - **Uninstall.** `disconnect_google_calendar` revokes the Google grant, then
   unloads and deletes the LaunchAgent and the log. It keeps the binary in
-  `~/.openrecord-mcpb/bin`, so turning sync back on skips the download. It also
-  keeps the calendar ID, as Turn Off does.
+  `~/.openrecord-mcpb/bin`, so turning sync back on skips the download (delete it
+  to remove it completely). It also keeps the calendar ID, as Turn Off does.
+- **Updates.** When sync is on, the MCPB checks the installed binary's hash at
+  startup and installs this build's binary if they differ, restarting the
+  menu-bar app. An extension update therefore reaches it without a reconnect.
 - **Turning it off and on again.** Turn Off revokes the Google grant and drops
   the token and sync status, but keeps the calendar ID in
   `google-calendar.json`. Turning sync back on reuses that calendar: a fresh grant
@@ -224,16 +228,20 @@ done** when the accounts have appointments to sync; otherwise ask Claude to
   honours, and only asks for consent again on `invalid_grant`.
 - **What it writes.** Visit type and provider, clinic and address (or "Video
   visit"), arrival time and clinic phone. Each event's id is derived from
-  (account, CSN), so a re-sync updates the same event. Future events whose visit
-  is gone are deleted, but only after that account's read succeeded. A failed
-  read never empties the calendar. Canceled visits are left off.
+  (account, CSN), so a re-sync updates the same event. The account appears on an
+  event only as a hash (`accountTag`), never the MyChart username, because
+  calendars get shared. Future events whose visit is gone are deleted, but only
+  after that account's read succeeded. A failed read never empties the calendar.
+  An account removed from OpenRecord has its future events deleted on the next
+  sync. Canceled visits are left off.
 - **Keychain.** The binary stores the Google refresh token itself
   (`google-calendar:refresh-token`, same `openrecord-mcpb` service). The MyChart
   passwords and passkeys it reads were created by the MCPB, so the first
   background sign-in raises macOS's "Always Allow" prompt for
   `openrecord-calendar`. It's always signed with the Developer ID (the build
   fails without one), so that approval survives updates.
-- **Build.** `bun run build:applet` (part of `bun run pack`) writes
+- **Build.** `bun run build:applet` (part of `bun run pack`, so packing needs a
+  Mac with the Developer ID) writes
   `applet/openrecord-calendar-darwin-{arm64,x64}` (about 96 and 106 MB) and
   `applet/calendar-binaries.json`. It bakes
   in the Google "Desktop app" OAuth client from

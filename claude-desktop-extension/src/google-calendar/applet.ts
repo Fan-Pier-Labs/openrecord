@@ -115,8 +115,10 @@ const guiDomain = () => `gui/${process.getuid?.() ?? 501}`;
  * Make WORKER the binary this build was released with, downloading it only
  * when it isn't already, then stop any running copy so the new one starts.
  */
+const isInstalled = (hash: string) => fs.existsSync(WORKER) && sha256(fs.readFileSync(WORKER)) === hash;
+
 async function installBinary(hash: string): Promise<void> {
-  const installed = fs.existsSync(WORKER) && sha256(fs.readFileSync(WORKER)) === hash;
+  const installed = isInstalled(hash);
   // Fetched before stopping anything, so a slow or failed download leaves a running menu-bar item alone.
   const bytes = installed ? null : await fetchBinary(hash);
   await run('/bin/launchctl', ['bootout', `${guiDomain()}/${AGENT_LABEL}`], 10_000);
@@ -203,4 +205,16 @@ export async function uninstallGoogleCalendar(): Promise<void> {
   if (!viaWorker) await disconnectGoogle();
   await run('/bin/launchctl', ['bootout', `${guiDomain()}/${AGENT_LABEL}`], 10_000);
   for (const file of [AGENT_PLIST, `${WORKER}.new`, SYNC_LOG]) fs.rmSync(file, { force: true });
+}
+
+/**
+ * Bring an enabled sync up to this build's binary, at server start, so an
+ * extension update reaches the menu-bar app without the user reconnecting.
+ * On any failure the binary already there keeps running.
+ */
+export async function updateInstalledBinary(): Promise<void> {
+  const hash = expectedHash();
+  if (unsupportedReason() || !hash || !calendarSyncStatus().enabled || isInstalled(hash)) return;
+  await installBinary(hash);
+  await startAtLogin();
 }

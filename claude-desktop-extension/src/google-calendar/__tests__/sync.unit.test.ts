@@ -4,7 +4,7 @@ import { describe, expect, it } from 'bun:test';
 
 import type { CalendarEvent, SyncVisit } from '../events';
 import { GoogleTokenError, type CalendarClient } from '../google-api';
-import { connectAccessToken, ensureCalendar, failedRun, syncAccount, syncAccounts } from '../sync';
+import { accountTag, connectAccessToken, ensureCalendar, failedRun, syncAccount, syncAccounts } from '../sync';
 
 /** An in-memory calendar with the client's surface. */
 function fakeClient(existing: string[] = [], calendars: string[] = []) {
@@ -37,7 +37,9 @@ describe('syncAccount', () => {
     expect(events.size).toBe(2);
     expect(events.has('stale-event')).toBe(false);
     // Pruning only ever looks at this account's own events.
-    expect(listed).toEqual(['openrecordAccount=pat@host.org']);
+    expect(listed).toEqual([`openrecordAccount=${accountTag('pat@host.org')}`]);
+    // Nothing on the calendar names the MyChart login.
+    expect(JSON.stringify([...events.values()])).not.toContain('pat');
   });
 
   it('never prunes when the MyChart read fails — a failed read is not "everything was canceled"', async () => {
@@ -45,6 +47,14 @@ describe('syncAccount', () => {
     const result = await syncAccount(client, 'cal', 'a@b.org', async () => { throw new Error('portal down'); });
     expect(result).toEqual({ account: 'a@b.org', synced: 0, removed: 0, error: 'portal down' });
     expect(events.has('kept')).toBe(true);
+  });
+});
+
+describe('accountTag', () => {
+  it('is the same for any casing of a login, different per login, and does not contain it', () => {
+    expect(accountTag('Pat@Host.org')).toBe(accountTag('pat@host.org'));
+    expect(accountTag('pat@host.org')).not.toBe(accountTag('kid@host.org'));
+    expect(accountTag('pat@host.org')).toMatch(/^[0-9a-f]{32}$/);
   });
 });
 
@@ -98,6 +108,25 @@ describe('syncAccounts — three tries, then stop', () => {
     expect(reads).toEqual(['c@d.org']);
     expect(accounts[0]).toMatchObject({ failures: 1 });
     expect(accounts[0]!.stopped).toBeUndefined();
+  });
+});
+
+describe('syncAccounts — removed accounts', () => {
+  it("takes a removed account's future events off the calendar and then forgets it", async () => {
+    const { client, events, listed } = fakeClient(['old-event']);
+    const previous = { at: 'earlier', ok: true, synced: 1, accounts: [{ account: 'gone@x.org', synced: 1, removed: 0 }] };
+    const results = await syncAccounts(client, 'cal', [], async () => [], previous, true);
+    expect(listed).toEqual([`openrecordAccount=${accountTag('gone@x.org')}`]);
+    expect(events.has('old-event')).toBe(false);
+    expect(results).toEqual([]);
+  });
+
+  it('keeps a failed prune in the results so the next sync retries it', async () => {
+    const { client } = fakeClient();
+    (client as unknown as { listEventIds: () => Promise<string[]> }).listEventIds = async () => { throw new Error('offline'); };
+    const previous = { at: 'earlier', ok: true, synced: 1, accounts: [{ account: 'gone@x.org', synced: 1, removed: 0 }] };
+    const results = await syncAccounts(client, 'cal', [], async () => [], previous, true);
+    expect(results).toEqual([{ account: 'gone@x.org', synced: 0, removed: 0, error: 'offline' }]);
   });
 });
 

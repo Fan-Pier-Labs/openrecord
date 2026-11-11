@@ -6,6 +6,8 @@
  * gone (canceled, rescheduled away) taken back off.
  */
 
+import * as crypto from 'crypto';
+
 import { detailedMessage } from '../../../shared/detailedError';
 import { ACCOUNT_PROPERTY, visitToEvent, type CalendarEvent, type SyncVisit } from './events';
 import { GoogleTokenError, revoke, type CalendarClient } from './google-api';
@@ -13,6 +15,11 @@ import { clearRefreshToken, readRefreshToken, readState, writeState, type Accoun
 
 /** Reads one account's upcoming visits — `get_upcoming_visits` in `json` mode. */
 export type FetchVisits = (account: string) => Promise<SyncVisit[]>;
+
+/** What a calendar event says about its account: a hash, so the MyChart username never reaches a calendar that may be shared. */
+export function accountTag(account: string): string {
+  return crypto.createHash('sha256').update(account.toLowerCase()).digest('hex').slice(0, 32);
+}
 
 /** Consecutive failed attempts before scheduled syncs give up on an account (or on Google) and tell the user. */
 export const MAX_ATTEMPTS = 3;
@@ -26,14 +33,14 @@ export async function syncAccount(
 ): Promise<AccountSyncResult> {
   try {
     const events = (await fetchVisits(account))
-      .map((v) => visitToEvent(account, v))
+      .map((v) => visitToEvent(accountTag(account), v))
       .filter((e): e is CalendarEvent => e !== null);
     for (const event of events) await client.upsertEvent(calendarId, event);
 
     // Only once the read succeeded: a failed MyChart read must never look like
     // "every appointment was canceled" and empty the calendar.
     const keep = new Set(events.map((e) => e.id));
-    const existing = await client.listEventIds(calendarId, `${ACCOUNT_PROPERTY}=${account.toLowerCase()}`, now.toISOString());
+    const existing = await client.listEventIds(calendarId, `${ACCOUNT_PROPERTY}=${accountTag(account)}`, now.toISOString());
     const stale = existing.filter((id) => !keep.has(id));
     for (const id of stale) await client.deleteEvent(calendarId, id);
 
@@ -71,6 +78,14 @@ export async function syncAccounts(
     }
     const result = await syncAccount(client, calendarId, account, fetchVisits);
     results.push(result.error ? counted(result, prev?.failures ?? 0) : result);
+  }
+  // An account removed from OpenRecord (disconnect_account) takes its future
+  // events with it: synced as if it had no visits. A prune that fails stays in
+  // the results, so the next sync tries it again.
+  for (const gone of previous?.accounts ?? []) {
+    if (accounts.includes(gone.account)) continue;
+    const pruned = await syncAccount(client, calendarId, gone.account, () => Promise.resolve([]));
+    if (pruned.error) results.push(pruned);
   }
   return results;
 }

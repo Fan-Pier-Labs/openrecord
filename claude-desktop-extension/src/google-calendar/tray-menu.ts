@@ -52,12 +52,13 @@ export interface FailureNotice {
 }
 
 const TITLE = 'MyChart calendar sync stopped';
+const sentence = (s: string) => (/[.!?]$/.test(s) ? s : `${s}.`);
 
 /** What to tell the user once something has failed MAX_ATTEMPTS times in a row, or null while nothing has. */
 export function stopNotice(last: LastSync | undefined): FailureNotice | null {
   if (!last) return null;
   if (last.stopped) {
-    return { key: `run:${last.error}`, title: TITLE, body: `Failed ${MAX_ATTEMPTS} times in a row: ${last.error} Choose Sync Now to try again.` };
+    return { key: `run:${last.error}`, title: TITLE, body: `Failed ${MAX_ATTEMPTS} times in a row: ${sentence(last.error ?? '')} Choose Sync Now to try again.` };
   }
   const stopped = last.accounts.filter((a) => a.stopped);
   if (!stopped.length) return null;

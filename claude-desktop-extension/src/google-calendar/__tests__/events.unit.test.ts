@@ -33,13 +33,13 @@ const visit = (over: Partial<SyncVisit> = {}): SyncVisit => ({
 
 describe('visitToEvent', () => {
   it('maps a timed visit to a timed event lasting its duration', () => {
-    const e = visitToEvent('pat@mychart.example.org', visit())!;
+    const e = visitToEvent('tag1', visit())!;
     expect(e.summary).toBe('Office Visit with Dr. Example');
     expect(e.location).toBe('Example Clinic, 1 Main St, Springfield');
     expect(e.start).toEqual({ dateTime: '2026-12-01T15:00:00.000Z' });
     expect(e.end).toEqual({ dateTime: '2026-12-01T15:45:00.000Z' });
-    expect(e.extendedProperties.private.openrecordAccount).toBe('pat@mychart.example.org');
-    expect(e.description).toBe('Clinic phone: 555-0100\n\nSynced from MyChart (pat@mychart.example.org) by OpenRecord. Edits here are overwritten on the next sync.');
+    expect(e.extendedProperties.private.openrecordAccount).toBe('tag1');
+    expect(e.description).toBe('Clinic phone: 555-0100\n\nSynced from MyChart by OpenRecord. Edits here are overwritten on the next sync.');
   });
 
   it('defaults to 30 minutes when MyChart gives no duration', () => {
@@ -66,9 +66,9 @@ describe('visitToEvent', () => {
 
 describe('eventId', () => {
   it('is stable per account + visit and only uses characters Google allows', () => {
-    const id = eventId('Pat@mychart.example.org', visit());
-    expect(id).toBe(eventId('pat@mychart.example.org', visit()));
-    expect(id).not.toBe(eventId('kid@mychart.example.org', visit()));
+    const id = eventId('tag1', visit());
+    expect(id).toBe(eventId('tag1', visit()));
+    expect(id).not.toBe(eventId('tag2', visit()));
     expect(id).toMatch(/^[a-v0-9]{5,1024}$/);
   });
 });

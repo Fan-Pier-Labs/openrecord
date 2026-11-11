@@ -208,6 +208,33 @@ describe('uninstallGoogleCalendar', () => {
   });
 });
 
+describe('updateInstalledBinary', () => {
+  const enable = () => {
+    files.set(path.join(ROOT, 'google-calendar.json'), JSON.stringify({ connectedAt: 'x' }));
+    files.set(PLIST, 'plist');
+  };
+
+  it('replaces an outdated binary and restarts the menu-bar app when sync is on', async () => {
+    enable();
+    files.set(WORKER, 'old build');
+    await applet.updateInstalledBinary();
+    expect(files.get(WORKER)).toBe('binary');
+    expect(commands.map((c) => c.slice(0, 2).join(' '))).toEqual(['launchctl bootout', 'xattr -d', 'launchctl bootstrap']);
+  });
+
+  it('touches nothing when the binary is current or sync is off', async () => {
+    enable();
+    files.set(WORKER, 'binary');
+    await applet.updateInstalledBinary();
+    files.clear();
+    files.set(HASHES, JSON.stringify({ [process.arch]: sha256('binary') }));
+    files.set(WORKER, 'old build');
+    await applet.updateInstalledBinary();
+    expect(commands).toEqual([]);
+    expect(files.get(WORKER)).toBe('old build');
+  });
+});
+
 describe('calendarSyncStatus', () => {
   it('is enabled only once connected and set to start at login', async () => {
     expect(applet.calendarSyncStatus()).toEqual({ enabled: false, lastSync: null });

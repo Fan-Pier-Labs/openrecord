@@ -63,15 +63,23 @@ describe('authorizeInBrowser', () => {
     expect(form.get('code_verifier')!.length).toBeGreaterThan(40);
   });
 
-  it('reports a declined consent, and ignores a redirect carrying someone else\'s state', async () => {
+  it('reports a declined consent', async () => {
     google(() => tokens);
     const denied = await consent((state) => `error=access_denied&state=${state}`);
     await expect(denied.result).rejects.toThrow('Google Calendar access was not granted.');
     expect(denied.page).toContain('was not connected');
+  });
 
-    const forged = await consent(() => 'code=x&state=forged');
-    await expect(forged.result).rejects.toThrow('state_mismatch');
+  it("refuses a redirect carrying someone else's state and keeps waiting for the real one", async () => {
+    google(() => tokens);
+    const { result, url } = start();
+    const auth = new URL(await url);
+    const redirect = auth.searchParams.get('redirect_uri')!;
+    expect((await fetch(`${redirect}/?code=forged&state=forged`)).status).toBe(400);
     expect(calls).toEqual([]);
+    await fetch(`${redirect}/?code=real&state=${auth.searchParams.get('state')}`);
+    expect(await result).toBe('refresh-1');
+    expect(new URLSearchParams(calls[0]!.body).get('code')).toBe('real');
   });
 
   it('fails when Google returns no refresh token', async () => {

@@ -79,6 +79,8 @@ describe('retries and stopping', () => {
   it('reports a run-level stop, like a revoked Google grant', () => {
     const notice = stopNotice(run(ago(0), [], { error: 'Google sign-in failed (invalid_grant).', failures: 3, stopped: true }));
     expect(notice?.body).toBe('Failed 3 times in a row: Google sign-in failed (invalid_grant). Choose Sync Now to try again.');
+    expect(stopNotice(run(ago(0), [], { error: 'Network error', failures: 3, stopped: true }))?.body)
+      .toBe('Failed 3 times in a row: Network error. Choose Sync Now to try again.');
   });
 
   it('keeps the same key while the same stop persists, so it is announced once', () => {

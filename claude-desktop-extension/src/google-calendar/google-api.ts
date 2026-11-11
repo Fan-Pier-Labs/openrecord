@@ -106,7 +106,13 @@ export async function authorizeInBrowser(openBrowser: (url: string) => void): Pr
       res.writeHead(404).end();
       return;
     }
-    const ok = url.searchParams.get('state') === state && !!url.searchParams.get('code');
+    // Not this consent's redirect — a stale tab, or another page probing the
+    // port. Refuse it and keep waiting for the real one.
+    if (url.searchParams.get('state') !== state) {
+      res.writeHead(400).end();
+      return;
+    }
+    const ok = !!url.searchParams.get('code');
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
     res.end(
       `<!doctype html><meta charset="utf-8"><title>OpenRecord</title>` +
@@ -115,8 +121,7 @@ export async function authorizeInBrowser(openBrowser: (url: string) => void): Pr
           : '<h2>Google Calendar was not connected</h2><p>You can close this tab and try again from Claude.</p>') +
         '</body>',
     );
-    if (url.searchParams.get('state') !== state) finish({ error: 'state_mismatch' });
-    else finish({ code: url.searchParams.get('code') ?? undefined, error: url.searchParams.get('error') ?? undefined });
+    finish({ code: url.searchParams.get('code') ?? undefined, error: url.searchParams.get('error') ?? undefined });
   });
 
   await new Promise<void>((resolve) => { server.listen(0, '127.0.0.1', resolve); });

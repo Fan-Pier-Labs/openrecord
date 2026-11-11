@@ -30,6 +30,9 @@ import { iconSymbol, isSyncDue, statusLines, stopNotice } from './tray-menu';
 // while the Mac sleeps, so a laptop opened in the morning would otherwise wait
 // out the rest of the interval. Each check is one small file read.
 const CHECK_INTERVAL_S = 15 * 60;
+// The wake notification arrives before Wi-Fi has reconnected, and a sync started
+// then would fail and spend one of its three tries on that.
+const AFTER_WAKE_S = 30;
 // Only while a sync is running, to put the icon back when it finishes.
 const SYNCING_POLL_S = 3;
 const SYNC_TIMEOUT_MS = 10 * 60_000;
@@ -140,6 +143,9 @@ export function runTray(executable: string): never {
     'tick:': () => {
       if (isSyncDue(readState(), new Date())) startSync(true);
     },
+    'woke:': () => {
+      timer(AFTER_WAKE_S, 'tick:', false);
+    },
     'poll:': () => {
       if (syncing()) {
         if (Date.now() - taskStarted > SYNC_TIMEOUT_MS) msg(task, 'terminate');
@@ -189,7 +195,7 @@ export function runTray(executable: string): never {
   msg(menu, 'setDelegate:', handler);
   msg(statusItem, 'setMenu:', menu);
   msg(msg(msg(cls('NSWorkspace'), 'sharedWorkspace'), 'notificationCenter'), 'addObserver:selector:name:object:',
-    handler, sel('tick:'), nsstr('NSWorkspaceDidWakeNotification'), null);
+    handler, sel('woke:'), nsstr('NSWorkspaceDidWakeNotification'), null);
   timer(CHECK_INTERVAL_S, 'tick:', true);
 
   setIcon();

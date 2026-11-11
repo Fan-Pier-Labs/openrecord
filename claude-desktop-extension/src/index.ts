@@ -35,6 +35,7 @@ import { startDirectoryRefresh } from './directory-refresh';
 import { startUpdateCheck } from './update-notice';
 import { setTelemetryApp } from '../../shared/telemetry';
 import { version as MCPB_VERSION } from '../manifest.json';
+import { updateInstalledBinary } from './google-calendar/applet';
 
 async function main(): Promise<void> {
   setTelemetryApp('mcpb', MCPB_VERSION);
@@ -132,6 +133,9 @@ async function main(): Promise<void> {
   await server.connect(transport);
   startDirectoryRefresh();
   void startUpdateCheck();
+  updateInstalledBinary().catch((err: unknown) => {
+    console.error('[openrecord] calendar sync app update failed:', err instanceof Error ? err.message : err);
+  });
 
   // Clean up keepalive timers when the parent (Claude Desktop) closes stdio.
   const shutdown = () => {
