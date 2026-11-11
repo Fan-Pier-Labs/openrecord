@@ -25,6 +25,7 @@
 
 import { randomUUID } from 'crypto';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+import { detailedMessage } from '../../shared/detailedError';
 
 export const CHECK_TOOL = 'check_pending_call';
 const DEADLINE_MS = 150_000;
@@ -160,7 +161,7 @@ export async function runGuarded(
 
   const promise = Promise.resolve()
     .then(fn)
-    .catch((err: unknown) => text(`Error: ${(err as Error).message}`, true));
+    .catch((err: unknown) => text(`Error: ${detailedMessage(err)}`, true));
   const result = await settleWithin(promise, deadlineMs);
   if (result) return result;
 

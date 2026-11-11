@@ -1,6 +1,6 @@
 # Changelog
 
-## Next major — search reads a refreshed list instead of fetching (breaking)
+## 2.2.0 — search reads a refreshed list instead of fetching (breaking)
 
 `searchMyChartDirectory` no longer fetches Epic's directory. It searches the result of the
 refresh that builds the package's checked-in list: Epic's directory with every login URL checked
@@ -14,6 +14,10 @@ and corrected. Until you run a refresh it searches the checked-in list, and says
 
 Added: `refreshMyChartDirectory`, `useRefreshedMyCharts`, `listMyCharts`, and `directoryUrl` and
 `down` on `MyChartInstanceSeed`.
+
+Error messages no longer carry chart data. Where one used to name a family member, a document, a
+provider or what MyChart's page said, the error is now a `DetailedError`: its `message` leaves that
+out and `detailedMessage` holds the old text. Show `detailedMessage(err)` (exported) to users.
 
 `BillingNotFullyLoadedError` is also gone. A billing read whose paged-out charge rows don't all
 load no longer throws: it returns every row that did load, lists the rest per account under

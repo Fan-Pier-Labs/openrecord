@@ -20,7 +20,7 @@ import { savePasskeyCredential, loadPasskeyCredential } from './passkeyStore';
 import { passkeyLoginWithCounterRetry } from '../../scrapers/myChart/auth/passkeyLoginRetry';
 import { wireSilentReauthentication } from '../../scrapers/myChart/auth/silentLogin';
 import type { PasskeyCredential } from '../../scrapers/myChart/auth/softwareAuthenticator';
-import { sendTelemetryEvent } from '../../shared/telemetry';
+import { sendTelemetryEvent, setTelemetryApp } from '../../shared/telemetry';
 import { checkVersion, formatUpdateNotice } from '../../scrapers/metadata/version';
 import { isBlockedInstance } from '../../scrapers/myChart/auth/blockedInstances';
 import {
@@ -41,6 +41,7 @@ import {
 import { renderCliHelp } from './help';
 import { fetchHospitalNetworkProfile } from '../../scrapers/myChart/prelogin';
 import { fetchResolvedMyChartDirectory } from '../../scrapers/list-all-mycharts/refreshDirectory';
+import { detailedMessage } from '../../shared/detailedError';
 
 // Note: We NEVER modify or delete macOS Keychain entries. Read-only via browser password extraction.
 
@@ -694,6 +695,7 @@ async function handleSendReply(mychartRequest: MyChartRequest) {
 
 async function main() {
   // Fire-and-forget telemetry — never blocks or breaks the CLI
+  setTelemetryApp('cli', CLI_VERSION);
   sendTelemetryEvent('cli_started', {
     action: cliArgs.action || 'default',
     host: cliArgs.host || 'unknown',
@@ -757,7 +759,7 @@ async function main() {
       closeRL();
       process.exit(0);
     } catch (err) {
-      console.error(`  ${(err as Error).message}`);
+      console.error(`  ${detailedMessage(err)}`);
       closeRL();
       process.exit(1);
     }
@@ -782,7 +784,7 @@ async function main() {
       closeRL();
       process.exit(0);
     } catch (err) {
-      console.error(`  ${(err as Error).message}`);
+      console.error(`  ${detailedMessage(err)}`);
       closeRL();
       process.exit(1);
     }
@@ -944,7 +946,7 @@ async function main() {
       try {
         check = await checkProxyContext(session.request, cliArgs.patient);
       } catch (err) {
-        const why = (err as Error).message;
+        const why = detailedMessage(err);
         if (cliArgs.patient) {
           // A specific patient was asked for and we can't confirm we're on
           // them. Refusing is the whole point.

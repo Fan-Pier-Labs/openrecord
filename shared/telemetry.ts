@@ -3,10 +3,9 @@
 /**
  * Anonymous usage telemetry, modelled after Next.js / Vercel CLI:
  *
- * - One stable random UUID per project install, stored in the consumer's
- *   `node_modules/.cache/mychart-cli/anonymous-id` (the same
- *   convention Babel / ESLint / Webpack use for tooling cache). Never
- *   derived from identifying information.
+ * - One stable random UUID per computer, stored as `deviceId` in
+ *   `~/.openrecord.json` and shared by the CLI and the MCPB. Never derived
+ *   from identifying information.
  * - Event payload is event name + properties + OS platform/arch +
  *   runtime version. No OS hostname, no git config.
  * - An event sent with a `user` (the MCPB's per-tool-call event) is NOT
@@ -55,55 +54,40 @@ const REQUEST_TIMEOUT_MS = 5000;
  * The opt-out for telemetry events. The version check ignores it — it sends
  * nothing but the request itself. Exported so the MCPB can skip the MyChart
  * email lookup behind its tool-call event, not just the send.
+ *
+ * `bun test` sets NODE_ENV=test, and every CI run would otherwise post its
+ * deliberately failing tool calls and fake-mychart logins to production
+ * analytics. Child processes inherit it, so the built CLI the integration
+ * suites spawn stays quiet too. The telemetry suites set it back themselves.
  */
 export function isTelemetryDisabled(): boolean {
-  return Boolean(process.env.MYCHART_CLI_TELEMETRY_DISABLED);
+  return Boolean(process.env.MYCHART_CLI_TELEMETRY_DISABLED) || process.env.NODE_ENV === 'test';
 }
 
-/**
- * Locate the nearest `node_modules` directory by walking up from
- * `process.cwd()`. Returns the cache subdirectory we'd use, or `null`
- * if no `node_modules` is reachable (in which case we won't persist
- * the anonymous ID at all).
- */
-function findNodeModulesCacheDir(): string | null {
-  let dir = process.cwd();
-  while (dir !== path.dirname(dir)) {
-    const nm = path.join(dir, 'node_modules');
-    if (fs.existsSync(nm)) {
-      return path.join(nm, '.cache', 'mychart-cli');
-    }
-    dir = path.dirname(dir);
-  }
-  return null;
-}
+/** Used only when `~/.openrecord.json` can't be read or written. */
+let fallbackDeviceId: string | undefined;
 
 /**
- * Read or create a stable random UUID stored on disk. The ID is not
- * derived from any identifying information; it exists purely to dedupe
- * events from the same project install.
+ * Read or create a stable random UUID in `~/.openrecord.json`. The ID is not
+ * derived from any identifying information; it exists purely to tie one
+ * computer's events together. Re-read on every event rather than cached, so
+ * a CLI run and the MCPB that start at once settle on whichever ID landed.
  */
-function getAnonymousId(): string {
-  const cacheDir = findNodeModulesCacheDir();
-  if (!cacheDir) {
-    // No node_modules nearby (running from outside any project).
-    // Fall back to a per-process UUID — telemetry still works, just
-    // won't dedupe across runs.
-    return randomUUID();
-  }
-  const idFile = path.join(cacheDir, 'anonymous-id');
+export function getAnonymousId(): string {
+  const file = path.join(os.homedir(), '.openrecord.json');
   try {
-    if (fs.existsSync(idFile)) {
-      const cached = fs.readFileSync(idFile, 'utf8').trim();
-      if (cached) return cached;
+    let config: Record<string, unknown> = {};
+    if (fs.existsSync(file)) {
+      config = JSON.parse(fs.readFileSync(file, 'utf8')) as Record<string, unknown>;
+      if (typeof config.deviceId === 'string' && config.deviceId) return config.deviceId;
     }
-    fs.mkdirSync(cacheDir, { recursive: true });
     const fresh = randomUUID();
-    fs.writeFileSync(idFile, fresh, { encoding: 'utf8', mode: 0o600 });
+    fs.writeFileSync(file, `${JSON.stringify({ ...config, deviceId: fresh }, null, 2)}\n`, { mode: 0o600 });
     return fresh;
   } catch {
-    // Read-only FS / permission denied — fall back to per-process UUID.
-    return randomUUID();
+    // A corrupt file or a read-only home: don't overwrite it, but keep one ID
+    // for the life of the process so this run's events still group.
+    return (fallbackDeviceId ??= randomUUID());
   }
 }
 
@@ -149,6 +133,41 @@ async function postJson(url: string, body: unknown): Promise<void> {
   }
 }
 
+export interface ErrorReport {
+  name: string;
+  message: string;
+  /** The full stack, then each `cause`'s stack in turn. */
+  stack: string;
+}
+
+/** Anything thrown, as name + message + stack. A non-Error throw has no stack to give. */
+export function describeError(error: unknown): ErrorReport {
+  if (!(error instanceof Error)) {
+    const text = typeof error === 'string' ? error : JSON.stringify(error) ?? String(error);
+    return { name: 'NonError', message: text, stack: text };
+  }
+  const stacks: string[] = [];
+  // Bounded, since a cause chain can loop.
+  for (let e: unknown = error; e !== undefined && stacks.length < 10; e = (e as Error).cause) {
+    stacks.push(e instanceof Error ? (e.stack ?? `${e.name}: ${e.message}`) : describeError(e).stack);
+  }
+  // The home folder is usually named after the macOS user.
+  const stack = stacks.join('\nCaused by: ').replaceAll(os.homedir(), '~');
+  return { name: error.name, message: error.message, stack };
+}
+
+let app: { name: string; version: string } | undefined;
+
+/**
+ * Each client calls this once at startup so every event says which build sent
+ * it — including the scraper's own events, which can't otherwise tell an MCPB
+ * login from a CLI one. Library consumers never call it; their events go
+ * without.
+ */
+export function setTelemetryApp(name: string, version: string): void {
+  app = { name, version };
+}
+
 /**
  * Send a telemetry event to both sinks (Amplitude and our analytics
  * Lambda). Fire-and-forget. Never throws. Returns immediately when
@@ -156,13 +175,16 @@ async function postJson(url: string, body: unknown): Promise<void> {
  *
  * `source` identifies the client emitting the event ('cli', 'scraper',
  * 'openclaw', …) and is only used by the self-hosted sink; Amplitude
- * distinguishes clients by event name.
+ * distinguishes clients by event name. `error` rides along as name, message
+ * and full stack: as event properties on Amplitude, which truncates long
+ * values, and whole as a top-level `error` for the Lambda.
  */
 export function sendTelemetryEvent(
   eventType: string,
   eventProperties: Record<string, unknown> = {},
   source = 'node',
   user?: { email?: string | undefined; username?: string | undefined },
+  error?: unknown,
 ): void {
   if (isTelemetryDisabled()) return;
 
@@ -172,9 +194,11 @@ export function sendTelemetryEvent(
       const deviceId = getAnonymousId();
       const properties = {
         ...eventProperties,
+        ...(app ? { app: app.name, app_version: app.version } : {}),
         arch: envInfo.arch,
         runtime_version: envInfo.runtime_version,
       };
+      const failure = error === undefined ? undefined : describeError(error);
 
       const email = user?.email;
       const username = user?.username;
@@ -188,7 +212,11 @@ export function sendTelemetryEvent(
             platform: envInfo.platform,
             os_name: envInfo.platform,
             os_version: envInfo.os_version,
-            event_properties: properties,
+            // Amplitude's built-in Version, so its version filters work.
+            ...(app ? { app_version: app.version } : {}),
+            event_properties: failure
+              ? { ...properties, error_name: failure.name, error_message: failure.message, error_stack: failure.stack }
+              : properties,
             // '$remote' tells Amplitude to record the IP the upload came from.
             ...(user ? { ip: '$remote' } : {}),
             ...(email ? { user_id: email } : {}),
@@ -207,6 +235,7 @@ export function sendTelemetryEvent(
             // The key's presence tells the Lambda to log this event's email and
             // the request's IP, which it reads off the request itself.
             ...(user ? { email: email ?? null, username: username ?? null } : {}),
+            ...(failure ? { error: failure } : {}),
             event: eventType,
             ts: Date.now(),
             properties: {

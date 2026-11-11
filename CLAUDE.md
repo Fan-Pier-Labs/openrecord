@@ -63,6 +63,8 @@ detail for every line here is in [`docs/architecture.md`](docs/architecture.md).
   client derives its surface from it; none hand-maintains a list — including account-free lookups,
   which are `kind: 'public'` and whose `run` takes no session, so they cannot reach a chart. Add an
   entry and it ships everywhere. `capability-parity.unit.test.ts` fails if a client drops one.
+- **An error message never carries chart data** — it reaches Sentry and analytics. Throw a
+  `DetailedError` (`shared/detailedError.ts`); clients show its `detailedMessage`.
 - **Never read a chart without asserting whose it is.** MyChart's active patient is server-side
   session state, so every chart-touching capability asserts the patient first and refuses with the
   fix rather than returning the wrong family member's record.
@@ -92,13 +94,10 @@ fake server. **Never take an action that could trigger a 2FA SMS to the user wit
 | `bun run test:real-mychart` | Every `*.real-mychart.test.ts`, against a real account. By hand only |
 | `bun run cli mychart [flags]` | Run the CLI scraper. `--help`, `--list-capabilities` (both take `--show-all`) and `--host <host> --action <id> --arg k=v` are self-documenting — [reference](npm-package/docs/cli.md) |
 | `bun run fake-mychart` | Fake MyChart dev server on a **random port in 4000-5000**, printed at startup, so parallel worktrees don't collide. `PORT=4000` pins it — needed by anything defaulting to `localhost:4000`. Sign in as `homer`/`donuts123` (`marge` for 2FA) |
-| `cd claude-desktop-extension && bun run pack` | Build `openrecord.mcpb` (`pack:signed` signs it with the Developer ID — see that package's README) |
+| `cd claude-desktop-extension && bun run pack` | Build `openrecord.mcpb`. `./deploy.sh` there releases it — never sign it, Claude Desktop can't open a signed bundle |
 | `cd npm-package && bun run build` | Build the CLI binary at `npm-package/dist/cli.cjs` |
 | `docker compose -f docker-compose.ci.yaml up -d --build --wait` | Start the CI fake-mychart (port 4000); `down -v` to stop |
 | `bun scrapers/list-all-mycharts/probes/probe-mount-discovery.ts` | Mount discovery against all ~750 directory hosts. Run after touching discovery |
-
-All five packages are on TypeScript 6 — `moduleResolution: "Node"`, `baseUrl`, and paths without a
-leading `./` no longer parse, so don't reintroduce them.
 
 ## Tests
 

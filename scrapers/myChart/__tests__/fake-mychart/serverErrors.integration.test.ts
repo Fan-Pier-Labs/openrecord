@@ -103,7 +103,9 @@ describe('a failing data endpoint is an error in every output mode', () => {
             const error = await failureOf(session, capability, mode)
             expect(error).toBeInstanceOf(MyChartResponseError)
             expect(error!.path.toLowerCase()).toBe(`/${endpoint.toLowerCase()}`)
-            expect(error!.message).toContain('An error has occurred')
+            // What the page said is in the detailed message only, off the message that error reporting sees.
+            expect(error!.detailedMessage).toContain('An error has occurred')
+            expect(error!.message).not.toContain('An error has occurred')
             expect(error!.message).toContain('not an empty result')
             if (release === 'August 2025') {
               expect(error!.status).toBe(500)

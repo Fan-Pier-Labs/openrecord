@@ -17,6 +17,7 @@ import * as os from 'os';
 import * as path from 'path';
 
 import type { DownloadStudyJpegsResult } from './download-study';
+import { DetailedError } from '../../../shared/detailedError';
 
 export interface SavedStudy {
   /** Absolute path of the folder the JPEGs were written to. */
@@ -60,7 +61,10 @@ function makeStudyDir(base: string, name: string): string {
       if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err;
     }
   }
-  throw new Error(`Could not create a folder for this study under ${base} — 100 copies already exist.`);
+  throw new DetailedError(
+    'Could not create a folder for this study — 100 copies of its name already exist.',
+    `Could not create a folder for this study under ${base} — 100 copies already exist.`,
+  );
 }
 
 /**

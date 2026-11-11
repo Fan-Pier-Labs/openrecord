@@ -9,6 +9,7 @@ import { promises as fs } from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import type { FilePayload } from '../scrapers/myChart/core/filePayload';
+import { DetailedError } from './detailedError';
 
 // Only the multipart part's Content-Type; MyChart judges a file by its
 // extension against GetComposeSettings, so an unlisted type still goes.
@@ -36,7 +37,7 @@ const MIME_TYPES: Record<string, string> = {
 export async function readLocalFile(ref: string): Promise<FilePayload> {
   const resolved = path.resolve(ref.startsWith('~/') ? path.join(os.homedir(), ref.slice(2)) : ref);
   const stat = await fs.stat(resolved).catch(() => undefined);
-  if (!stat?.isFile()) throw new Error(`Attachment not found: ${resolved}`);
+  if (!stat?.isFile()) throw new DetailedError('No file at the attachment path given.', `Attachment not found: ${resolved}`);
   const fileName = path.basename(resolved);
   const ext = path.extname(fileName).slice(1).toLowerCase();
   return {

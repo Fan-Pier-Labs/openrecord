@@ -1,7 +1,18 @@
 // Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
 
 import { describe, test, expect, mock, beforeEach, afterEach } from 'bun:test';
-import { gatherEnvInfo, sendTelemetryEvent } from '../telemetry';
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
+
+// The device id lives in ~/.openrecord.json; point the home folder at a temp
+// dir so no run ever writes the developer's real one. Bun caches homedir(),
+// so setting HOME would not reach it.
+const realOs = await import('os');
+const fakeHome = fs.mkdtempSync(path.join(realOs.tmpdir(), 'telemetry-home-'));
+void mock.module('os', () => ({ ...realOs, default: { ...realOs, homedir: () => fakeHome }, homedir: () => fakeHome }));
+const { describeError, gatherEnvInfo, getAnonymousId, sendTelemetryEvent, setTelemetryApp } = await import('../telemetry');
+const idFile = path.join(fakeHome, '.openrecord.json');
 
 /** Anything with the shape of a `mock()`'d fetch, for the drain helper below. */
 type FetchMock = { mock: { calls: unknown[][] } };
@@ -22,6 +33,17 @@ async function drainSend(fetchMock: FetchMock, expected: number): Promise<void> 
 }
 
 describe('telemetry', () => {
+  // Telemetry is off under `bun test`; these suites switch it back on behind a mocked fetch.
+  let originalNodeEnv: string | undefined;
+  beforeEach(() => {
+    originalNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'development';
+  });
+  afterEach(() => {
+    if (originalNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = originalNodeEnv;
+  });
+
   describe('gatherEnvInfo', () => {
     test('returns platform, arch, runtime_version, os_version', () => {
       const info = gatherEnvInfo();
@@ -142,7 +164,28 @@ describe('telemetry', () => {
       expect(bodyFor('execute-api')).toHaveProperty('email', null);
     });
 
-    test('does not fetch when MYCHART_CLI_TELEMETRY_DISABLED is set', async () => {
+    test('an event with an error carries its stack to both sinks', async () => {
+      const fetchMock = mock((_url: string, _init?: RequestInit) =>
+        Promise.resolve(new Response('{}', { status: 200 }))
+      );
+      globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+      sendTelemetryEvent('mcpb_tool_error', { tool: 'get_profile' }, 'mcpb', {}, new TypeError('boom'));
+      await drainSend(fetchMock, 2);
+
+      const bodyFor = (needle: string) =>
+        JSON.parse(fetchMock.mock.calls.find((c) => String(c[0]).includes(needle))![1]!.body as string);
+      const props = bodyFor('amplitude.com').events[0].event_properties;
+      expect([props.error_name, props.error_message]).toEqual(['TypeError', 'boom']);
+      expect(props.error_stack).toContain('telemetry.unit.test.ts');
+      const lambda = bodyFor('execute-api');
+      expect(lambda.error.name).toBe('TypeError');
+      expect(lambda.error.stack).toContain('telemetry.unit.test.ts');
+      // The error is not a property, so the Lambda's per-property truncation never cuts the stack.
+      expect(lambda.properties.error_stack).toBeUndefined();
+    });
+
+        test('does not fetch when MYCHART_CLI_TELEMETRY_DISABLED is set', async () => {
       process.env.MYCHART_CLI_TELEMETRY_DISABLED = '1';
       const fetchMock = mock((_url: string, _init?: RequestInit) =>
         Promise.resolve(new Response('{}', { status: 200 }))
@@ -152,6 +195,19 @@ describe('telemetry', () => {
       sendTelemetryEvent('test_event');
       // Nothing to wait for — but drain anyway, so a regression that *does*
       // fetch has every chance to show itself rather than racing the assertion.
+      await drainSend(fetchMock, 1);
+
+      expect(fetchMock.mock.calls).toHaveLength(0);
+    });
+
+    test('does not fetch under bun test (NODE_ENV=test)', async () => {
+      process.env.NODE_ENV = 'test';
+      const fetchMock = mock((_url: string, _init?: RequestInit) =>
+        Promise.resolve(new Response('{}', { status: 200 }))
+      );
+      globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+      sendTelemetryEvent('test_event');
       await drainSend(fetchMock, 1);
 
       expect(fetchMock.mock.calls).toHaveLength(0);
@@ -266,5 +322,75 @@ describe('telemetry', () => {
       const urls = fetchMock.mock.calls.map((c) => String(c[0]));
       expect(urls.some((u) => u.includes('amplitude.com'))).toBe(true);
     });
+
+    test('stamps both sinks with the app and version once a client sets them', async () => {
+      const before = await capturePostUrls('test_event');
+      const unset = JSON.parse(before.calls.find((c) => String(c[0]).includes('amplitude.com'))![1]!.body as string);
+      expect(unset.events[0].app_version).toBeUndefined();
+      expect(unset.events[0].event_properties.app).toBeUndefined();
+
+      setTelemetryApp('mcpb', '9.9.9');
+      const { calls } = await capturePostUrls('scraper_login_started', { hostname: 'mychart.example.org' }, 'scraper');
+      const amplitude = JSON.parse(calls.find((c) => String(c[0]).includes('amplitude.com'))![1]!.body as string);
+      const lambda = JSON.parse(calls.find((c) => String(c[0]).includes('execute-api'))![1]!.body as string);
+      expect(amplitude.events[0].app_version).toBe('9.9.9');
+      expect(amplitude.events[0].event_properties).toMatchObject({ app: 'mcpb', app_version: '9.9.9' });
+      expect(lambda.properties).toMatchObject({ app: 'mcpb', app_version: '9.9.9' });
+    });
+  });
+});
+
+describe('device id', () => {
+  beforeEach(() => {
+    fs.rmSync(idFile, { force: true });
+  });
+
+  test('creates ~/.openrecord.json once and returns the same id every time', () => {
+    const ids = [getAnonymousId(), getAnonymousId(), getAnonymousId()];
+    const saved = JSON.parse(fs.readFileSync(idFile, 'utf8')) as { deviceId: string };
+    expect(saved.deviceId).toMatch(/^[0-9a-f-]{36}$/);
+    expect(ids).toEqual([saved.deviceId, saved.deviceId, saved.deviceId]);
+    expect(fs.statSync(idFile).mode & 0o777).toBe(0o600);
+  });
+
+  test('reuses the id already in the file and keeps its other keys', () => {
+    fs.writeFileSync(idFile, JSON.stringify({ other: 'kept' }));
+    const first = getAnonymousId();
+    expect(JSON.parse(fs.readFileSync(idFile, 'utf8'))).toEqual({ other: 'kept', deviceId: first });
+
+    fs.writeFileSync(idFile, JSON.stringify({ deviceId: 'existing-id' }));
+    expect([getAnonymousId(), getAnonymousId()]).toEqual(['existing-id', 'existing-id']);
+  });
+
+  test('leaves a corrupt file alone and still returns one id per process', () => {
+    fs.writeFileSync(idFile, '{not json');
+    expect(getAnonymousId()).toBe(getAnonymousId());
+    expect(fs.readFileSync(idFile, 'utf8')).toBe('{not json');
+  });
+});
+
+describe('describeError', () => {
+  test('appends every cause in the chain to the stack', () => {
+    const report = describeError(new Error('outer', { cause: new RangeError('inner') }));
+    expect([report.name, report.message]).toEqual(['Error', 'outer']);
+    expect(report.stack).toMatch(/^Error: outer[\s\S]*\nCaused by: RangeError: inner/);
+  });
+
+  test('replaces the home folder in the stack, since it is usually named after the user', () => {
+    const error = new Error('boom');
+    error.stack = `Error: boom\n    at run (${os.homedir()}/Library/app/server.cjs:1:1)`;
+    expect(describeError(error).stack).toBe('Error: boom\n    at run (~/Library/app/server.cjs:1:1)');
+  });
+
+  test('stops on a cause chain that loops', () => {
+    const a = new Error('a');
+    const b = new Error('b', { cause: a });
+    (a as { cause?: unknown }).cause = b;
+    expect(describeError(a).stack.split('Caused by:')).toHaveLength(10);
+  });
+
+  test('reports a non-Error throw as its text', () => {
+    expect(describeError('plain string')).toEqual({ name: 'NonError', message: 'plain string', stack: 'plain string' });
+    expect(describeError({ code: 7 }).message).toBe('{"code":7}');
   });
 });

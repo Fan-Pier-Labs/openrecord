@@ -99,7 +99,7 @@ describe('proxy tools against fake-mychart', () => {
   })
 
   it('refuses an unqualified (account holder) read while switched to Bart', async () => {
-    await expect(assertProxyReadContext(session)).rejects.toThrow(/Bart/)
+    await expect(assertProxyReadContext(session)).rejects.toThrow(/currently on another patient record.*patient: "me"/s)
   })
 
   it('switches back to the account holder with "me"', async () => {
@@ -162,7 +162,7 @@ describe('proxy tools against fake-mychart', () => {
 
     await expect(assertProxyReadContext(marge)).resolves.toBeUndefined()
     await expect(assertProxyReadContext(marge, 'me')).resolves.toBeUndefined()
-    await expect(assertProxyReadContext(marge, 'Bart')).rejects.toThrow(/No patient record matches 'Bart'/)
-    await expect(runSwitchProxyTarget(marge, 'Bart')).rejects.toThrow(/No patient record matches 'Bart'/)
+    await expect(assertProxyReadContext(marge, 'Bart')).rejects.toThrow(/No patient record matches that name/)
+    await expect(runSwitchProxyTarget(marge, 'Bart')).rejects.toThrow(/No patient record matches that name/)
   }, 20_000)
 })

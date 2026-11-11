@@ -219,10 +219,22 @@ describe('assertProxyReadContext', () => {
     const { req } = familyRequest(SELF_ID)
 
     await expect(assertProxyReadContext(req, 'Bart')).rejects.toThrow(
-      /currently on 'Homer Jay Simpson'.*about 'Bart Simpson'.*switch_proxy_target.*"Bart Simpson"/s,
+      expect.objectContaining({
+        message: expect.stringMatching(/^Refusing to read: MyChart is currently on another patient record.*switch_proxy_target with the same patient this call passed/s),
+        detailedMessage: expect.stringMatching(/currently on 'Homer Jay Simpson'.*about 'Bart Simpson'.*switch_proxy_target.*"Bart Simpson"/s),
+      }),
     )
     // Read-only: the refusal never followed a switch link.
     expect(mockCalls(req)).not.toContain('switchcontext')
+  })
+
+  it('names neither patient in the refusal\'s message, since it goes to error reporting', async () => {
+    const { req } = familyRequest(SELF_ID)
+    const message = await assertProxyReadContext(req, 'Bart').then(
+      () => '',
+      (err: unknown) => (err as Error).message,
+    )
+    expect(message).not.toMatch(/Bart|Homer|Simpson/)
   })
 
   it('refuses a default (account holder) read while switched to a proxy', async () => {
@@ -230,7 +242,7 @@ describe('assertProxyReadContext', () => {
     // child. An unqualified read must not silently return the child's chart.
     const { req } = familyRequest(CHILD_ID)
 
-    await expect(assertProxyReadContext(req)).rejects.toThrow(/currently on 'Bart Simpson'/)
+    await expect(assertProxyReadContext(req)).rejects.toThrow(expect.objectContaining({ detailedMessage: expect.stringContaining("currently on 'Bart Simpson'") }))
   })
 
   it('passes on a single-record account', async () => {
@@ -324,7 +336,7 @@ describe('assertProxyReadContext', () => {
 
     // The guard must now see Bart as active, not the cached self selection.
     await expect(assertProxyReadContext(req, 'Bart')).resolves.toBeUndefined()
-    await expect(assertProxyReadContext(req)).rejects.toThrow(/currently on 'Bart Simpson'/)
+    await expect(assertProxyReadContext(req)).rejects.toThrow(expect.objectContaining({ detailedMessage: expect.stringContaining("currently on 'Bart Simpson'") }))
   })
 
   it('is not fooled by a stale cache from before an external context change', async () => {
@@ -335,7 +347,7 @@ describe('assertProxyReadContext', () => {
     const b = familyRequest(CHILD_ID)
 
     await expect(assertProxyReadContext(a.req)).resolves.toBeUndefined()
-    await expect(assertProxyReadContext(b.req)).rejects.toThrow(/currently on 'Bart Simpson'/)
+    await expect(assertProxyReadContext(b.req)).rejects.toThrow(expect.objectContaining({ detailedMessage: expect.stringContaining("currently on 'Bart Simpson'") }))
   })
 })
 
@@ -369,7 +381,7 @@ describe('executeCapability applies the guard to every capability', () => {
     // Args are deliberately empty: the refusal has to come from the guard,
     // before `run` gets far enough to complain about a missing image_id.
     await expect(executeCapability(req, 'download_imaging_study', {})).rejects.toThrow(
-      /Refusing to read: MyChart is currently on 'Bart Simpson'/,
+      expect.objectContaining({ detailedMessage: expect.stringMatching(/Refusing to read: MyChart is currently on 'Bart Simpson'/) }),
     )
   })
 
@@ -377,7 +389,7 @@ describe('executeCapability applies the guard to every capability', () => {
     for (const capability of CHART_CAPABILITIES) {
       const { req } = familyRequest(CHILD_ID)
       await expect(executeCapability(req, capability.id, {})).rejects.toThrow(
-        /Refusing to read: MyChart is currently on 'Bart Simpson'/,
+        expect.objectContaining({ detailedMessage: expect.stringMatching(/Refusing to read: MyChart is currently on 'Bart Simpson'/) }),
       )
     }
   })

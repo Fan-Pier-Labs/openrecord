@@ -217,7 +217,12 @@ describe('downloadBillingStatement', () => {
 
   it('names the RecordIDs it did find when the one asked for is not there', async () => {
     const { req } = withStatementLists(twoAccounts())
-    await expect(downloadBillingStatement(req, 'REC-9')).rejects.toThrow(/No billing statement has RecordID "REC-9".*account 1: REC-1; account 2: REC-2/)
+    await expect(downloadBillingStatement(req, 'REC-9')).rejects.toThrow(
+      expect.objectContaining({
+        message: expect.stringMatching(/No billing statement has RecordID "REC-9".*the RecordIDs on this login are REC-1, REC-2\.$/),
+        detailedMessage: expect.stringMatching(/account 1: REC-1; account 2: REC-2/),
+      }),
+    )
   })
 
   it('refuses when the details page has no EncID rather than requesting a broken download', async () => {
@@ -228,7 +233,12 @@ describe('downloadBillingStatement', () => {
 
   it('refuses a 200 that is not a PDF instead of saving an error page as one', async () => {
     const { req } = withStatementLists(twoAccounts([['DownloadFromBlob', () => new Response('<html>Session expired</html>', { status: 200 })]]))
-    await expect(downloadBillingStatement(req, 'REC-1')).rejects.toThrow(/did not return a PDF.*Session expired/)
+    await expect(downloadBillingStatement(req, 'REC-1')).rejects.toThrow(
+      expect.objectContaining({
+        message: expect.stringMatching(/^MyChart did not return a PDF for statement REC-1 \(\d+ bytes\)\.$/),
+        detailedMessage: expect.stringMatching(/did not return a PDF.*Session expired/),
+      }),
+    )
   })
 })
 

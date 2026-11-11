@@ -482,7 +482,6 @@
   },
   {
     "aliases": [],
-    "down": true,
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/37EED2FE-14D4-4E63-B1A6-5AC2F88CE502/ddfe1f23cee07397455ebd18f7626c9d.png",
     "name": "Highland District Hospital",
     "slgId": "319-1",
@@ -2526,7 +2525,8 @@
   },
   {
     "aliases": [
-      "CHCB"
+      "CHCB",
+      "Community Health Centers of Burlington"
     ],
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/A58429BB-B04B-4D7B-A4EB-93AFB13B181C/fd040509a98885db7a8c4eb2312fd6cb.png",
     "name": "Community Health Centers Burlington",
@@ -2578,6 +2578,31 @@
     "name": "Siskiyou Community Health Center",
     "slgId": "432-254",
     "url": "https://mychart.ochin.org/SiskiyouMyChart/"
+  },
+  {
+    "aliases": [
+      "Kimaw Medical Center"
+    ],
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/E4876C9F-E41F-4B7D-B594-17369955FD70/c253e73130b9521d88fd553e86209c83.png",
+    "name": "K'ima:w Medical Center",
+    "slgId": "432-255",
+    "url": "https://mychart.ochin.org/KimawMedicalCenter/"
+  },
+  {
+    "aliases": [],
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/D0806623-37D6-4918-B444-1C2CC3952082/c37e62bf078c828f3e310541d62cd6b5.png",
+    "name": "San Diego County",
+    "slgId": "432-256",
+    "url": "https://mychart.ochin.org/sandiegocounty/"
+  },
+  {
+    "aliases": [
+      "Westside Family Healthcare"
+    ],
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/9FFA9E64-A9C6-4028-A55F-44A6C6A0CC5B/2d74ccdf96b69853bc2e09df15436ff6.png",
+    "name": "West Side Family Healthcare",
+    "slgId": "432-257",
+    "url": "https://mychart.ochin.org/MyWestside/"
   },
   {
     "aliases": [],
@@ -2730,10 +2755,11 @@
       "LUMC",
       "LUHS"
     ],
+    "directoryUrl": "https://myloyola.luhs.org/mychart/",
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/3F0B7093-E6C0-4664-ADDD-A6F4062ECA22/04b9d9ae43ae8f2a792e2ac130848228.png",
     "name": "Loyola Medicine",
     "slgId": "461",
-    "url": "https://myloyola.luhs.org/mychart/"
+    "url": "https://mychart.trinity-health.org/MyChart/"
   },
   {
     "aliases": [
@@ -4494,7 +4520,6 @@
   },
   {
     "aliases": [],
-    "down": true,
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/474E32F6-E1F3-45D2-8CA2-4B56431CD940/6b0d1c653b794698b2f95b7baacfdc90.png",
     "name": "OLVG",
     "slgId": "696",
@@ -5203,6 +5228,7 @@
   },
   {
     "aliases": [],
+    "down": true,
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/17E027C0-0DD9-447C-B5A8-32C32824B18A/92f0abdee038ecdaeffff55962df4d5f.png",
     "name": "Sansum",
     "slgId": "785",
@@ -5953,6 +5979,7 @@
   },
   {
     "aliases": [],
+    "down": true,
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/4597D5AA-D3E9-40A2-872A-0DCFF09E713C/65a2e1fb16e32cbe494a2f0bd5fb994b.png",
     "name": "UCLA Health Medicare Advantage Plan",
     "slgId": "806-1",
@@ -6468,6 +6495,20 @@
   },
   {
     "aliases": [],
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/514548BC-6B46-4752-867B-DC24B4DD7C7E/7b6be8a5e972d137fc1d452806253ec2.png",
+    "name": "Mississippi Arthritis Clinic",
+    "slgId": "830-28",
+    "url": "https://mychart.fmolhs.org/MyChart/"
+  },
+  {
+    "aliases": [],
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/F7CD8425-6926-4268-BC25-C4777F8D999A/d90166a01bc30e5d00c1b289012614d7.png",
+    "name": "Point Coupee General Hospital",
+    "slgId": "830-29",
+    "url": "https://mychart.fmolhs.org/MyChart/"
+  },
+  {
+    "aliases": [],
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/B712DAFA-91AF-49AA-97E8-9183F91B12BA/116b2af0e855dcb96ff04b670d9f6317.png",
     "name": "Christus Health",
     "slgId": "832",
@@ -6778,6 +6819,7 @@
   },
   {
     "aliases": [],
+    "down": true,
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/06F5BE68-3546-4EF2-ACE6-D3B1A2F30FFD/4f737ef9cfc0c3426b553c74b5b2bf84.png",
     "name": "Overlake",
     "slgId": "851",
@@ -8359,6 +8401,15 @@
     "url": "https://mymidmichigan.midmichigan.net/IPP/"
   },
   {
+    "aliases": [
+      "MKHS"
+    ],
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/9ED02A16-5CFC-436A-B288-ECA50BDB0558/49202f90110eb4d415c96f3dce3780bc.png",
+    "name": "McKenzie Health System",
+    "slgId": "1003-6",
+    "url": "https://mymidmichigan.midmichigan.net/MKHS/"
+  },
+  {
     "aliases": [],
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/3EE1FB19-DF05-40DD-B407-C3E353D50DDA/9b65b699b9cb97ffddecfb5a7b700b0f.png",
     "name": "Monument Health",
@@ -8996,12 +9047,32 @@
       "St. Francis",
       "Winchester",
       "Deep River",
-      "Kemptville"
+      "Kemptville",
+      "The Atlas Alliance",
+      "Arnprior Regional Health",
+      "Deep River & District Health",
+      "Glengarry Memorial Hospital",
+      "Group Health Centre (Sault Ste. Marie)",
+      "Hawkesbury District General Hospital",
+      "Kemptville District Hospital",
+      "Hôpital Montfort",
+      "Mississippi River Health Alliance ",
+      "Almonte General Hospital",
+      "Carleton Place & District Memorial Hospital",
+      "Pembroke Regional Hospital",
+      "Queensway Carleton Hospital",
+      "Renfrew Victoria Hospital",
+      "St. Francis Memorial Hospital",
+      "The Ottawa Hospital",
+      "The Ottawa Hospital Academic Family Health Team",
+      "The Royal",
+      "The University of Ottawa Heart Institute",
+      "Winchester District Memorial Hospital"
     ],
-    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/EC36D037-04E5-4ED4-A498-7D2F102F1F21/4a40446415fcf6e4cfec4e56464a2a2f.png",
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/77047401-579A-4300-A96F-EAA8A17105CD/635603672104e9af26d820bf7a33e4ef.png",
     "name": "The Ottawa Hospital",
     "slgId": "1063",
-    "url": "https://epicapps.toh.ca/mychart/"
+    "url": "https://www.myatlasalliance.ca/MyChart/"
   },
   {
     "aliases": [],
@@ -9201,7 +9272,6 @@
   },
   {
     "aliases": [],
-    "down": true,
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/BADB8061-127B-4DEA-8C40-DD274C7B9C1A/8058faa46ce0fe7be916569803b718f2.png",
     "name": "The Pediatric Center Boulder",
     "slgId": "1105-1",
@@ -10373,6 +10443,7 @@
   },
   {
     "aliases": [],
+    "down": true,
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/92891993-135D-4EE0-86F6-4FD4E6C374A2/2dc5b53064b00182295070e5ede71ac6.png",
     "name": "University Hospitals Cleveland",
     "slgId": "1258",
@@ -10958,9 +11029,11 @@
     "url": "https://mychart.vitruvianhealth.com/MyChart/"
   },
   {
-    "aliases": [],
+    "aliases": [
+      "UT Medicine"
+    ],
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/6082A2D0-CEBA-4F0B-9908-0614130CA381/c8966dda6b34213b579f9dadf47509c3.png",
-    "name": "UT Medicine",
+    "name": "UT Dell Medicine",
     "slgId": "1337",
     "url": "https://portal.utmedicine.org/mychart/"
   },
@@ -11170,7 +11243,7 @@
       "UPMC Central",
       "UPMC"
     ],
-    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/F481E866-78AB-4CC4-8CD5-495CED1F99EF/cd294f99229f84a8d41e0f7fa73da688.png",
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/8B5CBC9A-AE3B-469F-9BB9-BAE130EC2E92/912e19934ad18a4247a861ca1092e99c.png",
     "name": "MyUPMC",
     "slgId": "1392",
     "url": "https://myupmc.upmc.com/MyUPMC/"
@@ -11216,6 +11289,16 @@
     "name": "CoxHealth",
     "slgId": "1402",
     "url": "https://mychart.coxhealth.com/MyChart/"
+  },
+  {
+    "aliases": [
+      "Penn State",
+      "Penn State Health"
+    ],
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/CCC5C684-4864-4A55-85EC-C883AD5C784C/cfb77d56862b9bc0afb3fd72b9e40983.png",
+    "name": "PennState Health",
+    "slgId": "1407",
+    "url": "https://mychart.pennstatehealth.org/Mychart/"
   },
   {
     "aliases": [
@@ -11665,10 +11748,39 @@
   },
   {
     "aliases": [
+      "Erie County Medical Center",
+      "Premier Health Partners",
+      "PHP"
+    ],
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/46F72A03-24C0-4139-908E-381F55477A8E/6f67f1da7321dbbda727af94e6a8300f.png",
+    "name": "ECMC",
+    "slgId": "1455-1",
+    "url": "https://mychart.ecmc.edu/MyChart/"
+  },
+  {
+    "aliases": [
+      "University of Buffalo Medical Center",
+      "UBMD Physicians Group",
+      "University of Buffalo Physicians Group",
+      "UB Orthopedics",
+      "UB  Neurology",
+      "UB Primary Care",
+      "UB Surgery",
+      "UB Psychology",
+      "UB Internal Medicine"
+    ],
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/ABFCAA43-4B8A-4D0F-8CED-2C451E2B40EF/eb954e0477ed468cf46edb3c3a6c727d.png",
+    "name": "UBMD",
+    "slgId": "1455-2",
+    "url": "https://mychart.ubmd.com/MyChart/"
+  },
+  {
+    "aliases": [
       "St. Vincent’s",
       "St Vincents",
       "STV",
-      "Saint Vincents"
+      "Saint Vincents",
+      "UAB St. Vincent's"
     ],
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/6431665A-3398-4E07-8157-CBB34EFDB8B8/b587e5a27faf44cb8ac177512617accc.png",
     "name": "UAB Medicine",
@@ -11754,6 +11866,39 @@
     "name": "CommonSpirit Health",
     "slgId": "1482",
     "url": "https://patientportal.commonspirit.org/MyChart/"
+  },
+  {
+    "aliases": [],
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/B39D03A0-A7B0-4781-A863-11FB07003E03/28d4e97dbd044ca4976b1397772b796c.png",
+    "name": "Freeman Health",
+    "slgId": "1491",
+    "url": "https://mychart.freemanhealth.com/Mychart/"
+  },
+  {
+    "aliases": [],
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/778399B2-D7BA-49EB-9F66-D42E4FF50B94/2c3bd190077450ab6fa3927bad3462ee.png",
+    "name": "ENT and Allergy Associates",
+    "slgId": "1512",
+    "url": "https://mychart.entandallergy.com/MyChart/"
+  },
+  {
+    "aliases": [
+      "DVCH",
+      "CHDC",
+      "Union",
+      "The Alliance",
+      "Delaware Valley Community Health",
+      "Union Community Care",
+      "Community Health & Dental Care",
+      "PAHCTA",
+      "PA Alliance",
+      "PA Health Center Technology Alliance",
+      "Community Health and Dental Care"
+    ],
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/368599C6-5655-4AA4-B681-3E30B34FDFD4/59c0fdd64cc07d51773e59f2491474e3.png",
+    "name": "PA Health Center Technology Alliance",
+    "slgId": "1528",
+    "url": "https://thealliancepa.epicmychart.com/MyChart/"
   },
   {
     "aliases": [],

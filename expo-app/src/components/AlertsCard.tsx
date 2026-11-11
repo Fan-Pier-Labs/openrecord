@@ -6,6 +6,7 @@ import { getActiveAlerts, dismissAlert, type Alert } from "@/lib/storage/databas
 import { regenerateAlerts } from "@/lib/alerts/generator";
 import { executeScraperTool } from "@/lib/scrapers/session-manager";
 import { fireAndForget } from "@/lib/fire-and-forget";
+import { detailedMessage } from "../../../shared/detailedError";
 
 type Props = {
   onDoAlert: (prompt: string) => void;
@@ -76,7 +77,7 @@ export function AlertsCard({ onDoAlert }: Props) {
                   setAlerts((prev) => prev.filter((a) => a.id !== alert.id));
                 }
               } catch (err) {
-                RNAlert.alert("Refill failed", (err as Error).message);
+                RNAlert.alert("Refill failed", detailedMessage(err));
               } finally {
                 setBusyId(null);
               }

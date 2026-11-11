@@ -8,6 +8,7 @@ import { getMyChartProfile } from '../chart/profile/profile';
 import { logger } from '../../../shared/logger';
 import { bool, list, rec, text } from '../processors/read';
 import type { ProxySwitch } from './mychart.types';
+import { DetailedError } from '../../../shared/detailedError';
 
 export type ProxyTarget = {
   /**
@@ -273,10 +274,16 @@ function resolveTarget(targets: ProxyTarget[], target: ProxyTargetSelector): Pro
     const wanted = normalize(target.displayName);
     const matches = targets.filter((entry) => normalize(entry.displayName) === wanted);
     if (matches.length === 0) {
-      throw new Error(`Could not resolve proxy target by displayName '${target.displayName}'.`);
+      throw new DetailedError(
+        'No patient record has that displayName.',
+        `Could not resolve proxy target by displayName '${target.displayName}'.`,
+      );
     }
     if (matches.length > 1) {
-      throw new Error(`Ambiguous proxy target displayName '${target.displayName}'.`);
+      throw new DetailedError(
+        'More than one patient record has that displayName. Use its id instead.',
+        `Ambiguous proxy target displayName '${target.displayName}'.`,
+      );
     }
     return matches[0]!;
   }
@@ -441,7 +448,10 @@ export function findProxyTarget(targets: ProxyTarget[], query: string): ProxyTar
     // single-record account whose markup we misparse must not get locked out
     // of a tool that has nothing to do with proxy access.
     if (targets.length === 1) return targets[0]!;
-    throw new Error(`Could not identify the account holder's own record among: ${describe()}.`);
+    throw new DetailedError(
+      `Could not identify the account holder's own record among the ${targets.length} records this account can access.`,
+      `Could not identify the account holder's own record among: ${describe()}.`,
+    );
   }
 
   // Ids are opaque and exact — check them before any name matching so a record
@@ -452,18 +462,23 @@ export function findProxyTarget(targets: ProxyTarget[], query: string): ProxyTar
   const exact = targets.filter((entry) => normalize(entry.displayName) === wanted);
   if (exact.length === 1) return exact[0]!;
   if (exact.length > 1) {
-    throw new Error(`'${query}' matches more than one patient record. Use --patient with the record id instead.`);
+    const rest = ' more than one patient record. Use --patient with the record id instead.';
+    throw new DetailedError(`That name matches${rest}`, `'${query}' matches${rest}`);
   }
 
   const partial = targets.filter((entry) => normalize(entry.displayName).includes(wanted));
   if (partial.length === 1) return partial[0]!;
   if (partial.length > 1) {
-    throw new Error(
-      `'${query}' matches ${partial.length} patient records (${partial.map((t) => `'${t.displayName}'`).join(', ')}). Be more specific.`
+    throw new DetailedError(
+      `That name matches ${partial.length} patient records. Be more specific, or use the record id from list_proxy_targets.`,
+      `'${query}' matches ${partial.length} patient records (${partial.map((t) => `'${t.displayName}'`).join(', ')}). Be more specific.`,
     );
   }
 
-  throw new Error(`No patient record matches '${query}'. Available: ${describe()}.`);
+  throw new DetailedError(
+    'No patient record matches that name. list_proxy_targets lists every record this account can access.',
+    `No patient record matches '${query}'. Available: ${describe()}.`,
+  );
 }
 
 export type ProxyContextCheck = {
@@ -664,17 +679,20 @@ export async function switchProxyTarget(
       && compareProfileNames(entry.displayName, resolved.displayName) !== 'match'
       && compareProfileNames(entry.displayName, verified.profileName!) === 'match');
     if (impostor) {
-      throw new Error(
+      throw new DetailedError(
+        'Proxy switch landed on the wrong patient: the portal is showing another record on this account, ' +
+        'not the one asked for.',
         `Proxy switch landed on the wrong patient: asked for '${resolved.displayName}', ` +
-        `portal is showing '${verified.profileName}' (${impostor.displayName}).`
+        `portal is showing '${verified.profileName}' (${impostor.displayName}).`,
       );
     }
   }
 
   if (identity === 'mismatch') {
-    throw new Error(
+    throw new DetailedError(
+      "Proxy switch landed on the wrong patient: the portal's profile does not match the record asked for.",
       `Proxy switch landed on the wrong patient: asked for '${resolved.displayName}', ` +
-      `portal reports '${verified.profileName}'.`
+      `portal reports '${verified.profileName}'.`,
     );
   }
 
@@ -699,10 +717,11 @@ export async function switchProxyTarget(
   // Discovery could not report a selection flag (the script-block fallback).
   // The profile name is then the only evidence available, so require it.
   if (identity !== 'match') {
-    throw new Error(
-      `Proxy target switch could not be confirmed: the portal does not report which record is active, ` +
-      `and the profile name ('${verified.profileName ?? 'unknown'}') could not be matched against ` +
-      `'${resolved.displayName}'.`
+    const lead = 'Proxy target switch could not be confirmed: the portal does not report which record is active, ';
+    throw new DetailedError(
+      lead + 'and its profile name could not be matched against the record asked for.',
+      lead + `and the profile name ('${verified.profileName ?? 'unknown'}') could not be matched against ` +
+      `'${resolved.displayName}'.`,
     );
   }
 

@@ -247,7 +247,7 @@ describe('expired-session handling in the scrapers', () => {
     sessionStore.unregister(session);
   });
 
-  it('proactively renews from the keepalive when a heartbeat reports the session dead', async () => {
+  it('leaves the re-login to the next real request when a heartbeat reports the session dead', async () => {
     const session = await loginHomer();
     const hook = wireCountingHook(session);
     sessionStore.registerForKeepalive(session);
@@ -256,13 +256,14 @@ describe('expired-session handling in the scrapers', () => {
     await sessionStore.runKeepalive();
 
     const entry = [...sessionStore.all().values()].find((e) => e.request === session);
-    expect(entry?.status).toBe('logged_in');
-    expect(hook.calls()).toBe(1);
+    expect(entry?.status).toBe('expired');
+    expect(hook.calls()).toBe(0);
 
-    // And the renewed session actually works without another renewal.
+    // The next real request renews once and puts the session back in rotation.
     const result = await getAllergies(session);
     expect(result.dataList.length).toBeGreaterThan(0);
     expect(hook.calls()).toBe(1);
+    expect(entry?.status).toBe('logged_in');
     sessionStore.unregister(session);
   });
 

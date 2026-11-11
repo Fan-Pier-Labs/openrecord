@@ -30,6 +30,18 @@ const candidates = [
     source: 'Firefox',
     confidence: 'probed' as const,
   },
+  // Homer again, saved in Firefox with an older password.
+  {
+    key: 'cccc3333',
+    url: 'https://mychart.example.org/MyChart/Authentication/Login',
+    hostname: 'mychart.example.org',
+    user: 'Homer',
+    pass: 'oldDonuts',
+    success: true,
+    source: 'Firefox',
+    confidence: 'directory' as const,
+    instanceName: 'Springfield General',
+  },
 ];
 
 void mock.module('../../../read-local-passwords/index', () => ({
@@ -38,7 +50,7 @@ void mock.module('../../../read-local-passwords/index', () => ({
   blockedBrowsers: () => ['Firefox'],
 }));
 
-const { scanBrowserPasswords, takeImportedCandidate, releaseImportedCandidate, _clearHeldImports } =
+const { scanBrowserPasswords, takeImportedCandidates, releaseImportedCandidate, _clearHeldImports } =
   await import('../browser-import');
 
 describe('scanBrowserPasswords', () => {
@@ -51,6 +63,7 @@ describe('scanBrowserPasswords', () => {
 
     expect(serialized).not.toContain('donuts123');
     expect(serialized).not.toContain('pretzels456');
+    expect(serialized).not.toContain('oldDonuts');
     // And nothing named like a password field leaked either.
     expect(serialized).not.toContain('"pass"');
   });
@@ -73,14 +86,23 @@ describe('scanBrowserPasswords', () => {
 
   it('redeems an import_id back to the full credential, in-process only', async () => {
     const scan = await scanBrowserPasswords();
-    const held = takeImportedCandidate(scan.accounts[0]!.import_id);
+    const held = takeImportedCandidates(scan.accounts[1]!.import_id);
 
-    expect(held?.pass).toBe('donuts123');
-    expect(held?.user).toBe('homer');
+    expect(held?.map(c => c.pass)).toEqual(['pretzels456']);
+    expect(held?.[0]?.user).toBe('marge');
+  });
+
+  it('offers a login saved in two browsers once, holding both passwords', async () => {
+    const scan = await scanBrowserPasswords();
+    const homer = scan.accounts.filter(c => c.hostname === 'mychart.example.org');
+
+    expect(homer).toHaveLength(1);
+    expect(homer[0]!.source).toBe('Chrome and Firefox');
+    expect(takeImportedCandidates(homer[0]!.import_id)?.map(c => c.pass)).toEqual(['donuts123', 'oldDonuts']);
   });
 
   it('does not redeem an id that was never issued', () => {
-    expect(takeImportedCandidate('not-a-real-id')).toBeUndefined();
+    expect(takeImportedCandidates('not-a-real-id')).toBeUndefined();
   });
 
   it('forgets a credential once it has been connected', async () => {
@@ -89,6 +111,6 @@ describe('scanBrowserPasswords', () => {
 
     releaseImportedCandidate(id);
 
-    expect(takeImportedCandidate(id)).toBeUndefined();
+    expect(takeImportedCandidates(id)).toBeUndefined();
   });
 });

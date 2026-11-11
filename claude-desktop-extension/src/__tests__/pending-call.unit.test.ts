@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, setSystemTime } from 'bun:
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { CAPABILITIES } from '../../../shared/capabilities';
+import { DetailedError } from '../../../shared/detailedError';
 import { CHECK_TOOL, MAX_RUN_MS, checkPendingCall, resetPendingCalls, runGuarded, unsettledCallOnAccount } from '../pending-call';
 
 const ok = (text: string): CallToolResult => ({ content: [{ type: 'text', text }] });
@@ -35,6 +36,12 @@ describe('runGuarded', () => {
     expect(await runGuarded('get_profile', ACCOUNT, () => ok('profile'), 50)).toEqual(ok('profile'));
     const err = await runGuarded('get_profile', ACCOUNT, () => Promise.reject(new Error('boom')), 50);
     expect([err.isError, text(err)]).toEqual([true, 'Error: boom']);
+  });
+
+  it('shows Claude the detailed message of an error that has one', async () => {
+    const thrown = new DetailedError('No patient record matches that name.', "No patient record matches 'Nelson'. Available: 'Bart'.");
+    const err = await runGuarded('get_profile', ACCOUNT, () => Promise.reject(thrown), 50);
+    expect(text(err)).toBe("Error: No patient record matches 'Nelson'. Available: 'Bart'.");
   });
 
   it('parks a call that misses the deadline under an id, and blocks only its identical repeat', async () => {

@@ -33,12 +33,15 @@ import setupWidget from 'virtual:setup-widget';
 import { buildSetupUiHtml, SETUP_UI_MIME_TYPE, SETUP_UI_RESOURCE_META } from './ui';
 import { startDirectoryRefresh } from './directory-refresh';
 import { startUpdateCheck } from './update-notice';
+import { setTelemetryApp } from '../../shared/telemetry';
+import { version as MCPB_VERSION } from '../manifest.json';
 
 async function main(): Promise<void> {
+  setTelemetryApp('mcpb', MCPB_VERSION);
   const server = new McpServer(
     {
       name: 'openrecord',
-      version: '2.0.0',
+      version: '2.1.0',
     },
     {
       capabilities: { tools: {}, resources: {} },

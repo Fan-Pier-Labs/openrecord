@@ -12,7 +12,8 @@
 
 import { describe, it, expect } from 'bun:test';
 
-import { resolveUnique } from '../resolveUnique';
+import { resolveUnique, type ResolveUniqueOptions } from '../resolveUnique';
+import type { DetailedError } from '../detailedError';
 
 type Named = { displayName: string; commonName?: string };
 const named = (...names: string[]): Named[] => names.map((displayName) => ({ displayName }));
@@ -38,7 +39,7 @@ describe('exact match wins over partial', () => {
 
   it('still refuses when two items genuinely share one name', () => {
     const items = named('Dr. Smith', 'Dr. Smith');
-    expect(() => resolveUnique(items, 'Dr. Smith', opts)).toThrow(/More than one recipient is called/);
+    expect(() => resolveUnique(items, 'Dr. Smith', opts)).toThrow(/2 recipients have that name/);
   });
 });
 
@@ -62,26 +63,35 @@ describe('partial match', () => {
 
   it('treats a bare honorific as a filter, not as an empty query', () => {
     const items = named('Dr. Hibbert', 'Dr. Riviera', 'Billing');
-    expect(() => resolveUnique(items, 'Dr.', opts)).toThrow(/Multiple recipients match/);
+    expect(() => resolveUnique(items, 'Dr.', opts)).toThrow(/2 recipients match that name/);
   });
 });
 
-describe('refusals name the alternatives', () => {
+// A refusal's message goes to error reporting, so it names neither the query nor
+// any item — those are the patient's providers and medications. Its detailed
+// message, which Claude sees, names the alternatives.
+function refusal(items: Named[], query: string, options: ResolveUniqueOptions<Named> = opts): DetailedError {
+  try {
+    resolveUnique(items, query, options);
+  } catch (err) {
+    return err as DetailedError;
+  }
+  throw new Error('expected a refusal');
+}
+
+describe('refusals name the alternatives in the detailed message only', () => {
   it('lists what is available when nothing matches', () => {
-    expect(() => resolveUnique(named('Billing', 'Pharmacy'), 'zzz', opts)).toThrow(/Billing, Pharmacy/);
+    const err = refusal(named('Billing', 'Pharmacy'), 'zzz');
+    expect(err.message).toBe('No recipient matches that name.');
+    expect(err.detailedMessage).toBe('No recipient matching "zzz". Available: Billing, Pharmacy');
   });
 
   it('lists only the ambiguous candidates when several match', () => {
-    const items = named('Dr. Ann Lee', 'Dr. Bob Lee', 'Billing');
-    let message = '';
-    try {
-      resolveUnique(items, 'lee', opts);
-    } catch (err) {
-      message = (err as Error).message;
-    }
-    expect(message).toContain('Dr. Ann Lee');
-    expect(message).toContain('Dr. Bob Lee');
-    expect(message).not.toContain('Billing');
+    const err = refusal(named('Dr. Ann Lee', 'Dr. Bob Lee', 'Billing'), 'lee');
+    expect(err.message).toBe('2 recipients match that name. Be more specific.');
+    expect(err.detailedMessage).toContain('Dr. Ann Lee');
+    expect(err.detailedMessage).toContain('Dr. Bob Lee');
+    expect(err.detailedMessage).not.toContain('Billing');
   });
 
   it('says no name was given only when there really is none', () => {
@@ -90,7 +100,7 @@ describe('refusals name the alternatives', () => {
 
   it('uses the caller’s noun in every message', () => {
     const medOpts = { getName: (n: Named) => n.displayName, label: 'medication' };
-    expect(() => resolveUnique(named('Aspirin'), 'zzz', medOpts)).toThrow(/No medication matching/);
+    expect(() => resolveUnique(named('Aspirin'), 'zzz', medOpts)).toThrow(/No medication matches that name/);
   });
 });
 
@@ -115,14 +125,10 @@ describe('alternate names', () => {
   });
 
   it('does not list alternate names in errors — one item must read as one item', () => {
-    let message = '';
-    try {
-      resolveUnique(meds, 'zzz', medOpts);
-    } catch (err) {
-      message = (err as Error).message;
-    }
-    expect(message).toContain('Atorvastatin 20mg');
-    expect(message).not.toContain('Lipitor');
+    const err = refusal(meds, 'zzz', medOpts);
+    expect(err.message).not.toContain('Atorvastatin');
+    expect(err.detailedMessage).toContain('Atorvastatin 20mg');
+    expect(err.detailedMessage).not.toContain('Lipitor');
   });
 });
 

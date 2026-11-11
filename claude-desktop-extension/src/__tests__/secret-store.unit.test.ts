@@ -479,6 +479,28 @@ describe('credential-store account secrets through the keystore', () => {
     expect(store.readAccounts()).toEqual([])
   })
 
+  it('reads only the named login from the keystore when resolving an account', () => {
+    const keyring = useKeystore()
+    for (const username of ['homer', 'marge', 'bart', 'lisa', 'maggie', 'abe']) {
+      store.upsertAccount({ hostname: 'mychart.example.org', username, password: `${username}-pw` })
+    }
+    const reads: string[] = []
+    const get = keyring.items.get.bind(keyring.items)
+    keyring.items.get = (id: string) => {
+      reads.push(id)
+      return get(id)
+    }
+
+    expect(store.lookupAccount('marge@mychart.example.org')?.password).toBe('marge-pw')
+    expect(reads.length).toBeGreaterThan(0)
+    expect(reads.every(id => id.endsWith(':marge'))).toBe(true)
+
+    reads.length = 0
+    expect(store.lookupIdentity('marge@mychart.example.org')).toEqual({ hostname: 'mychart.example.org', username: 'marge' })
+    expect(store.lookupIdentity('nobody@mychart.example.org')).toBeUndefined()
+    expect(reads).toEqual([])
+  })
+
   it('leaves a second account untouched when the first is disconnected', () => {
     const keyring = useKeystore()
     store.upsertAccount(account)

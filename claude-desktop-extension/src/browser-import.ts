@@ -17,8 +17,12 @@
 
 import { blockedBrowsers, findMyChartCandidates, isSupportedPlatform, type MyChartCandidate } from '../../read-local-passwords/index';
 
-/** Scanned credentials, held only long enough for the user to choose one. */
-const held = new Map<string, { candidate: MyChartCandidate; expiresAt: number }>();
+/**
+ * Scanned credentials, held only long enough for the user to choose one.
+ * One id covers every saved password for the same login — Chrome and Firefox
+ * often both hold one, and they can disagree after a password change.
+ */
+const held = new Map<string, { candidates: MyChartCandidate[]; expiresAt: number }>();
 
 /**
  * Ten minutes, matching the pending-2FA window. Long enough to talk it over
@@ -42,14 +46,39 @@ interface ImportedAccountSummary {
   instance_name?: string;
 }
 
-function summarize(candidate: MyChartCandidate): ImportedAccountSummary {
+/**
+ * Group candidates that are the same login: same host, same username (MyChart
+ * usernames are case-insensitive). `classifyMyChartEntries` already collapsed
+ * identical passwords, so what is left in a group is passwords that differ.
+ */
+function groupByLogin(candidates: MyChartCandidate[]): MyChartCandidate[][] {
+  const groups = new Map<string, MyChartCandidate[]>();
+  for (const candidate of candidates) {
+    const id = `${candidate.hostname}|${(candidate.user ?? '').toLowerCase()}`;
+    groups.set(id, [...(groups.get(id) ?? []), candidate]);
+  }
+  return [...groups.values()];
+}
+
+/** "Chrome", "Chrome and Firefox", "Arc, Chrome and Firefox". */
+function sourcesLabel(group: MyChartCandidate[]): string | undefined {
+  const sources = [...new Set(group.map((c) => c.source).filter((s): s is string => !!s))];
+  if (sources.length <= 1) return sources[0];
+  return `${sources.slice(0, -1).join(', ')} and ${sources[sources.length - 1]}`;
+}
+
+function summarize(group: MyChartCandidate[]): ImportedAccountSummary {
+  // The filter sorts directory matches first, so the head has the best confidence.
+  const [first] = group as [MyChartCandidate, ...MyChartCandidate[]];
+  const source = sourcesLabel(group);
+  const instanceName = group.find((c) => c.instanceName)?.instanceName;
   return {
-    import_id: candidate.key,
-    hostname: candidate.hostname,
-    username: candidate.user,
-    ...(candidate.source ? { source: candidate.source } : {}),
-    confidence: candidate.confidence,
-    ...(candidate.instanceName ? { instance_name: candidate.instanceName } : {}),
+    import_id: first.key,
+    hostname: first.hostname,
+    username: first.user,
+    ...(source ? { source } : {}),
+    confidence: first.confidence,
+    ...(instanceName ? { instance_name: instanceName } : {}),
   };
 }
 
@@ -75,15 +104,19 @@ export async function scanBrowserPasswords(options: { probeUnknownHosts?: boolea
   const candidates = await findMyChartCandidates(options);
 
   const expiresAt = Date.now() + TTL_MS;
-  for (const candidate of candidates) held.set(candidate.key, { candidate, expiresAt });
+  const groups = groupByLogin(candidates);
+  for (const group of groups) held.set(group[0]!.key, { candidates: group, expiresAt });
 
-  return { supported: true, accounts: candidates.map(summarize), blocked_browsers: blockedBrowsers() };
+  return { supported: true, accounts: groups.map(summarize), blocked_browsers: blockedBrowsers() };
 }
 
-/** Redeem an id from the last scan. Returns undefined once it has expired. */
-export function takeImportedCandidate(importId: string): MyChartCandidate | undefined {
+/**
+ * Redeem an id from the last scan: every saved password for that login, to be
+ * tried in turn. Returns undefined once it has expired.
+ */
+export function takeImportedCandidates(importId: string): MyChartCandidate[] | undefined {
   evictExpired();
-  return held.get(importId)?.candidate;
+  return held.get(importId)?.candidates;
 }
 
 /** Drop a credential once it has been connected (or explicitly declined). */

@@ -18,6 +18,7 @@ import {
   acceptsModeParam,
   getCapability,
 } from "../../../../shared/capabilities";
+import { detailedMessage } from "../../../../shared/detailedError";
 
 function formatArgs(input: Record<string, unknown>): string {
   // Which account it is going to is context, not payload — the patient is
@@ -79,7 +80,7 @@ export async function executeLocalTool(
     return typeof result === "string" ? result : JSON.stringify(result, null, 2);
   } catch (err) {
     return JSON.stringify({
-      error: `Failed to execute ${toolName}: ${(err as Error).message}`,
+      error: `Failed to execute ${toolName}: ${detailedMessage(err)}`,
     });
   }
 }

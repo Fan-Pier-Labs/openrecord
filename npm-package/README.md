@@ -1,5 +1,9 @@
 # mychart-cli
 
+> ⚠️ **`mychart-cli` is provided as-is, without warranty of any kind, and you use it at your own
+> risk.** It is an independent project and is not affiliated with, endorsed by, or sponsored by Epic
+> Systems Corporation or MyChart. Using it may violate Epic's terms of service.
+
 Read and act on an Epic MyChart patient portal from your terminal or your Node.js code. Sign in
 (password + 2FA, authenticator app, or passkey), pull any part of the chart (labs, medications,
 visits and clinical notes, messages, imaging, bills, insurance, and more), and act on it: message
@@ -132,8 +136,8 @@ wild and which ones break. Each event carries:
 
 - the event name (e.g. `scraper_login_started`) and the MyChart **portal** hostname it targeted
 - OS platform, architecture and version, and the runtime version (e.g. `node v22.11.0`)
-- a random UUID generated once per project install, cached at
-  `node_modules/.cache/mychart-cli/anonymous-id`, used only to count unique installs
+- a random UUID generated once per computer, saved as `deviceId` in `~/.openrecord.json`, used
+  only to count unique installs
 
 **Never collected:** your IP address, your machine's hostname, your OS username, git identity, or
 anything read from a chart.

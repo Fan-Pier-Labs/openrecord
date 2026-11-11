@@ -254,7 +254,12 @@ describe('capability registry against fake-mychart', () => {
     // An id off this conversation is refused, naming what it does have.
     await expect(
       executeCapability(session, 'get_message_attachment', { conversation_id: conversation!.hthId, attachment_id: 'WP-DCS-NOPE' }),
-    ).rejects.toThrow(/No attachment WP-DCS-NOPE .* proof of coverage\.pdf \(attachment_id WP-DCS-COVERAGE\)/)
+    ).rejects.toThrow(
+      expect.objectContaining({
+        message: expect.stringMatching(/No attachment WP-DCS-NOPE .*attachment_ids on that conversation are: [^.]*WP-DCS-COVERAGE/),
+        detailedMessage: expect.stringMatching(/No attachment WP-DCS-NOPE .* proof of coverage\.pdf \(attachment_id WP-DCS-COVERAGE\)/),
+      }),
+    )
   }, 60_000)
 
   // ── Documents ─────────────────────────────────────────────────────────────
@@ -509,7 +514,7 @@ describe('capability registry against fake-mychart', () => {
       subject: 'x',
       message: 'y',
     })
-    await expect(promise).rejects.toThrow(/No recipient matching/)
+    await expect(promise).rejects.toThrow(/No recipient matches that name/)
   }, 30_000)
 
   it('adds, updates and removes an emergency contact — the writes mobile never had', async () => {

@@ -28,6 +28,7 @@ import type { MyChartRequest } from './myChartRequest';
 import type { RequestConfig } from './types';
 import { makeAuthenticatedRequest, type AuthenticatedRequestOptions } from './makeAuthenticatedRequest';
 import { requireVerificationToken } from './util';
+import { DetailedError } from '../../../shared/detailedError';
 
 export interface RawRequestRecord {
   /** The path as sent, minus the `noCache` cache-buster. */
@@ -66,28 +67,28 @@ export interface RawResponse {
  * status, its own error page, or a WAF's block page. Thrown by
  * {@link RawCollector.send} after the answer is recorded, so the envelope a
  * tolerant caller keeps still shows what came back. Clients surface the
- * message as-is; nothing about it is an empty chart.
+ * detailed message as-is; nothing about it is an empty chart.
  */
-export class MyChartResponseError extends Error {
+export class MyChartResponseError extends DetailedError {
   readonly method: string;
   readonly path: string;
   readonly status: number;
 
   constructor(record: RawRequestRecord, reason: string, excerpt: string, notServedActivity?: string) {
-    super(
-      `MyChart answered ${record.method} ${record.path} with ${reason}` +
-        (excerpt ? `: "${excerpt}"` : '') +
-        '. The request failed; nothing was read, so this is not an empty result. ' +
-        'Retry later, and if it keeps failing the instance may be down or blocking this request shape.' +
-        // Both facts, not a verdict: a Home landing plus a 500 is what an
-        // instance that does not serve the activity answers (1 of 4 real
-        // accounts, one activity), but a WAF block or a passing 500 after the
-        // same landing reads identically here, and retrying does help those.
-        (notServedActivity
-          ? ` GET ${notServedActivity} had also landed on the Home page instead of the activity, which is how an ` +
-            'instance that does not serve it answers — if this keeps failing, this MyChart most likely has no such page.'
-          : ''),
-    );
+    const lead = `MyChart answered ${record.method} ${record.path} with ${reason}`;
+    const rest =
+      '. The request failed; nothing was read, so this is not an empty result. ' +
+      'Retry later, and if it keeps failing the instance may be down or blocking this request shape.' +
+      // Both facts, not a verdict: a Home landing plus a 500 is what an
+      // instance that does not serve the activity answers (1 of 4 real
+      // accounts, one activity), but a WAF block or a passing 500 after the
+      // same landing reads identically here, and retrying does help those.
+      (notServedActivity
+        ? ` GET ${notServedActivity} had also landed on the Home page instead of the activity, which is how an ` +
+          'instance that does not serve it answers — if this keeps failing, this MyChart most likely has no such page.'
+        : '');
+    // What the page said only in the detailed message: a MyChart page can carry the patient's name.
+    super(lead + rest, lead + (excerpt ? `: "${excerpt}"` : '') + rest);
     this.name = 'MyChartResponseError';
     this.method = record.method;
     this.path = record.path;

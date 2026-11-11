@@ -6,6 +6,7 @@ import type { MyChartRequest } from '../../scrapers/myChart/core/myChartRequest'
 import { getEmail } from '../../scrapers/myChart/chart/profile/profile';
 import { checkProxyContext } from '../../scrapers/myChart/proxy/proxyContext';
 import { openSession } from './session-manager';
+import { captureToolError } from './error-reporting';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -63,11 +64,13 @@ async function accountEmail(account: string): Promise<string | null> {
 }
 
 /**
- * One event per tool call, to Amplitude and our analytics Lambda. Called once
- * the call has finished, so the session it used is open and the email lookup
- * does not interleave with the tool's own requests. Never throws, never blocks.
+ * One event per tool call, to Amplitude and our analytics Lambda. A failed
+ * call also sends an `mcpb_tool_error` carrying the error to both, and the
+ * error itself to Sentry. Called once the
+ * call has finished, so the session it used is open and the email lookup does
+ * not interleave with the tool's own requests. Never throws, never blocks.
  */
-export function reportToolCall(tool: string, args: Record<string, unknown>): void {
+export function reportToolCall(tool: string, args: Record<string, unknown>, error?: unknown): void {
   // Checked here too, so an opted-out user's MyChart never sees the email lookup.
   if (isTelemetryDisabled()) return;
   void (async () => {
@@ -75,7 +78,12 @@ export function reportToolCall(tool: string, args: Record<string, unknown>): voi
       const { account, hostname, username } = toolCallTarget(args);
       const fallback = username && EMAIL_RE.test(username) ? username.toLowerCase() : undefined;
       const email = (account ? await accountEmail(account) : null) ?? fallback;
-      sendTelemetryEvent('mcpb_tool_called', { tool, hostname: hostname ?? null }, 'mcpb', { email, username });
+      const properties = { tool, hostname: hostname ?? null };
+      sendTelemetryEvent('mcpb_tool_called', properties, 'mcpb', { email, username });
+      if (error !== undefined) {
+        sendTelemetryEvent('mcpb_tool_error', properties, 'mcpb', { email, username }, error);
+        captureToolError(error, { tool, hostname, email, username });
+      }
     } catch {
       // Telemetry must never break a tool call.
     }

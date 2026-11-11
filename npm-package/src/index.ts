@@ -42,6 +42,7 @@ export {
   type AuthenticatedRequestOptions,
 } from '../../scrapers/myChart/core/makeAuthenticatedRequest';
 export { MyChartResponseError } from '../../scrapers/myChart/core/rawResponse';
+export { DetailedError, detailedMessage } from '../../shared/detailedError';
 export {
   silentLogin,
   wireSilentReauthentication,

@@ -4,17 +4,12 @@
  * Silent session renewal — the one place an expired MyChart session is
  * re-logged-in and put back on the right patient.
  *
- * This is deliberately a LEAF module: it imports nothing from the scraper
- * layer, so both of its callers — `makeAuthenticatedRequest` (renews when a
- * request bounces to the login page) and `sessionStore` (renews proactively
- * when a keepalive heartbeat finds the session dead) — can import it
- * statically without a cycle. It used to live inside
- * `makeAuthenticatedRequest`, which forced two `await import()` cycle
- * breakers; the graph is now acyclic:
+ * Only a real request renews (`makeAuthenticatedRequest`, when it bounces to
+ * the login page) — never the keepalive heartbeat, whose "dead" turned into a
+ * sign-in every 30 seconds on one instance. This is deliberately a LEAF
+ * module, importing nothing from the scraper layer, so the graph stays acyclic:
  *
- *   makeAuthenticatedRequest ─┐
- *                             ├─→ sessionRenewal ─→ (nothing)
- *   sessionStore ─────────────┘
+ *   makeAuthenticatedRequest ─→ sessionRenewal ─→ (nothing)
  *   proxyContext ─→ makeAuthenticatedRequest
  *
  * What makes the leaf possible is that both capabilities renewal needs travel

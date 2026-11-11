@@ -87,7 +87,7 @@ describe('RawCollector', () => {
 describe('RawCollector failed answers', () => {
   const ERROR_PAGE = '<!DOCTYPE html><html><head><title>Error</title></head><body><h1>An error has occurred.</h1><p>Please try again later.</p></body></html>';
 
-  it('throws on a 5xx, after recording it, with the status and what the page said', async () => {
+  it('throws on a 5xx, after recording it, with the status — and what the page said only in the detailed message', async () => {
     const req = mockRequest([{ body: ERROR_PAGE, status: 500, contentType: 'text/html; charset=utf-8' }]);
     const collector = new RawCollector(req);
     const error = await collector
@@ -97,8 +97,10 @@ describe('RawCollector failed answers', () => {
     expect(error!.status).toBe(500);
     expect(error!.path).toBe('/api/allergies/LoadAllergies');
     expect(error!.message).toContain('POST /api/allergies/LoadAllergies with HTTP 500 (text/html; charset=utf-8)');
-    expect(error!.message).toContain('An error has occurred. Please try again later.');
-    expect(error!.message).not.toContain('<h1>');
+    // The message goes to error reporting, and a MyChart page can carry the patient's name.
+    expect(error!.message).not.toContain('An error has occurred');
+    expect(error!.detailedMessage).toContain('An error has occurred. Please try again later.');
+    expect(error!.detailedMessage).not.toContain('<h1>');
     // The answer is still in the envelope for whoever catches this.
     expect(collector.requests).toHaveLength(1);
     expect(collector.requests[0]).toMatchObject({ status: 500, body: ERROR_PAGE });
