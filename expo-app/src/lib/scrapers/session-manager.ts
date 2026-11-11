@@ -10,12 +10,7 @@
  * via NSHTTPCookieStorage (no tough-cookie needed).
  */
 import type { MyChartRequest } from "../../../../scrapers/myChart/core/myChartRequest";
-import {
-  myChartUserPassLogin,
-  myChartPasskeyLogin,
-  complete2faFlow,
-  type TwoFaDeliveryInfo,
-} from "../../../../scrapers/myChart/auth/login";
+import { complete2faFlow, type TwoFaDeliveryInfo } from "../../../../scrapers/myChart/auth/login";
 
 // Every scraper this app can run comes from the shared capability registry —
 // see `shared/capabilities/`. It is a static import graph, which is what
@@ -32,7 +27,6 @@ import {
   type FilePayload,
 } from "../../../../shared/capabilities";
 import { Image } from "react-native";
-import { TOTP } from "totp-generator";
 import { convertCloToJpgPureJs } from "../../../../scrapers/myChart/clo-image-parser/exporters/to_jpg_purejs";
 import { putImageAttachment } from "@/lib/imaging/attachment-store";
 
@@ -46,8 +40,12 @@ import {
   serializeCredential,
 } from "../../../../scrapers/myChart/auth/softwareAuthenticator";
 import { setupPasskey } from "../../../../scrapers/myChart/auth/setupPasskey";
-import { passkeyLoginWithCounterRetry } from "../../../../scrapers/myChart/auth/passkeyLoginRetry";
-import { wireSilentReauthentication } from "../../../../scrapers/myChart/auth/silentLogin";
+import {
+  humanLogin,
+  machineLogin,
+  wireSilentReauthentication,
+  type StoredLoginParams,
+} from "../../../../scrapers/myChart/auth/loginModes";
 import { sessionStore } from "../../../../scrapers/myChart/core/sessionStore";
 import { getMemorySummary } from "@/lib/storage/database";
 import { detailedMessage } from "../../../../shared/detailedError";
@@ -89,136 +87,93 @@ function maybeKickoffInitialMemory(accountId: string): void {
 }
 
 export type ConnectResult = {
-  state: "logged_in" | "need_2fa" | "invalid_login" | "error";
+  /** `needs_human`: only from a machine connect — MyChart wants a code and nothing stored answers it. No code was sent. */
+  state: "logged_in" | "need_2fa" | "needs_human" | "invalid_login" | "error";
   accountId: string;
-  // Both are forwarded straight from a LoginResult, where a TOTP challenge has no
+  // Forwarded straight from a login outcome, where a TOTP challenge has no
   // delivery info and a success has no error — so they arrive as explicit undefined.
   twoFaDelivery?: TwoFaDeliveryInfo | undefined;
   error?: string | undefined;
 };
 
+/** The stored credentials for one account, as the shared login ladder takes them. */
+function storedLoginParams(account: StoredMyChartAccount): StoredLoginParams {
+  let passkey = null;
+  if (account.passkeyCredential) {
+    try {
+      passkey = deserializeCredential(account.passkeyCredential);
+    } catch {
+      // Corrupt stored passkey — fall back to password.
+    }
+  }
+  return {
+    hostname: account.hostname,
+    username: account.username,
+    password: account.password,
+    totpSecret: account.totpSecret,
+    trustedDeviceId: account.trustedDeviceId,
+    passkey,
+    // Persist the accepted (incremented) sign counter so the next login
+    // starts from the right place and doesn't have to retry.
+    onPasskeyUsed: (credential) =>
+      updateMyChartAccount(account.id, { passkeyCredential: serializeCredential(credential) }),
+  };
+}
+
+function adoptLoggedIn(account: StoredMyChartAccount, request: MyChartRequest): ConnectResult {
+  const entry: SessionEntry = { account, request, status: "logged_in" };
+  sessions.set(account.id, entry);
+  manageSession(entry);
+  maybeKickoffInitialMemory(account.id);
+  return { state: "logged_in", accountId: account.id };
+}
+
 /**
- * Connect a MyChart account. Tries passkey first, falls back to password + 2FA.
+ * Connect a MyChart account because the user asked to (the sign-in screen).
+ * Human mode: when nothing stored gets past 2FA, MyChart sends a code and the
+ * pending login is kept here for `complete2fa`. Only call this from a screen
+ * that goes on to collect that code.
  */
 export async function connectAccount(account: StoredMyChartAccount): Promise<ConnectResult> {
-  // Check if already connected
   const existing = sessions.get(account.id);
   if (existing?.status === "logged_in") {
     return { state: "logged_in", accountId: account.id };
   }
-
-  // Try passkey login first (no 2FA needed)
-  if (account.passkeyCredential) {
-    try {
-      const credential = deserializeCredential(account.passkeyCredential);
-      // MyChart enforces a strictly-increasing WebAuthn signature counter. Our
-      // stored counter can lag the server's (a prior login bumped the server but
-      // the new value was never persisted, or the passkey was used on another
-      // device), which rejects the first assertion. passkeyLoginWithCounterRetry
-      // bumps and retries to recover; on success `credential.signCount` holds the
-      // accepted value, which we persist below.
-      const result = await passkeyLoginWithCounterRetry(
-        (cred) => myChartPasskeyLogin({
-          hostname: account.hostname,
-          credential: cred,
-        }),
-        credential,
-      );
-
-      if (result.state === "logged_in") {
-        const entry: SessionEntry = {
-          account,
-          request: result.mychartRequest,
-          status: "logged_in",
-        };
-        sessions.set(account.id, entry);
-        manageSession(entry);
-        // Persist the accepted (incremented) sign counter so the next login
-        // starts from the right place and doesn't have to retry.
-        await updateMyChartAccount(account.id, {
-          passkeyCredential: JSON.stringify(credential),
-        });
-        maybeKickoffInitialMemory(account.id);
-        return { state: "logged_in", accountId: account.id };
-      }
-
-      console.log(`Passkey login failed for ${account.hostname}: ${result.state}`);
-    } catch (err) {
-      console.log(`Passkey login error for ${account.hostname}:`, (err as Error).message);
-    }
-  }
-
-  // Fall back to password login
   try {
-    const hasTotpSecret = !!account.totpSecret;
-    console.log(`[session] Attempting password login for ${account.hostname} (user=${account.username})`);
-    const result = await myChartUserPassLogin({
-      hostname: account.hostname,
-      user: account.username,
-      pass: account.password,
-      skipSendCode: hasTotpSecret,
-      trustedDeviceId: account.trustedDeviceId,
-    });
-    console.log(`[session] Login result: state=${result.state} error=${result.error || 'none'}`);
-
-    if (result.state === "invalid_login") {
-      return { state: "invalid_login", accountId: account.id, error: "Invalid credentials" };
+    const outcome = await humanLogin(storedLoginParams(account));
+    switch (outcome.state) {
+      case "logged_in":
+        return adoptLoggedIn(account, outcome.mychartRequest);
+      case "need_2fa":
+        sessions.set(account.id, { account, request: outcome.mychartRequest, status: "need_2fa" });
+        return { state: "need_2fa", accountId: account.id, twoFaDelivery: outcome.delivery };
+      case "invalid_login":
+        return { state: "invalid_login", accountId: account.id, error: "Invalid credentials" };
+      case "failed":
+        return { state: "error", accountId: account.id, error: outcome.reason };
     }
+  } catch (err) {
+    return { state: "error", accountId: account.id, error: (err as Error).message };
+  }
+}
 
-    if (result.state === "error") {
-      return { state: "error", accountId: account.id, error: result.error };
+/**
+ * Connect an account with nobody waiting on a code: chat tool calls, alerts,
+ * the memory builder. Machine mode — it never makes MyChart send a code,
+ * because nothing on those paths could take one. (Chat is human-triggered,
+ * but the app has nowhere outside sign-in to type a code yet.)
+ */
+async function connectAccountSilently(account: StoredMyChartAccount): Promise<ConnectResult> {
+  try {
+    const outcome = await machineLogin(storedLoginParams(account));
+    switch (outcome.state) {
+      case "logged_in":
+        return adoptLoggedIn(account, outcome.mychartRequest);
+      case "needs_human":
+        return { state: "needs_human", accountId: account.id, error: outcome.reason };
+      case "failed":
+        return { state: "error", accountId: account.id, error: outcome.reason };
     }
-
-    if (result.state === "need_2fa") {
-      // If we have a TOTP secret, auto-complete 2FA
-      if (account.totpSecret) {
-        const cleanSecret = account.totpSecret.replace(/\s+/g, "").toUpperCase();
-        const { otp } = await TOTP.generate(cleanSecret);
-
-        const twoFaResult = await complete2faFlow({
-          mychartRequest: result.mychartRequest,
-          code: otp,
-          isTOTP: true,
-        });
-
-        if (twoFaResult.state === "logged_in") {
-          const entry: SessionEntry = {
-            account,
-            request: twoFaResult.mychartRequest,
-            status: "logged_in",
-          };
-          sessions.set(account.id, entry);
-          manageSession(entry);
-          maybeKickoffInitialMemory(account.id);
-          return { state: "logged_in", accountId: account.id };
-        }
-
-        return { state: "error", accountId: account.id, error: "TOTP 2FA failed" };
-      }
-
-      // No TOTP — need user to enter code manually
-      sessions.set(account.id, {
-        account,
-        request: result.mychartRequest,
-        status: "need_2fa",
-      });
-      return {
-        state: "need_2fa",
-        accountId: account.id,
-        twoFaDelivery: result.twoFaDelivery,
-      };
-    }
-
-    // Logged in directly (no 2FA)
-    const entry: SessionEntry = {
-      account,
-      request: result.mychartRequest,
-      status: "logged_in",
-    };
-    sessions.set(account.id, entry);
-    manageSession(entry);
-    maybeKickoffInitialMemory(account.id);
-    return { state: "logged_in", accountId: account.id };
   } catch (err) {
     return { state: "error", accountId: account.id, error: (err as Error).message };
   }
@@ -277,14 +232,14 @@ export function disconnectAccount(accountId: string) {
 }
 
 /**
- * Connect all configured accounts.
+ * Connect every configured account that isn't already, in machine mode.
  */
 export async function connectAll(): Promise<ConnectResult[]> {
   const accounts = await getMyChartAccounts();
   const results: ConnectResult[] = [];
   for (const account of accounts) {
     if (!sessions.has(account.id) || sessions.get(account.id)?.status !== "logged_in") {
-      results.push(await connectAccount(account));
+      results.push(await connectAccountSilently(account));
     } else {
       results.push({ state: "logged_in", accountId: account.id });
     }
@@ -342,25 +297,7 @@ function manageSession(entry: SessionEntry) {
   }
   wireSilentReauthentication(entry.request, async () => {
     const accounts = await getMyChartAccounts();
-    const account = accounts.find((a) => a.id === entry.account.id) ?? entry.account;
-    let passkey = null;
-    if (account.passkeyCredential) {
-      try {
-        passkey = deserializeCredential(account.passkeyCredential);
-      } catch {
-        // Corrupt stored passkey — fall back to password.
-      }
-    }
-    return {
-      hostname: account.hostname,
-      username: account.username,
-      password: account.password,
-      totpSecret: account.totpSecret,
-      trustedDeviceId: account.trustedDeviceId,
-      passkey,
-      onPasskeyUsed: (credential) =>
-        updateMyChartAccount(account.id, { passkeyCredential: serializeCredential(credential) }),
-    };
+    return storedLoginParams(accounts.find((a) => a.id === entry.account.id) ?? entry.account);
   });
   sessionStore.registerForKeepalive(entry.request);
 }
@@ -444,10 +381,11 @@ async function requireSession(hostname?: string): Promise<SessionEntry> {
   const results = await connectAll();
   const connected = results.find((r) => r.state === "logged_in");
   if (!connected) {
-    const needs2fa = results.find((r) => r.state === "need_2fa");
-    if (needs2fa) {
+    const needsHuman = results.find((r) => r.state === "needs_human");
+    if (needsHuman) {
       throw new Error(
-        `MyChart requires 2FA verification for ${needs2fa.accountId}. Go to Settings to complete the login.`,
+        `MyChart needs a verification code to sign in to ${needsHuman.accountId}, and no passkey or authenticator ` +
+          "app is saved for it. Sign in to that account again from the app to continue.",
       );
     }
     const details = results.map((r) => `${r.accountId}=${r.state}${r.error ? ': ' + r.error : ''}`).join(', ');

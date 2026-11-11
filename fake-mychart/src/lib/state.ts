@@ -8,6 +8,7 @@
 // the server back to a clean slate without restarting the process.
 
 import * as homer from '@/data/homer';
+import { resetOutbox } from './outbox';
 import { HOMER_PROXY_RECORDS } from '@/data/kids';
 import { buildDataset, selfDataset, resetDatasetCache, type PatientDataset } from './dataset';
 import { resetSessions } from './session';
@@ -269,6 +270,7 @@ export function resetState(): void {
   resetEpicVersion();
   resetFailingEndpoints();
   resetDatasetCache();
+  resetOutbox();
 }
 
 export type ActiveRecord = {

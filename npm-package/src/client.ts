@@ -34,7 +34,7 @@ import {
   type MyChartDirectorySearchOptions,
   type MyChartDirectorySearchResult,
 } from '../../scrapers/list-all-mycharts/searchDirectory';
-import { wireSilentReauthentication, type SilentLoginParams } from '../../scrapers/myChart/auth/silentLogin';
+import { wireSilentReauthentication, type StoredLoginParams } from '../../scrapers/myChart/auth/loginModes';
 import { sessionStore } from '../../scrapers/myChart/core/sessionStore';
 import type { PasskeyCredential } from '../../scrapers/myChart/auth/softwareAuthenticator';
 
@@ -264,7 +264,7 @@ export class MyChartClient {
   private static wrapLoginResult(
     result: LoginResult,
     opts: MyChartClientOptions,
-    renewParams?: () => SilentLoginParams,
+    renewParams?: () => StoredLoginParams,
   ): ConnectResult {
     const wireRenewal = (client: MyChartClient) => {
       if (opts.autoRenew === false || !renewParams) return;

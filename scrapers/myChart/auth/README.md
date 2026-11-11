@@ -7,7 +7,7 @@ enrolling the credentials that make the next login silent.
 | | |
 | --- | --- |
 | **Capabilities** | `register_passkey` · `list_passkeys` · `delete_passkey` · `setup_totp` · `disable_totp` (account-security writes) |
-| **Source** | [`login.ts`](login.ts) · [`silentLogin.ts`](silentLogin.ts) · [`softwareAuthenticator.ts`](softwareAuthenticator.ts) · [`setupPasskey.ts`](setupPasskey.ts) · [`setupTotp.ts`](setupTotp.ts) · [`totp.ts`](totp.ts) · [`passkeyLoginRetry.ts`](passkeyLoginRetry.ts) · [`termsAndConditions.ts`](termsAndConditions.ts) · [`blockedInstances.ts`](blockedInstances.ts) · [`stanford.ts`](stanford.ts) |
+| **Source** | [`login.ts`](login.ts) · [`loginModes.ts`](loginModes.ts) · [`softwareAuthenticator.ts`](softwareAuthenticator.ts) · [`setupPasskey.ts`](setupPasskey.ts) · [`setupTotp.ts`](setupTotp.ts) · [`totp.ts`](totp.ts) · [`passkeyLoginRetry.ts`](passkeyLoginRetry.ts) · [`termsAndConditions.ts`](termsAndConditions.ts) · [`blockedInstances.ts`](blockedInstances.ts) · [`stanford.ts`](stanford.ts) |
 
 Everything here runs through the **raw** `MyChartRequest.makeRequest`, not
 `makeAuthenticatedRequest` — this is the pre-login world, and it is what makes the session
@@ -197,11 +197,8 @@ account. Here only the unauthenticated behaviour below was probed.
   portal stops asking once it has passed 2FA. A login leaves the id it used on
   `mychartRequest.trustedDeviceId`; each client saves it with the account's other secrets
   (the MCPB's keystore, the CLI's `.totp-secrets/`, the app's secure store) and passes it
-  back as `trustedDeviceId` to `myChartUserPassLogin` and `silentLogin`. Without a saved one,
-  the login mints a new id and needs a code.
-- **Silent logins never send a code**, here or on any MyChart (`silentLogin` always sets
-  `skipSendCode`): nobody is there to type it, so it would only reach the patient's phone
-  unasked.
+  back as `trustedDeviceId` to `myChartUserPassLogin`, `machineLogin` and `humanLogin`.
+  Without a saved one, the login mints a new id and needs a code.
 - **No passkey or authenticator app.** Both would register on Stanford's MyChart and never be
   used, since login goes through the portal. `setupPasskey` and `setupTotp` refuse, and the
   clients don't offer them.
@@ -257,14 +254,19 @@ client log in with a passkey and skip 2FA entirely.
 - The passkey and TOTP endpoints are deliberately logged **status-only**: their headers
   carry `Set-Cookie` and their bodies carry WebAuthn challenges and the TOTP secret.
 
-## Silent login
+## Login modes: machine vs human
 
-[`silentLogin.ts`](silentLogin.ts) is the non-interactive ladder every client's session
-renewal hook uses: **saved passkey (with counter retry) → username + password → TOTP-secret
-2FA**. Anything needing a human — an emailed code, a password prompt — is out of scope by
-definition; this exists so `makeAuthenticatedRequest` can renew an expired session mid-scrape
-with nobody at the keyboard, and when no silent path works it says so rather than blocking.
+[`loginModes.ts`](loginModes.ts) holds the ladder every client signs in with from stored
+credentials: **saved passkey (with counter retry) → username + password → TOTP-secret 2FA**. It
+has two entry points, split by who asked:
 
-Each client stores credentials differently, so they are supplied as parameters, and
-`wireSilentReauthentication` turns the result into the `reauthenticate` hook the session
-wrapper calls.
+- **`machineLogin`**: nobody is waiting, as in session renewal mid-request or background jobs.
+  It passes `skipSendCode`, so MyChart never sends a code. A 2FA wall with no TOTP secret
+  returns `needs_human`.
+- **`humanLogin`**: a person asked, including through a Claude tool call. At that same wall it
+  makes MyChart send a code and returns `need_2fa` with the half-finished request, which the
+  caller completes with `complete2faFlow`.
+
+A code may only be sent by a caller that keeps the pending login and can accept the code. The
+renewal hook (`wireSilentReauthentication`) is always machine mode. Which client path is which:
+[`docs/login-modes.md`](../../../docs/login-modes.md).

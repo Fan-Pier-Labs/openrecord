@@ -19,7 +19,7 @@ import { saveTotpSecret, loadTotpSecret, saveTrustedDeviceId, loadTrustedDeviceI
 import { isStanfordHealthCare } from '../../scrapers/myChart/auth/stanford';
 import { savePasskeyCredential, loadPasskeyCredential } from './passkeyStore';
 import { passkeyLoginWithCounterRetry } from '../../scrapers/myChart/auth/passkeyLoginRetry';
-import { wireSilentReauthentication } from '../../scrapers/myChart/auth/silentLogin';
+import { wireSilentReauthentication } from '../../scrapers/myChart/auth/loginModes';
 import type { PasskeyCredential } from '../../scrapers/myChart/auth/softwareAuthenticator';
 import { sendTelemetryEvent, setTelemetryApp } from '../../shared/telemetry';
 import { checkVersion, formatUpdateNotice } from '../../scrapers/metadata/version';

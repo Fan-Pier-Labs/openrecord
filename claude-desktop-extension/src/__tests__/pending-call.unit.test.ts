@@ -187,9 +187,12 @@ describe('checkPendingCall', () => {
 
   it('gives up at the 10-minute cap, and never waits past it', async () => {
     const d = deferred();
+    const startedAt = Date.now();
     const id = idOf(await runGuarded('get_billing', ACCOUNT, d.fn, 5));
-    // 10 ms short of the cap: a 60 s wait must be cut to that, then count as the cap.
-    setSystemTime(new Date(Date.now() + MAX_RUN_MS - 10));
+    // 500 ms short of the cap: a 60 s wait must be cut to that, then count as the cap.
+    // The clock keeps running after setSystemTime, so a margin of a few ms was eaten
+    // by a slow CI runner before checkPendingCall swept, and the call was already gone.
+    setSystemTime(new Date(startedAt + MAX_RUN_MS - 500));
     const r = await checkPendingCall({ id }, 60_000);
     expect([r.isError, text(r)]).toEqual([true, expect.stringContaining('Gave up on get_billing')]);
     expect(await runGuarded('get_billing', ACCOUNT, () => ok('fresh'), 50)).toEqual(ok('fresh'));

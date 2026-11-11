@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased — `silentLogin` split into `machineLogin` and `humanLogin` (breaking)
+
+| Removed | What to do |
+| --- | --- |
+| `silentLogin` | `machineLogin`: same ladder, never makes MyChart send a 2FA code. A 2FA wall it can't answer is now `{ state: 'needs_human' }`, not `failed`. |
+| `SilentLoginParams`, `SilentLoginOutcome` | `StoredLoginParams`, `MachineLoginOutcome` |
+
+Added: `humanLogin` (may send a code; on `need_2fa` it returns the pending `mychartRequest` to
+finish with `complete2faFlow`) and `HumanLoginOutcome`. `wireSilentReauthentication` now runs
+`machineLogin`. Before this change a renewal on an account with no TOTP secret sent a code that
+nothing could use.
+
 ## 2.2.0 — search reads a refreshed list instead of fetching (breaking)
 
 `searchMyChartDirectory` no longer fetches Epic's directory. It searches the result of the

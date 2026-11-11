@@ -24,6 +24,23 @@ per enrollment and verifies against that.
 
 - `homer` logs in directly.
 - `marge` exists for testing the 2FA path — her login always returns the secondary-validation page until you submit the code.
+
+### The outbox: codes the fake "sends"
+
+Every `SendCode` mints a random 6-digit code, as real MyChart does, and delivers it to an
+in-memory outbox instead of a phone or inbox. `Validate` accepts any code sent to that account,
+alongside the fixed `123456` and a live TOTP code. Read it at `GET /outbox`: JSON for a
+test, a page that refreshes itself for a browser. `?username=marge` narrows it to one account.
+`POST /reset` empties it. Like `/mode` and `/reset`, it is test control, not MyChart surface.
+
+```bash
+curl -s 'http://localhost:4000/outbox?username=marge'
+# {"messages":[{"id":1,"username":"marge","channel":"sms","code":"402913","sentAt":"…"}]}
+```
+
+A test can finish a sign-in the way a patient would (read the code, then submit it), or check
+that a flow sent nothing. Helpers: `readOutbox` in
+`scrapers/myChart/__tests__/fake-mychart/outbox.ts`.
 - Toggling TOTP via the settings UI (or the `UpdateTwoFactorTotpOptInStatus` endpoint) only affects the per-user UI flag (`IsTotpEnabled` returned by `GetTwoFactorInfo`). It does NOT change whether login requires 2FA — that's a fixed per-user behavior (off for homer, on for marge). The CLI's `--set-up-totp` / `--disable-totp` flow can therefore keep using username+password without ever needing a 2FA code. Use `POST /reset` to restore both users to their seed state.
 
 ### TOTP setup is cryptographically real

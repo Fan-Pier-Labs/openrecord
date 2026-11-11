@@ -3,7 +3,7 @@
 import { describe, it, expect, beforeAll, afterAll, afterEach } from 'bun:test'
 import { myChartUserPassLogin, complete2faFlow } from '../login'
 import { isStanfordHealthCare } from '../stanford'
-import { silentLogin } from '../silentLogin'
+import { machineLogin } from '../loginModes'
 import { setupPasskey } from '../setupPasskey'
 import { setupTotp } from '../setupTotp'
 import { MyChartRequest } from '../../core/myChartRequest'
@@ -135,8 +135,8 @@ describe('Stanford MyHealth login', () => {
 
   it('reaches the portal from a silent re-login with the saved id, and never sends a code there', async () => {
     const calls = fakeStanford({ login: { twoFactorRequired: true, meta: { code: 200 } } })
-    const outcome = await silentLogin({ hostname: 'myhealth.stanfordhealthcare.org', username: 'pat', password: 'pw', trustedDeviceId: 'saved-id' })
-    expect(outcome.state).toBe('failed')
+    const outcome = await machineLogin({ hostname: 'myhealth.stanfordhealthcare.org', username: 'pat', password: 'pw', trustedDeviceId: 'saved-id' })
+    expect(outcome.state).toBe('needs_human')
     expect(calls[0]!.body?.deviceId).toBe('saved-id')
     expect(calls.some((c) => c.url.endsWith('/generateTwoFactorLoginCode'))).toBe(false)
   })
