@@ -135,6 +135,12 @@ the app's agent loops stay identical.
 - **Any proxy failure surfaces an honest error in the chat** and flips the header badge to "Model
   unreachable". The demo has no offline path by design.
 
+## GitHub stats Lambda (`github-stats-lambda/`)
+
+Weekly (Mondays 14:00 UTC) snapshot of the repo's issues, PRs, forks and recent stars, written to
+`/aws/lambda/openrecord-github-stats` (log retention: never expire). Unauthenticated, so no secrets.
+Deploy: `cd github-stats-lambda && AWS_PROFILE=fanpierlabs ./deploy.sh`. Details in its README.
+
 ## S3 buckets (us-east-2)
 
 - **openrecord-fanpierlabs-com** (`arn:aws:s3:::openrecord-fanpierlabs-com`) — the static splash and

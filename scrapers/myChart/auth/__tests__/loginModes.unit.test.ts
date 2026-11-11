@@ -1,16 +1,18 @@
 // Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
 
 import { describe, it, expect, beforeAll, afterEach } from 'bun:test';
-import { silentLogin, wireSilentReauthentication } from '../silentLogin';
+import { machineLogin, humanLogin, wireSilentReauthentication } from '../loginModes';
 import { MyChartRequest } from '../../core/myChartRequest';
 import { createCredential, type PasskeyCredential } from '../softwareAuthenticator';
 import { setTestTransport } from '../../../http';
 
-// Drives the silent login ladder end to end against a scripted fake MyChart
+// Drives the login ladder end to end against a scripted fake MyChart
 // (setTestTransport), the same pattern as loginFlow.unit.test.ts. The ladder's
 // job is ordering and classification — passkey first, then password, then a
 // TOTP-secret 2FA — and each rung only shows up in which requests actually go
-// out and which callback fires.
+// out and which callback fires. The two modes differ in one request:
+// SendCode, which makes MyChart text or email the user. Machine mode must
+// never send it.
 
 const HOST = 'mychart.example.com';
 const TOKEN_INPUT = '<input name="__RequestVerificationToken" value="tok123" />';
@@ -19,8 +21,8 @@ const LOGIN_FAILED_PAGE = '<html><body>Login failed</body></html>';
 const NEED_2FA_PAGE = `<html><body>secondaryvalidationcontroller${TOKEN_INPUT}</body></html>`;
 
 type FakeServer = {
-  /** How the server answers a passkey DoLogin. */
-  passkeyLogin?: 'success' | 'invalid';
+  /** How the server answers a passkey DoLogin. `throw` is a network failure. */
+  passkeyLogin?: 'success' | 'invalid' | 'throw';
   /** How it answers a password DoLogin. */
   passwordLogin?: 'success' | 'need_2fa' | 'invalid';
   /** Whether SecondaryValidation/Validate accepts the submitted code. */
@@ -57,6 +59,7 @@ function fakeMyChart(server: FakeServer) {
     if (url.includes('/Authentication/Login/DoLogin')) {
       const isPasskey = decodeURIComponent(body).includes('PasskeyLogin');
       if (isPasskey) {
+        if (server.passkeyLogin === 'throw') throw new Error('network down');
         return new Response(server.passkeyLogin === 'success' ? HOME_PAGE : LOGIN_FAILED_PAGE, { status: 200 });
       }
       if (server.passwordLogin === 'need_2fa') return new Response(NEED_2FA_PAGE, { status: 200 });
@@ -104,6 +107,8 @@ function testCredential(): PasskeyCredential {
   return registration.credential;
 }
 
+const sentCode = (calls: string[]) => calls.some((url) => url.includes('/SecondaryValidation/SendCode'));
+
 beforeAll(() => {
   process.env.MYCHART_CLI_TELEMETRY_DISABLED = '1';
 });
@@ -112,13 +117,13 @@ afterEach(() => {
   setTestTransport(null);
 });
 
-describe('silentLogin', () => {
+describe('machineLogin', () => {
   it('logs in with a passkey and reports the used credential for persistence', async () => {
     fakeMyChart({ passkeyLogin: 'success' });
     const credential = testCredential();
     let persisted: PasskeyCredential | null = null;
 
-    const outcome = await silentLogin({
+    const outcome = await machineLogin({
       hostname: HOST,
       passkey: credential,
       onPasskeyUsed: (cred) => { persisted = cred; },
@@ -134,7 +139,7 @@ describe('silentLogin', () => {
     fakeMyChart({ passkeyLogin: 'invalid', passwordLogin: 'success' });
     let invalidated = false;
 
-    const outcome = await silentLogin({
+    const outcome = await machineLogin({
       hostname: HOST,
       username: 'homer',
       password: 'donuts123',
@@ -150,20 +155,32 @@ describe('silentLogin', () => {
 
   it('fails honestly when there are no stored credentials', async () => {
     fakeMyChart({});
-    const outcome = await silentLogin({ hostname: HOST });
+    const outcome = await machineLogin({ hostname: HOST });
     expect(outcome).toEqual({ state: 'failed', reason: 'no stored credentials' });
   });
 
-  it('fails when 2FA is required and no TOTP secret is stored', async () => {
-    fakeMyChart({ passwordLogin: 'need_2fa' });
-    const outcome = await silentLogin({ hostname: HOST, username: 'homer', password: 'donuts123' });
-    expect(outcome.state).toBe('failed');
-    expect(outcome.state === 'failed' && outcome.reason).toContain('2FA required');
+  it('reports needs_human, without sending a code, when 2FA is required and no TOTP secret is stored', async () => {
+    const { calls } = fakeMyChart({ passwordLogin: 'need_2fa' });
+    const outcome = await machineLogin({ hostname: HOST, username: 'homer', password: 'donuts123' });
+    expect(outcome.state).toBe('needs_human');
+    expect(sentCode(calls)).toBe(false);
+  });
+
+  it('never sends a code when a passkey login fails on the network and the password hits 2FA', async () => {
+    const { calls } = fakeMyChart({ passkeyLogin: 'throw', passwordLogin: 'need_2fa' });
+    const outcome = await machineLogin({
+      hostname: HOST,
+      username: 'homer',
+      password: 'donuts123',
+      passkey: testCredential(),
+    });
+    expect(outcome.state).toBe('needs_human');
+    expect(sentCode(calls)).toBe(false);
   });
 
   it('completes 2FA with a generated TOTP code', async () => {
     const { calls } = fakeMyChart({ passwordLogin: 'need_2fa', totpAccepted: true });
-    const outcome = await silentLogin({
+    const outcome = await machineLogin({
       hostname: HOST,
       username: 'homer',
       password: 'donuts123',
@@ -171,11 +188,12 @@ describe('silentLogin', () => {
     });
     expect(outcome.state).toBe('logged_in');
     expect(calls.some((url) => url.includes('/SecondaryValidation/Validate'))).toBe(true);
+    expect(sentCode(calls)).toBe(false);
   });
 
   it('fails when the TOTP code is rejected', async () => {
     fakeMyChart({ passwordLogin: 'need_2fa', totpAccepted: false });
-    const outcome = await silentLogin({
+    const outcome = await machineLogin({
       hostname: HOST,
       username: 'homer',
       password: 'donuts123',
@@ -187,7 +205,7 @@ describe('silentLogin', () => {
 
   it('logs in with username and password when no passkey is stored', async () => {
     fakeMyChart({ passwordLogin: 'success' });
-    const outcome = await silentLogin({ hostname: HOST, username: 'homer', password: 'donuts123' });
+    const outcome = await machineLogin({ hostname: HOST, username: 'homer', password: 'donuts123' });
     expect(outcome.state).toBe('logged_in');
   });
 
@@ -196,9 +214,51 @@ describe('silentLogin', () => {
     // "no stored credentials" means ask for them, a rejection means the ones
     // already stored are wrong.
     fakeMyChart({ passwordLogin: 'invalid' });
-    const outcome = await silentLogin({ hostname: HOST, username: 'homer', password: 'wrong' });
+    const outcome = await machineLogin({ hostname: HOST, username: 'homer', password: 'wrong' });
     expect(outcome.state).toBe('failed');
     expect((outcome as { reason: string }).reason).toContain('login failed');
+  });
+});
+
+describe('humanLogin', () => {
+  it('sends a code and hands back the pending login when 2FA is required and no TOTP secret is stored', async () => {
+    const { calls } = fakeMyChart({ passwordLogin: 'need_2fa' });
+    const outcome = await humanLogin({ hostname: HOST, username: 'homer', password: 'donuts123' });
+    expect(outcome.state).toBe('need_2fa');
+    expect(sentCode(calls)).toBe(true);
+    // The caller finishes this login with complete2faFlow, so it needs the
+    // half-finished request, not a fresh one.
+    expect(outcome.state === 'need_2fa' && outcome.mychartRequest).toBeInstanceOf(MyChartRequest);
+  });
+
+  it('uses a stored TOTP secret instead of sending a code', async () => {
+    const { calls } = fakeMyChart({ passwordLogin: 'need_2fa', totpAccepted: true });
+    const outcome = await humanLogin({
+      hostname: HOST,
+      username: 'homer',
+      password: 'donuts123',
+      totpSecret: 'JBSWY3DPEHPK3PXP',
+    });
+    expect(outcome.state).toBe('logged_in');
+    expect(sentCode(calls)).toBe(false);
+  });
+
+  it('logs in with a passkey without touching the password', async () => {
+    const { calls } = fakeMyChart({ passkeyLogin: 'success', passwordLogin: 'need_2fa' });
+    const outcome = await humanLogin({
+      hostname: HOST,
+      username: 'homer',
+      password: 'donuts123',
+      passkey: testCredential(),
+    });
+    expect(outcome.state).toBe('logged_in');
+    expect(sentCode(calls)).toBe(false);
+  });
+
+  it('reports a rejected password as invalid_login', async () => {
+    fakeMyChart({ passwordLogin: 'invalid' });
+    const outcome = await humanLogin({ hostname: HOST, username: 'homer', password: 'wrong' });
+    expect(outcome.state).toBe('invalid_login');
   });
 });
 
@@ -222,11 +282,12 @@ describe('wireSilentReauthentication', () => {
     expect(request.firstPathPart).toBe('MyChart');
   });
 
-  it('reports false when no silent path exists', async () => {
-    fakeMyChart({ passwordLogin: 'need_2fa' });
+  it('reports false, without sending a code, when no silent path exists', async () => {
+    const { calls } = fakeMyChart({ passwordLogin: 'need_2fa' });
     const request = new MyChartRequest(HOST);
     wireSilentReauthentication(request, () => ({ hostname: HOST, username: 'homer', password: 'donuts123' }));
     expect(await request.reauthenticate!()).toBe(false);
+    expect(sentCode(calls)).toBe(false);
   });
 
   it('re-reads the credentials at renewal time, not at wiring time', async () => {

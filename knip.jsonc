@@ -58,6 +58,7 @@
         "js-base64",
         "markdown-table",
         "tough-cookie",
+        "totp-generator",
         // Knip's Expo plugin assumes these ship with every Expo app; this one
         // uses neither.
         "expo-updates",
