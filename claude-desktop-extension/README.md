@@ -477,12 +477,15 @@ PR. Once it is merged, from a clean checkout of `main`:
 ```
 
 It installs, refreshes `scrapers/list-all-mycharts/mychart-instances.json` from Epic's
-directory (a few minutes' crawl), packs, uploads to
+directory (a few minutes' crawl), packs, boots the packed server (`smoke.mjs`), copies the live
+bundle to `openrecord-<old version>.mcpb`, uploads to
 `https://openrecord.fanpierlabs.com/openrecord.mcpb` (the splash page's Claude Desktop
 button), invalidates CloudFront, checks the live file matches what was packed, then runs
 `openrecord-splash/deploy.sh` to publish `mcpb_version.json`. That manifest also carries the
-`mychart-cli` version, so publish a bumped CLI to npm before running it. Commit a refreshed
-directory list in a PR afterwards — the script says so when it changed.
+`mychart-cli` version, so publish a bumped CLI to npm before running it. It refuses a version
+`mcpb_version.json` already advertises, and if the live check fails it prints the command that
+restores the old bundle. A failed run can be re-run as is. Commit a refreshed directory list in
+a PR afterwards — the script says so when it changed.
 
 **Don't sign the bundle.** `mcpb sign` appends a PKCS#7 block after the zip's end record, and
 Claude Desktop reads extensions with `yauzl`, which requires that record to be the file's last

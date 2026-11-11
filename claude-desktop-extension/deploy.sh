@@ -4,8 +4,9 @@
 # Releases the Claude Desktop extension, start to finish:
 #   1. installs dependencies
 #   2. refreshes the bundled MyChart directory list from Epic (a few minutes)
-#   3. packs openrecord.mcpb, unsigned
-#   4. uploads it to the splash site's bucket and invalidates CloudFront
+#   3. packs openrecord.mcpb, unsigned, and boots the packed server (smoke.mjs)
+#   4. keeps the current live bundle as openrecord-<old version>.mcpb, then
+#      uploads the new one to the splash site's bucket and invalidates CloudFront
 #   5. checks the live download is byte-for-byte what was packed
 #   6. deploys the splash site, which regenerates mcpb_version.json — the file
 #      installed copies poll to learn a new version exists
@@ -15,7 +16,8 @@
 # "Invalid comment length" — the signed 2.1.0 could not be installed. See README.
 #
 # Bump the version in manifest.json and package.json first, in a PR, and run
-# this from main once that is merged.
+# this from main once that is merged. A failed run can be re-run as is: the
+# directory list it refreshed is the one change the clean-checkout check allows.
 #
 # Usage:  ./deploy.sh
 set -euo pipefail
@@ -32,10 +34,11 @@ INSTANCES="scrapers/list-all-mycharts/mychart-instances.json"
 AWS=(aws --profile "$PROFILE" --region "$REGION")
 
 # What ships should be exactly what is on main — not an unmerged branch, not
-# uncommitted edits.
+# uncommitted edits. The refreshed directory list is exempt because step 2 of
+# an earlier, failed run is what changed it.
 echo "==> Checking the checkout is main, clean and current"
 git -C "$REPO_DIR" fetch --quiet origin main
-if [ -n "$(git -C "$REPO_DIR" status --porcelain)" ]; then
+if [ -n "$(git -C "$REPO_DIR" status --porcelain -- . ":!$INSTANCES")" ]; then
   echo "!! Uncommitted changes — release from a clean checkout of main" >&2
   exit 1
 fi
@@ -44,7 +47,15 @@ if [ "$(git -C "$REPO_DIR" rev-parse HEAD)" != "$(git -C "$REPO_DIR" rev-parse o
   exit 1
 fi
 VERSION="$(node -p "require('$EXT_DIR/manifest.json').version")"
-echo "    releasing MCPB $VERSION"
+LIVE_VERSION="$(curl -fsSL https://openrecord.fanpierlabs.com/mcpb_version.json \
+  | node -e "process.stdout.write(JSON.parse(require('fs').readFileSync(0, 'utf8')).versions.mcpb)")"
+# Re-uploading under the advertised version would swap the bits under copies
+# that believe they are already current, and none of them would update.
+if [ "$VERSION" = "$LIVE_VERSION" ]; then
+  echo "!! $VERSION is already the live version — bump manifest.json and package.json first" >&2
+  exit 1
+fi
+echo "    releasing MCPB $VERSION (live: $LIVE_VERSION)"
 
 echo "==> Installing dependencies"
 ( cd "$REPO_DIR" && bun install )
@@ -64,6 +75,21 @@ if [ "$(tail -c 22 "$EXT_DIR/openrecord.mcpb" | xxd -p | head -c 8)" != "504b050
 fi
 SHA="$(shasum "$EXT_DIR/openrecord.mcpb" | cut -d' ' -f1)"
 
+# The only check that boots the packed server the way Claude Desktop does; CI
+# does not run it. `pack` just built dist/, so run smoke.mjs directly rather than
+# `bun run smoke`, which would rebuild what is about to ship.
+echo "==> Smoke-testing the packed server"
+( cd "$EXT_DIR" && node smoke.mjs )
+
+# Only the first attempt at a release keeps a copy: on a re-run, what is live
+# may already be this release's bundle.
+BACKUP="openrecord-$LIVE_VERSION.mcpb"
+if ! "${AWS[@]}" s3 ls "s3://$BUCKET/$BACKUP" >/dev/null 2>&1; then
+  echo "==> Keeping the live $LIVE_VERSION bundle as s3://$BUCKET/$BACKUP"
+  "${AWS[@]}" s3 cp "s3://$BUCKET/openrecord.mcpb" "s3://$BUCKET/$BACKUP" --only-show-errors
+fi
+ROLLBACK="${AWS[*]} s3 cp s3://$BUCKET/$BACKUP s3://$BUCKET/openrecord.mcpb && ${AWS[*]} cloudfront create-invalidation --distribution-id $DIST_ID --paths /openrecord.mcpb"
+
 echo "==> Uploading s3://$BUCKET/openrecord.mcpb"
 "${AWS[@]}" s3 cp "$EXT_DIR/openrecord.mcpb" "s3://$BUCKET/openrecord.mcpb" \
   --content-type application/octet-stream \
@@ -80,6 +106,7 @@ echo "==> Checking the live download"
 LIVE_SHA="$(curl -fsSL "$URL" | shasum | cut -d' ' -f1)"
 if [ "$LIVE_SHA" != "$SHA" ]; then
   echo "!! $URL serves $LIVE_SHA, expected $SHA" >&2
+  echo "   To restore $LIVE_VERSION:  $ROLLBACK" >&2
   exit 1
 fi
 
