@@ -3,7 +3,7 @@
 /**
  * The installer, with nothing real touched: `fs` is in-memory for the store
  * root, ~/Library and the bundled binary, and `child_process` stands in for
- * launchctl, xattr and the calendar binary. No launchd job is ever loaded.
+ * launchctl and the calendar binary. No launchd job is ever loaded.
  */
 
 import { afterAll, beforeEach, describe, expect, it, mock } from 'bun:test';
@@ -113,7 +113,7 @@ describe('connectGoogleCalendar', () => {
     const { sync } = await applet.connectGoogleCalendar();
     expect(sync).toEqual({ ok: true, synced: 2, accounts: [] });
     expect(commands.map((c) => c.slice(0, 2).join(' '))).toEqual([
-      'launchctl bootout', 'xattr -d', 'openrecord-calendar connect', 'openrecord-calendar sync', 'launchctl bootstrap',
+      'launchctl bootout', 'openrecord-calendar connect', 'openrecord-calendar sync', 'launchctl bootstrap',
     ]);
     expect(files.get(WORKER)).toBe('binary');
     expect(files.has(`${WORKER}.new`)).toBe(false);
@@ -163,7 +163,6 @@ describe('connectGoogleCalendar', () => {
     files.set(WORKER, 'binary');
     await applet.connectGoogleCalendar();
     expect(requested).toEqual([]);
-    expect(commands.some((c) => c[0] === 'xattr')).toBe(false);
   });
 
   it('refuses where it cannot run', async () => {
@@ -219,7 +218,7 @@ describe('updateInstalledBinary', () => {
     files.set(WORKER, 'old build');
     await applet.updateInstalledBinary();
     expect(files.get(WORKER)).toBe('binary');
-    expect(commands.map((c) => c.slice(0, 2).join(' '))).toEqual(['launchctl bootout', 'xattr -d', 'launchctl bootstrap']);
+    expect(commands.map((c) => c.slice(0, 2).join(' '))).toEqual(['launchctl bootout', 'launchctl bootstrap']);
   });
 
   it('touches nothing when the binary is current or sync is off', async () => {

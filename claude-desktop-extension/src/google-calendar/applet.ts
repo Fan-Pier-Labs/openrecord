@@ -129,8 +129,6 @@ async function installBinary(hash: string): Promise<void> {
   fs.writeFileSync(temp, bytes);
   fs.chmodSync(temp, 0o755);
   fs.renameSync(temp, WORKER);
-  // A copy of a local build can carry a quarantine flag, which would stop launchd starting it.
-  await run('/usr/bin/xattr', ['-d', 'com.apple.quarantine', WORKER], 10_000);
 }
 
 const xmlEscape = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
