@@ -180,14 +180,20 @@ describe('connectGoogleCalendar', () => {
 });
 
 describe('uninstallGoogleCalendar', () => {
-  it('disconnects through the binary, stops it, and deletes it, its login item and its log', async () => {
+  it('disconnects through the binary and removes its login item and log, keeping the binary for a fast reinstall', async () => {
     await applet.connectGoogleCalendar();
     files.set(LOG, 'log');
     commands = [];
     await applet.uninstallGoogleCalendar();
     expect(commands.map((c) => c.slice(0, 2).join(' '))).toEqual(['openrecord-calendar disconnect', 'launchctl bootout']);
-    for (const f of [WORKER, PLIST, LOG]) expect(files.has(f)).toBe(false);
+    for (const f of [PLIST, LOG]) expect(files.has(f)).toBe(false);
+    expect(files.get(WORKER)).toBe('binary');
     expect(applet.calendarSyncStatus().enabled).toBe(false);
+
+    // Turning it back on downloads nothing.
+    files.delete(LOCAL_BUILD);
+    await applet.connectGoogleCalendar();
+    expect(requested).toEqual([]);
   });
 
   it('revokes and forgets Google itself when the binary is already gone, keeping the calendar id', async () => {

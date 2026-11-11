@@ -191,9 +191,10 @@ export function calendarSyncStatus(): CalendarSyncStatus {
 }
 
 /**
- * Turn sync off and remove the menu-bar app: revoke Google access, stop it
- * starting at login, and delete the binary and its log. The calendar ID stays
- * (see `disconnect` in worker.ts), so turning sync on again reuses the calendar.
+ * Turn sync off and remove the menu-bar app: revoke Google access, stop it,
+ * and stop it starting at login. The binary stays in ~/.openrecord-mcpb/bin,
+ * so turning sync on again skips the ~100 MB download, and so does the
+ * calendar ID (see `disconnect` in worker.ts), so it reuses the calendar.
  */
 export async function uninstallGoogleCalendar(): Promise<void> {
   // The binary created the token's keychain item, so it reads it without a
@@ -201,5 +202,5 @@ export async function uninstallGoogleCalendar(): Promise<void> {
   const viaWorker = fs.existsSync(WORKER) && (await runWorker('disconnect', 3 * 60_000)).ok;
   if (!viaWorker) await disconnectGoogle();
   await run('/bin/launchctl', ['bootout', `${guiDomain()}/${AGENT_LABEL}`], 10_000);
-  for (const file of [AGENT_PLIST, WORKER, `${WORKER}.new`, SYNC_LOG]) fs.rmSync(file, { force: true });
+  for (const file of [AGENT_PLIST, `${WORKER}.new`, SYNC_LOG]) fs.rmSync(file, { force: true });
 }

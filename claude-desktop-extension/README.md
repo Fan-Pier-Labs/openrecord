@@ -209,9 +209,10 @@ done** when the accounts have appointments to sync; otherwise ask Claude to
   It then runs `connect` and a first `sync`, and writes
   `~/Library/LaunchAgents/com.fanpierlabs.openrecord.calendar.plist`
   (`openrecord-calendar tray`) so it starts at login.
-- **Uninstall.** `disconnect_google_calendar` revokes the Google grant, unloads
-  and deletes the LaunchAgent, and deletes the binary and its log. The calendar
-  ID stays, as with Turn Off.
+- **Uninstall.** `disconnect_google_calendar` revokes the Google grant, then
+  unloads and deletes the LaunchAgent and the log. It keeps the binary in
+  `~/.openrecord-mcpb/bin`, so turning sync back on skips the download. It also
+  keeps the calendar ID, as Turn Off does.
 - **Turning it off and on again.** Turn Off revokes the Google grant and drops
   the token and sync status, but keeps the calendar ID in
   `google-calendar.json`. Turning sync back on reuses that calendar: a fresh grant
