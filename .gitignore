@@ -70,3 +70,4 @@ openrecord-splash/dist/
 *.pem
 .env.*
 *.tsbuildinfo
+__pycache__/
