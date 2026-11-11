@@ -13,6 +13,7 @@
 import { randomUUID } from 'crypto';
 import type { MyChartRequest } from '../../scrapers/myChart/core/myChartRequest';
 import type { TwoFaDeliveryInfo } from '../../scrapers/myChart/auth/login';
+import { normalizeHostname } from './credential-store';
 
 interface PendingLogin {
   hostname: string;
@@ -37,7 +38,7 @@ function gc(): void {
 export function addPending(args: Omit<PendingLogin, 'expiresAt'>): string {
   gc();
   const id = randomUUID();
-  pending.set(id, { ...args, expiresAt: Date.now() + TTL_MS });
+  pending.set(id, { ...args, hostname: normalizeHostname(args.hostname), expiresAt: Date.now() + TTL_MS });
   return id;
 }
 
@@ -56,9 +57,12 @@ export function takePending(id: string): PendingLogin | null {
  */
 export function findPendingFor(hostname: string, username: string): { id: string; delivery?: TwoFaDeliveryInfo | undefined } | null {
   gc();
+  // Both sides normalised: setup_account and a data tool may spell the same
+  // account differently, and a miss here means a second code.
+  const host = normalizeHostname(hostname);
   const user = username.trim().toLowerCase();
   for (const [id, p] of pending) {
-    if (p.hostname === hostname && p.username.trim().toLowerCase() === user) return { id, delivery: p.delivery };
+    if (p.hostname === host && p.username.trim().toLowerCase() === user) return { id, delivery: p.delivery };
   }
   return null;
 }

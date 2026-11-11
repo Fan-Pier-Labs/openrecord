@@ -30,7 +30,7 @@
 
 import { MyChartRequest } from '../../scrapers/myChart/core/myChartRequest';
 import { areCookiesValid } from '../../scrapers/myChart/auth/login';
-import { humanLogin, wireSilentReauthentication, type StoredLoginParams } from '../../scrapers/myChart/auth/loginModes';
+import { humanLogin, machineLogin, wireSilentReauthentication, type StoredLoginParams } from '../../scrapers/myChart/auth/loginModes';
 import type { TwoFaDeliveryInfo } from '../../scrapers/myChart/auth/login';
 import { addPending, findPendingFor } from './pending-logins';
 import { sessionStore } from '../../scrapers/myChart/core/sessionStore';
@@ -86,7 +86,8 @@ export function clearSession(ref: string): void {
   const session = sessions.get(key);
   if (session) sessionStore.unregister(session);
   sessions.delete(key);
-  loginLocks.delete(key);
+  loginLocks.delete(lockKey(key, 'human'));
+  loginLocks.delete(lockKey(key, 'machine'));
 }
 
 export function clearAllSessions(): void {
@@ -113,6 +114,18 @@ export class NeedsTwoFactorError extends Error {
   ) {
     super(`MyChart sent a verification code to sign in to ${account}.`);
     this.name = 'NeedsTwoFactorError';
+  }
+}
+
+/**
+ * A machine-mode sign-in hit 2FA with nothing stored that answers it. No code
+ * was sent; retrying won't help until the user signs in, or saves a passkey
+ * or an authenticator app.
+ */
+export class NeedsHumanSignInError extends Error {
+  constructor(readonly account: string) {
+    super(`MyChart needs a verification code to sign in to ${account}, and no passkey or authenticator app is saved for it.`);
+    this.name = 'NeedsHumanSignInError';
   }
 }
 
@@ -161,7 +174,7 @@ function storedLoginParams(hostname: string, username: string): StoredLoginParam
   };
 }
 
-async function loginAccount(account: AccountIdentity): Promise<MyChartRequest> {
+async function loginAccountAsHuman(account: AccountIdentity): Promise<MyChartRequest> {
   const hostname = normalizeHostname(account.hostname);
   const id = accountId(account);
 
@@ -197,6 +210,26 @@ async function loginAccount(account: AccountIdentity): Promise<MyChartRequest> {
   }
 }
 
+/** Sign in with nobody waiting on a code. Never makes MyChart send one. */
+async function loginAccountAsMachine(account: AccountIdentity): Promise<MyChartRequest> {
+  const hostname = normalizeHostname(account.hostname);
+  const id = accountId(account);
+
+  const restored = await tryRestoreSession(hostname, account.username);
+  if (restored) return restored;
+
+  const outcome = await machineLogin(storedLoginParams(hostname, account.username));
+  switch (outcome.state) {
+    case 'logged_in':
+      await persistSession(hostname, account.username, outcome.mychartRequest);
+      return outcome.mychartRequest;
+    case 'needs_human':
+      throw new NeedsHumanSignInError(id);
+    case 'failed':
+      throw new Error(`Login failed for ${id}: ${outcome.reason}.`);
+  }
+}
+
 export async function persistSession(hostname: string, username: string, req: MyChartRequest): Promise<void> {
   try {
     saveAccountSession(hostname, username, await req.serialize());
@@ -223,7 +256,14 @@ function manageSession(hostname: string, username: string, session: MyChartReque
   return session;
 }
 
-async function ensureAccountSession(account: AccountIdentity): Promise<MyChartRequest> {
+type LoginMode = 'human' | 'machine';
+
+/** One in-flight sign-in per account AND mode: a human caller must not inherit a machine sign-in's needs_human. */
+function lockKey(key: string, mode: LoginMode): string {
+  return `${key}\0${mode}`;
+}
+
+async function ensureAccountSession(account: AccountIdentity, mode: LoginMode): Promise<MyChartRequest> {
   const hostname = normalizeHostname(account.hostname);
   const key = sessionKey(hostname, account.username);
 
@@ -232,28 +272,25 @@ async function ensureAccountSession(account: AccountIdentity): Promise<MyChartRe
   const existing = sessions.get(key);
   if (existing) return existing;
 
-  const lock = loginLocks.get(key);
+  const lk = lockKey(key, mode);
+  const lock = loginLocks.get(lk);
   if (lock) return lock;
 
-  const promise = loginAccount(account).then(session => {
+  const login = mode === 'human' ? loginAccountAsHuman : loginAccountAsMachine;
+  const promise = login(account).then(session => {
     manageSession(hostname, account.username, session);
-    loginLocks.delete(key);
+    loginLocks.delete(lk);
     return session;
   }).catch((err: unknown) => {
-    loginLocks.delete(key);
+    loginLocks.delete(lk);
     throw err;
   });
 
-  loginLocks.set(key, promise);
+  loginLocks.set(lk, promise);
   return promise;
 }
 
-/**
- * Get a logged-in MyChartRequest for the given account id. The id must be an
- * exact `username@hostname` match — anything else throws, listing the
- * configured ids.
- */
-export async function resolveSession(ref: string): Promise<MyChartRequest> {
+function requireAccount(ref: string): AccountIdentity {
   if (!ref) {
     throw new Error('account is required. Call list_accounts to see configured account IDs, then pass one as `account`.');
   }
@@ -266,7 +303,25 @@ export async function resolveSession(ref: string): Promise<MyChartRequest> {
         : `Account "${ref}" is not configured. Configured accounts: ${available.join(', ')}.`,
     );
   }
-  return ensureAccountSession(account);
+  return account;
+}
+
+/**
+ * Get a logged-in MyChartRequest for the given account id, for a tool call —
+ * human mode: signing in may make MyChart send a code, surfaced as
+ * NeedsTwoFactorError. The id must be an exact `username@hostname` match —
+ * anything else throws, listing the configured ids.
+ */
+export async function resolveSession(ref: string): Promise<MyChartRequest> {
+  return ensureAccountSession(requireAccount(ref), 'human');
+}
+
+/**
+ * The same, for work nobody is waiting on (a background sync). Machine mode:
+ * never sends a code; throws NeedsHumanSignInError when only a code would do.
+ */
+export async function resolveSessionWithoutUser(ref: string): Promise<MyChartRequest> {
+  return ensureAccountSession(requireAccount(ref), 'machine');
 }
 
 /**
@@ -279,7 +334,8 @@ export async function adoptSession(hostname: string, username: string, session: 
   const existing = sessions.get(key);
   if (existing) sessionStore.unregister(existing);
   sessions.delete(key);
-  loginLocks.delete(key);
+  loginLocks.delete(lockKey(key, 'human'));
+  loginLocks.delete(lockKey(key, 'machine'));
   await persistSession(hostname, username, session);
   manageSession(normalizeHostname(hostname), username, session);
 }

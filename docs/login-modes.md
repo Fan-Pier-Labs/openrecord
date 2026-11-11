@@ -119,6 +119,12 @@ sequenceDiagram
 Concurrent tool calls share one sign-in (the per-account login lock), and while a pending login
 is unexpired (10 minutes) every call hands back its `pending_id` instead of sending another code.
 
+"A person asked" is an assumption here, not something the extension can check. A scheduled task or
+agent run that calls a data tool with nobody watching, on a 2FA account with no passkey or TOTP,
+sends one code per run, since the pending login expires after 10 minutes. That is no worse than
+before this split, and the code is at least usable when someone is there. Background work the
+extension starts itself must use `resolveSessionWithoutUser`.
+
 ## Session expiry in the middle of a call
 
 ```mermaid
@@ -149,7 +155,7 @@ sequenceDiagram
 
 | Client | Human path | Machine path |
 | --- | --- | --- |
-| Desktop extension | `setup_account`, `connect_imported_account`, and the lazy sign-in behind every data tool (`humanLogin`) → `complete_2fa` | `reauthenticate` hook → `machineLogin` |
+| Desktop extension | `setup_account`, `connect_imported_account`, and `resolveSession` — the lazy sign-in behind every data tool (`humanLogin`) → `complete_2fa` | `reauthenticate` hook, and `resolveSessionWithoutUser` for background work like a calendar sync (throws `NeedsHumanSignInError`) → `machineLogin` |
 | CLI | `login()` in `npm-package/cli/cli.ts`: prompts for the code (or `--2fa`, or a saved TOTP) | `wireCliSessionRenewal` → `machineLogin` |
 | iOS app | `connectAccount` (onboarding) → `humanLogin` → twofa step → `complete2fa` | `connectAll` / `requireSession` (chat, alerts, memory) and the `reauthenticate` hook → `machineLogin` |
 | npm library | `MyChartClient.connect` returns `need_2fa` with `complete(code)`; `skipSendCode` is the caller's choice | `wireSilentReauthentication` → `machineLogin` |

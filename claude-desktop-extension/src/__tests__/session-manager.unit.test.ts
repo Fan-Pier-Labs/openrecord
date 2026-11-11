@@ -252,4 +252,10 @@ describe('resolveSession signing in for a tool call', () => {
     expect(pending?.username).toBe('homer')
     expect(pending?.password).toBe('donuts123')
   })
+  it('signs in without sending a code for work nobody is waiting on', async () => {
+    const counts = twoFactorMyChart()
+    const err = await sessionManager.resolveSessionWithoutUser('homer@mychart.example.org').catch((e: unknown) => e)
+    expect(err).toBeInstanceOf(sessionManager.NeedsHumanSignInError)
+    expect(counts.sendCode).toBe(0)
+  })
 })
