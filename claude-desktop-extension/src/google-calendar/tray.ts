@@ -22,8 +22,8 @@ import { FFIType } from 'bun:ffi';
 
 import { AGENT_LABEL, AGENT_PLIST, SYNC_LOG } from './applet';
 import { cls, defineHandler, msg, msgTyped, nsstr, sel, type Id } from './objc';
-import { readState } from './store';
-import { iconSymbol, isSyncDue, statusLines } from './tray-menu';
+import { readState, type LastSync } from './store';
+import { failureNotice, iconSymbol, isSyncDue, statusLines } from './tray-menu';
 
 // Check often rather than arming one 4-hour timer: a timer's clock stops
 // while the Mac sleeps, so a laptop opened in the morning would otherwise wait
@@ -38,6 +38,16 @@ const NS_ACTIVATION_POLICY_ACCESSORY = 1;
 const NS_ALERT_FIRST_BUTTON_RETURN = 1000;
 
 const boolArg = (v: boolean): [typeof FFIType.bool, boolean] => [FFIType.bool, v];
+
+// osascript rather than UNUserNotificationCenter, which refuses a process that
+// isn't an app bundle. Title and body go in as arguments, so nothing in them
+// is ever parsed as AppleScript.
+function notify(title: string, body: string): void {
+  spawnSync('/usr/bin/osascript', [
+    '-e', 'on run argv', '-e', 'display notification (item 2 of argv) with title (item 1 of argv)', '-e', 'end run',
+    title, body,
+  ], { stdio: 'ignore', timeout: 10_000 });
+}
 
 export function runTray(executable: string): never {
   const app = msg(cls('NSApplication'), 'sharedApplication');
@@ -54,6 +64,9 @@ export function runTray(executable: string): never {
   let task: Id = null;
   let taskStarted = 0;
   let pollTimer: Id = null;
+  let syncBefore: LastSync | undefined;
+  // The failure last notified about, so one that persists isn't announced every four hours.
+  let notifiedFailure: string | null = null;
 
   const syncing = () => task !== null && msgTyped<boolean>(task, 'isRunning', FFIType.bool, []);
 
@@ -86,6 +99,7 @@ export function runTray(executable: string): never {
       return;
     }
     taskStarted = Date.now();
+    syncBefore = readState().lastSync;
     pollTimer = timer(SYNCING_POLL_S, 'poll:', true);
     setIcon();
   }
@@ -128,6 +142,9 @@ export function runTray(executable: string): never {
       msg(pollTimer, 'invalidate');
       pollTimer = null;
       setIcon();
+      const failure = failureNotice(syncBefore, readState().lastSync);
+      if (failure && failure.key !== notifiedFailure) notify(failure.title, failure.body);
+      notifiedFailure = failure?.key ?? null;
     },
     'menuNeedsUpdate:': () => {
       const state = readState();

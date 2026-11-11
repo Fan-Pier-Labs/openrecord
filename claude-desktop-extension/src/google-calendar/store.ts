@@ -30,6 +30,8 @@ export interface LastSync {
   ok: boolean;
   synced: number;
   accounts: AccountSyncResult[];
+  /** Set when the sync failed before reaching any account (Google, not MyChart). */
+  error?: string;
 }
 
 export interface CalendarState {

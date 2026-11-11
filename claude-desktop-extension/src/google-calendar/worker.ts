@@ -26,7 +26,7 @@ import { execFile } from 'child_process';
 import { executeCapability } from '../../../shared/capabilities';
 import { detailedMessage } from '../../../shared/detailedError';
 import { accountId, readAccountIdentities } from '../credential-store';
-import { clearAllSessions, resolveSession } from '../session-manager';
+import { clearAllSessions, NeedsHumanSignInError, resolveSessionWithoutUser } from '../session-manager';
 import type { SyncVisit } from './events';
 import { accessTokenFor, authorizeInBrowser, CalendarClient, revoke } from './google-api';
 import { connectAccessToken, ensureCalendar, syncAccount } from './sync';
@@ -50,7 +50,14 @@ async function connect(): Promise<Result> {
 }
 
 async function fetchVisits(account: string): Promise<SyncVisit[]> {
-  const session = await resolveSession(account);
+  // Machine mode: nobody is at a sync to type a code, so it must never make
+  // MyChart send one — docs/login-modes.md.
+  const session = await resolveSessionWithoutUser(account).catch((err: unknown) => {
+    if (err instanceof NeedsHumanSignInError) {
+      throw new Error('MyChart wants a verification code, and background syncs never ask for one. Ask Claude to set up a passkey for this account so it can sync on its own.');
+    }
+    throw err;
+  });
   // No `patient`: executeCapability then asserts the account holder's own
   // chart is active, so a session left on a family member refuses instead of
   // putting their appointments on this calendar.
@@ -59,20 +66,27 @@ async function fetchVisits(account: string): Promise<SyncVisit[]> {
 }
 
 async function sync(): Promise<Result> {
-  const refreshToken = readRefreshToken();
-  if (!refreshToken) return { ok: false, error: 'Google Calendar is not connected.' };
-  const client = new CalendarClient(await accessTokenFor(refreshToken));
-  const state = readState();
-  const calendarId = await ensureCalendar(client, state.calendarId);
+  try {
+    const refreshToken = readRefreshToken();
+    if (!refreshToken) throw new Error('Google Calendar is not connected. Ask Claude to connect Google Calendar again.');
+    const client = new CalendarClient(await accessTokenFor(refreshToken));
+    const calendarId = await ensureCalendar(client, readState().calendarId);
 
-  const accounts = [];
-  for (const identity of readAccountIdentities()) {
-    accounts.push(await syncAccount(client, calendarId, accountId(identity), fetchVisits));
+    const accounts = [];
+    for (const identity of readAccountIdentities()) {
+      accounts.push(await syncAccount(client, calendarId, accountId(identity), fetchVisits));
+    }
+    const synced = accounts.reduce((n, a) => n + a.synced, 0);
+    const ok = accounts.every((a) => !a.error);
+    writeState({ ...readState(), calendarId, lastSync: { at: new Date().toISOString(), ok, synced, accounts } });
+    return { ok, synced, accounts };
+  } catch (err) {
+    // Recorded, not just returned: the menu-bar item reads the outcome from the
+    // state file, and a revoked Google grant must show (and notify) as a failure.
+    const error = detailedMessage(err);
+    writeState({ ...readState(), lastSync: { at: new Date().toISOString(), ok: false, synced: 0, accounts: [], error } });
+    return { ok: false, error };
   }
-  const synced = accounts.reduce((n, a) => n + a.synced, 0);
-  const ok = accounts.every((a) => !a.error);
-  writeState({ ...readState(), calendarId, lastSync: { at: new Date().toISOString(), ok, synced, accounts } });
-  return { ok, synced, accounts };
 }
 
 async function disconnect(): Promise<Result> {

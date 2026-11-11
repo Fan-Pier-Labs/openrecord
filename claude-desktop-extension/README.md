@@ -182,6 +182,16 @@ done** when the accounts have appointments to sync; otherwise ask Claude to
   reads. It syncs when 4 hours have passed since the last sync, checking every
   15 minutes and on wake, because a timer's clock stops while the Mac sleeps.
   The menu has Sync Now, Open Google Calendar and Turn Off Calendar Sync.
+- **Signing in to MyChart.** A sync signs in with `machineLogin`
+  (`resolveSessionWithoutUser`), so it never makes MyChart send a 2FA code:
+  nobody is there to type one. An account that has only a password and hits
+  2FA fails with a hint to save a passkey. See
+  [`docs/login-modes.md`](../docs/login-modes.md).
+- **When a sync fails** — an account, Google, or a run that crashed or hit the
+  10-minute timeout — the icon gets an exclamation mark, the menu says why, and
+  macOS shows a notification (posted with `osascript`, since
+  `UNUserNotificationCenter` refuses a binary that isn't an app bundle). The same
+  failure is announced once, not every four hours.
 - **Install.** The tool copies the matching binary to
   `~/.openrecord-mcpb/bin/openrecord-calendar`, runs `connect` and a first `sync`,
   then writes `~/Library/LaunchAgents/com.fanpierlabs.openrecord.calendar.plist`
