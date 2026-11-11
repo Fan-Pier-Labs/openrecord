@@ -26,10 +26,10 @@ import {
   parsePayloadManifest,
 } from './payloads';
 
-export const PAYLOAD_BASE_URL = 'https://openrecord.fanpierlabs.com/mcpb-payload';
+const PAYLOAD_BASE_URL = 'https://openrecord.fanpierlabs.com/mcpb-payload';
 
 /** Its private half signs releases in `deploy.sh` (`scripts/build-payload.ts`). */
-export const PAYLOAD_PUBLIC_KEY = `-----BEGIN PUBLIC KEY-----
+const PAYLOAD_PUBLIC_KEY = `-----BEGIN PUBLIC KEY-----
 MCowBQYDK2VwAyEAb8VrPXwfBVxaxnBrVEfTs41CST9Lk7wsxoNsH7SvqdM=
 -----END PUBLIC KEY-----`;
 

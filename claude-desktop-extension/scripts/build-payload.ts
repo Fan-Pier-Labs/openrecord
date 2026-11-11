@@ -19,7 +19,7 @@ import { version } from '../manifest.json';
 import { LAUNCHER_ABI, PAYLOAD_MANIFEST, type PayloadManifest } from '../src/launcher/payloads';
 
 /** What a payload carries: everything the server reads from its own folder. */
-export const PAYLOAD_FILES = ['server.cjs', 'node-sqlite3-wasm.wasm'];
+const PAYLOAD_FILES = ['server.cjs', 'node-sqlite3-wasm.wasm'];
 
 export function buildPayload(distDir: string, privateKeyPem: string, outDir: string, payloadVersion: string = version): void {
   fs.mkdirSync(outDir, { recursive: true });

@@ -44,7 +44,7 @@ export interface Payload {
 }
 
 /** A plain name with no leading dot: never `..`, never a path, never the manifest itself. */
-export function isSafeFileName(name: string): boolean {
+function isSafeFileName(name: string): boolean {
   return /^[\w-][\w.-]*$/.test(name) && name !== PAYLOAD_MANIFEST;
 }
 
