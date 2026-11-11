@@ -19,7 +19,8 @@ setLogSink((level, args) => {
  * elicitation). Delegates all tool implementation to ./tools.ts; the
  * setup wizard is in ./setup-flow.ts; session management in ./session-manager.ts.
  *
- * The bundle is run by Claude Desktop as `node dist/server.cjs`. No
+ * Claude Desktop runs `dist/launcher.cjs`, which runs this bundle (`server.cjs`,
+ * or a newer signed download of it) as a child — see src/launcher/. No
  * user_config is required — all auth happens via the in-chat setup_account
  * tool, which uses MCP elicitation to deterministically collect each field
  * (instance picker → username + password → 2FA → passkey opt-in).
@@ -32,7 +33,6 @@ import { clearAllSessions } from './session-manager';
 import setupWidget from 'virtual:setup-widget';
 import { buildSetupUiHtml, SETUP_UI_MIME_TYPE, SETUP_UI_RESOURCE_META } from './ui';
 import { startDirectoryRefresh } from './directory-refresh';
-import { startUpdateCheck } from './update-notice';
 import { setTelemetryApp } from '../../shared/telemetry';
 import { version as MCPB_VERSION } from '../manifest.json';
 
@@ -131,7 +131,6 @@ async function main(): Promise<void> {
   const transport = new StdioServerTransport();
   await server.connect(transport);
   startDirectoryRefresh();
-  void startUpdateCheck();
 
   // Clean up keepalive timers when the parent (Claude Desktop) closes stdio.
   const shutdown = () => {

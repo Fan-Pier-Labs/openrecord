@@ -44,7 +44,9 @@ const setupWidgetPlugin: Plugin = {
 };
 
 export default defineConfig({
-  entry: { server: 'src/index.ts' },
+  // launcher.cjs is what Claude Desktop runs; it runs server.cjs (or a newer
+  // downloaded copy of it) as a child. See README "Self-update".
+  entry: { server: 'src/index.ts', launcher: 'src/launcher/index.ts' },
   onSuccess: () => {
     copySqliteWasm();
     return Promise.resolve();

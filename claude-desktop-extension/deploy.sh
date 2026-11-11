@@ -8,7 +8,9 @@
 #   4. keeps the current live bundle as openrecord-<old version>.mcpb, then
 #      uploads the new one to the splash site's bucket and invalidates CloudFront
 #   5. checks the live download is byte-for-byte what was packed
-#   6. deploys the splash site, which regenerates mcpb_version.json — the file
+#   6. signs the server payload and uploads it to mcpb-payload/<version>/, where
+#      installed launchers download it from (README "Self-update")
+#   7. deploys the splash site, which regenerates mcpb_version.json — the file
 #      installed copies poll to learn a new version exists
 #
 # Unsigned on purpose. `mcpb sign` appends its signature after the zip's end
@@ -30,6 +32,7 @@ URL="https://openrecord.fanpierlabs.com/openrecord.mcpb"
 EXT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$EXT_DIR/.." && pwd)"
 INSTANCES="scrapers/list-all-mycharts/mychart-instances.json"
+SIGNING_SECRET="openrecord/mcpb-payload-signing-key"   # ed25519 PKCS#8 PEM; public half pinned in src/launcher/install.ts
 
 AWS=(aws --profile "$PROFILE" --region "$REGION")
 
@@ -81,6 +84,17 @@ SHA="$(shasum "$EXT_DIR/openrecord.mcpb" | cut -d' ' -f1)"
 echo "==> Smoke-testing the packed server"
 ( cd "$EXT_DIR" && node smoke.mjs )
 
+# Signed now, uploaded just before the version is published: a missing key
+# should stop the release before anything goes live.
+echo "==> Signing the server payload"
+KEY_FILE="$(mktemp)"
+PAYLOAD_DIR="$(mktemp -d)"
+trap 'rm -rf "$KEY_FILE" "$PAYLOAD_DIR"' EXIT
+"${AWS[@]}" secretsmanager get-secret-value --secret-id "$SIGNING_SECRET" \
+  --query SecretString --output text > "$KEY_FILE"
+( cd "$EXT_DIR" && bun scripts/build-payload.ts "$KEY_FILE" "$PAYLOAD_DIR" )
+rm -f "$KEY_FILE"
+
 # Only the first attempt at a release keeps a copy: on a re-run, what is live
 # may already be this release's bundle.
 BACKUP="openrecord-$LIVE_VERSION.mcpb"
@@ -109,6 +123,15 @@ if [ "$LIVE_SHA" != "$SHA" ]; then
   echo "   To restore $LIVE_VERSION:  $ROLLBACK" >&2
   exit 1
 fi
+
+# Before the splash deploy: the moment mcpb_version.json names this version,
+# every installed launcher asks for this payload, and one that 404s tells its
+# user to reinstall.
+echo "==> Uploading the signed server payload"
+"${AWS[@]}" s3 cp "$PAYLOAD_DIR" "s3://$BUCKET/mcpb-payload/$VERSION/" --recursive \
+  --content-type application/octet-stream \
+  --cache-control "public, max-age=31536000, immutable" \
+  --only-show-errors
 
 echo "==> Deploying the splash site (publishes mcpb_version.json)"
 AWS_PROFILE="$PROFILE" "$REPO_DIR/openrecord-splash/deploy.sh"

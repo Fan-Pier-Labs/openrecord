@@ -293,10 +293,10 @@ The short version, for what this extension does:
   help improve our product. We do not send any medical information to our
   server or to analytics services. You can disable by setting
   `MYCHART_CLI_TELEMETRY_DISABLED=1`.
-- **Update check.** At startup and daily it reads
-  `openrecord.fanpierlabs.com/mcpb_version.json`; when this copy is behind, every tool result
-  ends with a one-line notice (`src/update-notice.ts`). It sends nothing but the request,
-  which reveals your IP to our CDN, and it runs even with telemetry turned off.
+- **Self-update.** At startup and daily it reads
+  `openrecord.fanpierlabs.com/mcpb_version.json` and, when a newer version is out, downloads
+  its signed server code from the same site (see [Self-update](#self-update)). It sends nothing
+  but the requests, which reveal your IP to our CDN, and it runs even with telemetry turned off.
 - **Disconnecting deletes.** `disconnect_account` removes that account's stored
   credentials, passkey, and session from this machine.
 
@@ -364,6 +364,34 @@ The short version, for what this extension does:
   `PLATFORMS` in `verify-native-binaries.mjs`, which fails the pack if the last
   two disagree. `compatibility.runtimes.node` tracks tsup's `target`.
 
+## Self-update
+
+Claude Desktop runs `dist/launcher.cjs`, not the server. The launcher (`src/launcher/`) owns
+stdio and runs `server.cjs` as a child process: the newest download in
+`~/.openrecord-mcpb/versions/<version>/` if there is one, otherwise the copy bundled in this
+`.mcpb`. Messages pass through unchanged. At startup and daily it downloads the version
+`mcpb_version.json` advertises; a download takes effect the next time Claude Desktop starts the
+extension.
+
+- **Every download is signed.** `payload.json` lists each file's sha256 and carries an ed25519
+  signature from the key pinned in `src/launcher/install.ts`. Anything that fails a check is
+  discarded. The private key is the `openrecord/mcpb-payload-signing-key` secret, which
+  `deploy.sh` reads to sign each release (`scripts/build-payload.ts`) and upload it to
+  `mcpb-payload/<version>/` before publishing the version number.
+- **Only the server updates.** The launcher, `manifest.json` (tool list, display version) and
+  `node_modules/@napi-rs` (a native binary a download can't replace) change only by
+  reinstalling. The server reaches the installed keyring through `NODE_PATH`. A release that
+  changes what the server needs from the launcher bumps `LAUNCHER_ABI` in
+  `src/launcher/payloads.ts`, and older launchers then refuse it.
+- **A failed update tells the user to reinstall.** If the advertised version can't be
+  downloaded, fails verification, needs a newer launcher, or dies before the MCP handshake,
+  every tool result ends with a notice asking the user to reinstall from the site. A version
+  that died at startup is marked `BAD` and never retried; the launcher falls back to the next
+  payload in the same startup and replays the handshake to it. Not reaching the site at all
+  changes nothing.
+- **Keep the launcher small and stable.** Every installed copy runs whichever launcher it was
+  installed with, for good.
+
 ## File layout
 
 ```
@@ -374,9 +402,11 @@ claude-desktop-extension/
 ├── smoke.mjs               # boots the built bundle and speaks MCP to it
 ├── icon.png                # 256×256 extension icon
 ├── scripts/
+│   ├── build-payload.ts    # signs the server payload launchers download (deploy.sh)
 │   └── verify-native-binaries.mjs # refuses to pack without every platform's keyring binary
 └── src/
-    ├── index.ts            # stdio entry
+    ├── launcher/           # what Claude Desktop runs: self-update + stdio relay to the server
+    ├── index.ts            # server stdio entry
     ├── tools.ts            # account meta tools + one tool per shared capability
     ├── setup-flow.ts       # elicitation-driven setup wizard
     ├── session-manager.ts  # per-account session cache with keepalive + passkey auto-login
@@ -457,7 +487,7 @@ bun run dev:proxy    # mcpmon --watch dist --ext cjs -- node dist/server.cjs
 ```
 
 Use this as the server command in a dev build of `manifest.json` (the shipped
-manifest launches `node dist/server.cjs` directly — don't ship `mcpmon`). Keep
+manifest launches `node dist/launcher.cjs`, which runs `dist/server.cjs` — don't ship `mcpmon`). Keep
 `bun run dev` running alongside it so `dist/` stays current.
 
 ### Test in Claude Desktop (packaged)
@@ -478,9 +508,10 @@ PR. Once it is merged, from a clean checkout of `main`:
 
 It installs, refreshes `scrapers/list-all-mycharts/mychart-instances.json` from Epic's
 directory (a few minutes' crawl), packs, boots the packed server (`smoke.mjs`), copies the live
-bundle to `openrecord-<old version>.mcpb`, uploads to
+bundle to `openrecord-<old version>.mcpb`, signs the server payload, uploads to
 `https://openrecord.fanpierlabs.com/openrecord.mcpb` (the splash page's Claude Desktop
-button), invalidates CloudFront, checks the live file matches what was packed, then runs
+button), invalidates CloudFront, checks the live file matches what was packed, uploads the payload to
+`mcpb-payload/<version>/`, then runs
 `openrecord-splash/deploy.sh` to publish `mcpb_version.json`. That manifest also carries the
 `mychart-cli` version, so publish a bumped CLI to npm before running it. It refuses a version
 `mcpb_version.json` already advertises, and if the live check fails it prints the command that

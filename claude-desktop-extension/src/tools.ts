@@ -103,7 +103,6 @@ import { saveStudyJpegs, type SavedStudy } from './imaging/save-study';
 import { INLINE_BUDGET_BYTES } from './imaging/inline-preview';
 import { saveFilePayload, saveTextFile } from './save-file';
 import { reportToolCall } from './tool-telemetry';
-import { withUpdateNotice } from './update-notice';
 import { detailedMessage } from '../../shared/detailedError';
 
 // ── Result helpers ──────────────────────────────────────────────────────────
@@ -684,17 +683,6 @@ function guarded(server: McpServer): McpServer {
   return { registerTool } as unknown as McpServer;
 }
 
-/**
- * A server whose every result ends with the update notice, when there is one.
- * Outermost, so a parked call's result is stored without it and gets it once,
- * when check_pending_call hands it over.
- */
-function noticed(server: McpServer): McpServer {
-  const registerTool = (name: string, config: unknown, handler: (...a: unknown[]) => ToolResult | Promise<ToolResult>) =>
-    server.registerTool(name, config as never, async (...a: unknown[]) => withUpdateNotice(await handler(...a)));
-  return { registerTool } as unknown as McpServer;
-}
-
 function registerCheckPendingCall(server: McpServer): void {
   server.registerTool(
     CHECK_TOOL,
@@ -735,10 +723,9 @@ function registerCheckPendingCall(server: McpServer): void {
 // ── Public: register everything on the server ──────────────────────────────
 
 export function registerAllTools(rawServer: McpServer): void {
-  const withNotice = noticed(rawServer);
   // check_pending_call collects parked results, so it is never itself parked.
-  registerCheckPendingCall(withNotice);
-  const server = guarded(withNotice);
+  registerCheckPendingCall(rawServer);
+  const server = guarded(rawServer);
 
   // ── Meta tools ────────────────────────────────────────────────────────────
 
