@@ -17,6 +17,7 @@ RULE_NAME="openrecord-github-stats-weekly"
 # Mondays 14:00 UTC.
 SCHEDULE="cron(0 14 ? * MON *)"
 LOG_GROUP="/aws/lambda/$FN_NAME"
+RUNTIME="nodejs22.x"
 
 cd "$(dirname "$0")"
 AWS=(aws --profile "$PROFILE" --region "$REGION")
@@ -41,7 +42,7 @@ if ! "${AWS[@]}" iam get-role --role-name "$ROLE_NAME" >/dev/null 2>&1; then
   echo "    created; waiting for IAM propagation..."
   sleep 10
 fi
-# A rate-limited run re-invokes itself to keep waiting (handler.py).
+# A rate-limited run re-invokes itself to keep waiting (src/handler.ts).
 "${AWS[@]}" iam put-role-policy \
   --role-name "$ROLE_NAME" \
   --policy-name invoke-self \
@@ -59,25 +60,34 @@ ROLE_ARN="$("${AWS[@]}" iam get-role --role-name "$ROLE_NAME" --query 'Role.Arn'
 echo "==> Ensuring log group $LOG_GROUP exists"
 "${AWS[@]}" logs create-log-group --log-group-name "$LOG_GROUP" 2>/dev/null || true
 
-echo "==> Packaging handler"
+echo "==> Bundling handler"
 TMP_DIR="$(mktemp -d)"
 TMP_ZIP="$TMP_DIR/handler.zip"
 trap 'rm -rf "$TMP_DIR"' EXIT
-zip -q -j "$TMP_ZIP" handler.py
+bun build src/handler.ts --target node --format esm --outfile "$TMP_DIR/handler.mjs" >/dev/null
+# Lambda expects handler.mjs at the zip root (handler == "handler.handler").
+zip -q -j "$TMP_ZIP" "$TMP_DIR/handler.mjs"
 
 echo "==> Deploying function $FN_NAME"
 if "${AWS[@]}" lambda get-function --function-name "$FN_NAME" >/dev/null 2>&1; then
   "${AWS[@]}" lambda update-function-code \
     --function-name "$FN_NAME" \
     --zip-file "fileb://$TMP_ZIP" >/dev/null
+  "${AWS[@]}" lambda wait function-updated --function-name "$FN_NAME"
+  "${AWS[@]}" lambda update-function-configuration \
+    --function-name "$FN_NAME" \
+    --runtime "$RUNTIME" \
+    --handler handler.handler \
+    --timeout 900 \
+    --memory-size 256 >/dev/null
 else
   "${AWS[@]}" lambda create-function \
     --function-name "$FN_NAME" \
-    --runtime python3.13 \
+    --runtime "$RUNTIME" \
     --handler handler.handler \
     --role "$ROLE_ARN" \
     --timeout 900 \
-    --memory-size 128 \
+    --memory-size 256 \
     --zip-file "fileb://$TMP_ZIP" >/dev/null
 fi
 "${AWS[@]}" lambda wait function-updated --function-name "$FN_NAME"

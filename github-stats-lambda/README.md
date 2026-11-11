@@ -3,7 +3,8 @@
 A weekly snapshot of `Fan-Pier-Labs/openrecord`, written to CloudWatch as one JSON line per item:
 every issue and PR (author, state, dates, link), every fork (owner, link), and recent stars.
 
-- Lambda `openrecord-github-stats` (Python 3.13, no dependencies), account `fanpierlabs`, `us-east-2`
+- Lambda `openrecord-github-stats` (`src/handler.ts`, bundled by `bun build` into one `handler.mjs`
+  for `nodejs22.x`; no dependencies), account `fanpierlabs`, `us-east-2`
 - EventBridge rule `openrecord-github-stats-weekly`: Mondays 14:00 UTC
 - Log group `/aws/lambda/openrecord-github-stats`, no retention limit, so snapshots are kept forever
 
