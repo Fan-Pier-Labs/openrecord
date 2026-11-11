@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from 'bun:test';
 
-import { iconSymbol, isSyncDue, RETRY_INTERVAL_MS, statusLines, stopNotice, SYNC_INTERVAL_MS } from '../tray-menu';
+import { iconSymbol, isSyncDue, statusLines, stopNotice, SYNC_INTERVAL_MS } from '../tray-menu';
 
 const now = new Date('2026-11-05T12:00:00Z');
 const ago = (ms: number) => new Date(now.getTime() - ms).toISOString();
@@ -49,15 +49,13 @@ describe('retries and stopping', () => {
   const run = (at: string, accounts: ReturnType<typeof account>[], extra: object = {}) =>
     ({ at, ok: accounts.every((a) => !a.error) && !('error' in extra), synced: 0, accounts, ...extra });
 
-  it('retries a failure after ten minutes instead of four hours', () => {
-    const failing = { connectedAt: ago(0), lastSync: run(ago(RETRY_INTERVAL_MS), [account('Login failed', 1)]) };
-    expect(isSyncDue(failing, now)).toBe(true);
-    expect(isSyncDue({ ...failing, lastSync: run(ago(RETRY_INTERVAL_MS - 60_000), [account('Login failed', 1)]) }, now)).toBe(false);
-  });
-
-  it('goes back to every four hours once the only failing account has stopped', () => {
-    const stoppedOnly = { connectedAt: ago(0), lastSync: run(ago(RETRY_INTERVAL_MS), [account('Login failed', 3, true)]) };
-    expect(isSyncDue(stoppedOnly, now)).toBe(false);
+  it('retries a failure at the next four-hour mark, not sooner', () => {
+    const failedAt = (ms: number) => ({ connectedAt: ago(0), lastSync: run(ago(ms), [account('Login failed', 1)]) });
+    expect(isSyncDue(failedAt(SYNC_INTERVAL_MS - 60_000), now)).toBe(false);
+    expect(isSyncDue(failedAt(SYNC_INTERVAL_MS), now)).toBe(true);
+    const runFailedAt = (ms: number) => ({ connectedAt: ago(0), lastSync: run(ago(ms), [], { error: 'Offline.', failures: 1 }) });
+    expect(isSyncDue(runFailedAt(SYNC_INTERVAL_MS - 60_000), now)).toBe(false);
+    expect(isSyncDue(runFailedAt(SYNC_INTERVAL_MS), now)).toBe(true);
   });
 
   it('never schedules a sync after a run-level stop', () => {

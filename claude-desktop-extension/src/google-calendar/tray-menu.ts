@@ -6,16 +6,12 @@ import type { CalendarState, LastSync } from './store';
 import { MAX_ATTEMPTS } from './sync';
 
 export const SYNC_INTERVAL_MS = 4 * 60 * 60_000;
-// Under the tray's 15-minute check, so a failure is retried on the next check, not the one after.
-export const RETRY_INTERVAL_MS = 10 * 60_000;
-
-/** A failure that hasn't hit MAX_ATTEMPTS yet, so the next try comes soon rather than in four hours. */
-const retryPending = (last: LastSync) => !!last.error || last.accounts.some((a) => a.error && !a.stopped);
 
 /**
- * Connected, and the last sync is old enough: four hours after a good one,
- * ten minutes after a failure. Never once Google (or a crashing run) has
- * failed MAX_ATTEMPTS times — only Sync Now starts again.
+ * Connected, and four hours or more since the last sync (or never synced) —
+ * a failed one too, so a retry waits for the next four-hour mark. Never once
+ * Google (or a crashing run) has failed MAX_ATTEMPTS times: only Sync Now
+ * starts again.
  */
 export function isSyncDue(state: CalendarState, now: Date): boolean {
   if (!state.connectedAt) return false;
@@ -23,7 +19,7 @@ export function isSyncDue(state: CalendarState, now: Date): boolean {
   if (!last) return true;
   if (last.stopped) return false;
   const at = Date.parse(last.at);
-  return Number.isNaN(at) || now.getTime() - at >= (retryPending(last) ? RETRY_INTERVAL_MS : SYNC_INTERVAL_MS);
+  return Number.isNaN(at) || now.getTime() - at >= SYNC_INTERVAL_MS;
 }
 
 export function iconSymbol(state: CalendarState, syncing: boolean): string {

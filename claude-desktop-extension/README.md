@@ -189,8 +189,8 @@ done** when the accounts have appointments to sync; otherwise ask Claude to
   [`docs/login-modes.md`](../docs/login-modes.md).
 - **When a sync fails, three tries, then stop.** Any failure counts: a sign-in
   MyChart refuses, a network error, Google, or a run that crashed or hit the
-  10-minute timeout. A failure is retried ten minutes later instead of four hours.
-  The third failure in a row stops scheduled syncs, for that account or, when
+  10-minute timeout. A failure is retried at the next four-hour sync. The third
+  failure in a row stops scheduled syncs, for that account or, when
   the failure came before any account (Google, a crash), entirely. Repeated
   rejected passwords can lock a MyChart account. Then macOS shows a
   notification, once per stop (posted with `osascript`, since
