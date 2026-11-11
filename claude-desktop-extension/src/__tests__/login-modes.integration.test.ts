@@ -12,14 +12,16 @@
  *   a code. A failed renewal drops the session so the next call signs in as
  *   human.
  *
- * SendCode is counted at the transport, which passes every request through to
- * the server. `./memfs` keeps credentials off the real keystore (see
+ * Codes are read from fake-mychart's outbox, where every SendCode delivers a
+ * fresh one, so "how many codes went out" is the server's own count, and
+ * complete_2fa gets the code the patient would have read off their phone.
+ * `./memfs` keeps credentials off the real keystore (see
  * multi-account.integration.test.ts for why that guard matters).
  */
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { resetFakeMyChart } from '../../../scrapers/myChart/__tests__/fake-mychart/mountMode'
-import { setTestTransport } from '../../../scrapers/http'
+import { readOutbox } from '../../../scrapers/myChart/__tests__/fake-mychart/outbox'
 import * as memfs from './memfs'
 
 const store = await import('../credential-store')
@@ -45,7 +47,8 @@ registerAllTools({
 const call = (name: string, args: Record<string, unknown> = {}) => tools.get(name)!(args)
 const parse = (result: ToolResult) => JSON.parse(result.content[0]!.text)
 
-let codesSent = 0
+const codesSent = async () => (await readOutbox(HOST, 'marge')).length
+const latestCode = async () => (await readOutbox(HOST, 'marge')).at(-1)!.code
 
 beforeAll(async () => {
   if (store.secretBackend() !== 'file') {
@@ -55,14 +58,9 @@ beforeAll(async () => {
   await resetFakeMyChart(HOST)
   memfs.reset()
   store.upsertAccount({ hostname: HOST, username: 'marge', password: 'donuts123' })
-  setTestTransport((url, init) => {
-    if (url.includes('/SecondaryValidation/SendCode')) codesSent++
-    return globalThis.fetch(url, init)
-  })
 })
 
 afterAll(() => {
-  setTestTransport(null)
   sessionManager.clearAllSessions()
 })
 
@@ -74,23 +72,23 @@ describe('a data tool call (human-triggered)', () => {
     expect(result.state).toBe('need_2fa')
     expect(result.pending_id).toBeString()
     expect(result.message).toContain('complete_2fa')
-    expect(codesSent).toBe(1)
+    expect(await codesSent()).toBe(1)
     pendingId = result.pending_id
   }, 60_000)
 
   it('hands back the same pending_id on a repeat call, sending nothing', async () => {
     const result = parse(await call('get_profile', { account: MARGE, mode: 'json' }))
     expect(result.pending_id).toBe(pendingId)
-    expect(codesSent).toBe(1)
+    expect(await codesSent()).toBe(1)
   })
 
   it('finishes with complete_2fa, after which the tool reads the chart', async () => {
-    const done = parse(await call('complete_2fa', { pending_id: pendingId, code: '123456' }))
+    const done = parse(await call('complete_2fa', { pending_id: pendingId, code: await latestCode() }))
     expect(done.state).toBe('logged_in')
 
     const profile = parse(await call('get_profile', { account: MARGE, mode: 'json' }))
     expect(JSON.stringify(profile)).toContain('Marge')
-    expect(codesSent).toBe(1)
+    expect(await codesSent()).toBe(1)
   }, 60_000)
 })
 
@@ -98,31 +96,32 @@ describe('work nobody is waiting on (machine mode)', () => {
   it('a background resolve refuses with NeedsHumanSignInError and sends nothing', async () => {
     sessionManager.clearSession(MARGE)
     store.clearAccountSession(HOST, 'marge')
-    const before = codesSent
+    const before = await codesSent()
 
     const err = await sessionManager.resolveSessionWithoutUser(MARGE).catch((e: unknown) => e)
     expect(err).toBeInstanceOf(sessionManager.NeedsHumanSignInError)
-    expect(codesSent).toBe(before)
+    expect(await codesSent()).toBe(before)
   }, 60_000)
 
   it('a session that expires mid-call renews silently or fails without a code; the next call sends one', async () => {
-    // Sign marge in again (one code), then sign every session out server-side.
+    // Sign marge in again with the code she is sent.
     const pending = parse(await call('get_profile', { account: MARGE, mode: 'json' }))
     expect(pending.state).toBe('need_2fa')
-    expect(parse(await call('complete_2fa', { pending_id: pending.pending_id, code: '123456' })).state).toBe('logged_in')
+    expect(parse(await call('complete_2fa', { pending_id: pending.pending_id, code: await latestCode() })).state).toBe('logged_in')
+    // Signs every session out server-side (and empties the outbox).
     await resetFakeMyChart(HOST)
-    const before = codesSent
+    const before = await codesSent()
 
     // The live session bounces to the login page; the renewal hook is machine
     // mode, so it stops at 2FA and the call fails without sending a code.
     const expired = await call('get_profile', { account: MARGE, mode: 'json' })
     expect(expired.isError).toBe(true)
     expect(expired.content[0]!.text).toContain('Call get_profile again')
-    expect(codesSent).toBe(before)
+    expect(await codesSent()).toBe(before)
 
     // The session was dropped, so the next call signs in as human: one code.
     const again = parse(await call('get_profile', { account: MARGE, mode: 'json' }))
     expect(again.state).toBe('need_2fa')
-    expect(codesSent).toBe(before + 1)
+    expect(await codesSent()).toBe(before + 1)
   }, 60_000)
 })
