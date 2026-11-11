@@ -51,8 +51,9 @@ The single keepalive implementation — the desktop extension's, Expo app's and 
 per-entry intervals were collapsed onto it. `makeAuthenticatedRequest` auto-registers a session
 after any successful authenticated request (`sessionStore.registerForKeepalive`, idempotent); pings
 hit `/Home/KeepAlive` + `/keepalive.asp` every 30s (MyChart's own cadence); the interval is
-`unref`'d so it never holds a process open; and a heartbeat that finds the session dead proactively
-renews through the same `reauthenticate` hook before marking it expired. Call
+`unref`'d so it never holds a process open; and a heartbeat that finds the session dead only marks
+it expired — it never signs in. The next real request renews on demand
+([`scrapers/myChart/core/README.md`](../scrapers/myChart/core/README.md#only-a-real-request-logs-back-in)). Call
 `sessionStore.unregister(request)` when a client discards a session.
 
 ## Capability registry (`shared/capabilities/`)

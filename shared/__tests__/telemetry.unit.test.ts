@@ -11,7 +11,7 @@ import * as path from 'path';
 const realOs = await import('os');
 const fakeHome = fs.mkdtempSync(path.join(realOs.tmpdir(), 'telemetry-home-'));
 void mock.module('os', () => ({ ...realOs, default: { ...realOs, homedir: () => fakeHome }, homedir: () => fakeHome }));
-const { describeError, gatherEnvInfo, getAnonymousId, sendTelemetryEvent } = await import('../telemetry');
+const { describeError, gatherEnvInfo, getAnonymousId, sendTelemetryEvent, setTelemetryApp } = await import('../telemetry');
 const idFile = path.join(fakeHome, '.openrecord.json');
 
 /** Anything with the shape of a `mock()`'d fetch, for the drain helper below. */
@@ -321,6 +321,21 @@ describe('telemetry', () => {
 
       const urls = fetchMock.mock.calls.map((c) => String(c[0]));
       expect(urls.some((u) => u.includes('amplitude.com'))).toBe(true);
+    });
+
+    test('stamps both sinks with the app and version once a client sets them', async () => {
+      const before = await capturePostUrls('test_event');
+      const unset = JSON.parse(before.calls.find((c) => String(c[0]).includes('amplitude.com'))![1]!.body as string);
+      expect(unset.events[0].app_version).toBeUndefined();
+      expect(unset.events[0].event_properties.app).toBeUndefined();
+
+      setTelemetryApp('mcpb', '9.9.9');
+      const { calls } = await capturePostUrls('scraper_login_started', { hostname: 'mychart.example.org' }, 'scraper');
+      const amplitude = JSON.parse(calls.find((c) => String(c[0]).includes('amplitude.com'))![1]!.body as string);
+      const lambda = JSON.parse(calls.find((c) => String(c[0]).includes('execute-api'))![1]!.body as string);
+      expect(amplitude.events[0].app_version).toBe('9.9.9');
+      expect(amplitude.events[0].event_properties).toMatchObject({ app: 'mcpb', app_version: '9.9.9' });
+      expect(lambda.properties).toMatchObject({ app: 'mcpb', app_version: '9.9.9' });
     });
   });
 });
