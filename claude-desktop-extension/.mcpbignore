@@ -7,6 +7,7 @@ tsup.config.ts
 # Dev-only scripts. smoke.mjs asserts the packed layout matches this file, so
 # the two have to be changed together.
 smoke.mjs
+deploy.sh
 dev/
 scripts/
 
