@@ -33,7 +33,7 @@ export async function syncAccount(
 ): Promise<AccountSyncResult> {
   try {
     const events = (await fetchVisits(account))
-      .map((v) => visitToEvent(accountTag(account), v))
+      .map((v) => visitToEvent(accountTag(account), account, v))
       .filter((e): e is CalendarEvent => e !== null);
     for (const event of events) await client.upsertEvent(calendarId, event);
 

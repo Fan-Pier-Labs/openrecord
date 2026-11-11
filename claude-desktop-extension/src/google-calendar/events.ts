@@ -7,7 +7,11 @@
 
 import type { UpcomingVisitStandard } from '../../../scrapers/myChart/chart/visits/standardized.types';
 
-/** The slice of a visit the mapping reads — what `get_upcoming_visits` returns in `json` mode. */
+/**
+ * The slice of a visit the mapping reads — what `get_upcoming_visits` returns
+ * in `json` mode. The second group only adds detail to the description, so it
+ * is optional.
+ */
 export type SyncVisit = Pick<
   UpcomingVisitStandard,
   | 'Csn'
@@ -25,7 +29,19 @@ export type SyncVisit = Pick<
   | 'organizationName'
   | 'status'
   | 'Telemedicine'
->;
+> &
+  Partial<
+    Pick<
+      UpcomingVisitStandard,
+      | 'EarlyArrivalReason'
+      | 'ChiefComplaint'
+      | 'PatientNextStepInstructions'
+      | 'SurgicalProcedures'
+      | 'OtherProviders'
+      | 'PreadmissionLocation'
+      | 'Copay'
+    >
+  >;
 
 export interface CalendarEvent {
   id: string;
@@ -98,30 +114,69 @@ function when(v: SyncVisit): Pick<CalendarEvent, 'start' | 'end'> | null {
   return { start: { dateTime: start.toISOString() }, end: { dateTime: end.toISOString() } };
 }
 
-/** `tag` is the account's `accountTag`, not its username. */
-export function visitToEvent(tag: string, v: SyncVisit): CalendarEvent | null {
+const lines = (...xs: Array<string | null | undefined | false>): string[] => xs.filter((x): x is string => !!x && !!x.trim());
+
+/** Where to go: the clinic and its address, or "Video visit". Never empty when MyChart names any place at all. */
+function place(v: SyncVisit): string {
+  if (v.Telemedicine?.IsTelemedicine === true) return 'Video visit';
+  const dept = v.PrimaryDepartment;
+  const pre = v.PreadmissionLocation;
+  return [dept?.Name, ...(dept?.Address ?? [])].filter(Boolean).join(', ')
+    || [pre?.Name, ...(pre?.Address ?? [])].filter(Boolean).join(', ')
+    || v.organizationName
+    || '';
+}
+
+/** Everything MyChart says about the visit that someone getting ready for it would want. */
+function details(v: SyncVisit): string[] {
+  const dept = v.PrimaryDepartment;
+  const others = (v.OtherProviders ?? []).map((p) => p.Name).filter(Boolean);
+  const procedures = (v.SurgicalProcedures ?? []).filter((p) => p.Name);
+  const instructions = [
+    ...(dept?.Instructions ?? []).map((i) => i.Text),
+    ...(v.PreadmissionLocation?.Instructions ?? []).map((i) => i.Text),
+    ...procedures.map((p) => p.Instructions),
+    v.PatientNextStepInstructions,
+  ].filter((x): x is string => !!x && !!x.trim());
+  const main = lines(
+    v.VisitTypeName && `Visit type: ${v.VisitTypeName}`,
+    v.PrimaryProviderName && `Provider: ${v.PrimaryProviderName}`,
+    others.length > 0 && `Also with: ${others.join(', ')}`,
+    v.ChiefComplaint && `Reason for visit: ${v.ChiefComplaint}`,
+    procedures.length > 0 && `Procedures: ${procedures.map((p) => p.Name).join(', ')}`,
+    v.Telemedicine?.IsTelemedicine === true && 'Video visit: join from MyChart.',
+    dept?.Name && `Department: ${dept.Name}${dept.Specialty?.Title ? ` (${dept.Specialty.Title})` : ''}`,
+    (dept?.Address ?? []).length > 0 && `Address: ${dept.Address.join(', ')}`,
+    dept?.PhoneNumber && `Clinic phone: ${dept.PhoneNumber}`,
+    v.ArrivalTime && `Arrive by ${v.ArrivalTime}${v.EarlyArrivalReason ? ` (${v.EarlyArrivalReason})` : ''}.`,
+    dept?.ArrivalLocation && `Check in at: ${dept.ArrivalLocation}`,
+    v.Copay?.Amount && `Copay: ${v.Copay.Amount}${v.Copay.IsPaid ? ' (paid)' : ''}`,
+    v.organizationName,
+  );
+  return instructions.length ? [...main, '', 'Instructions:', ...instructions] : main;
+}
+
+/**
+ * `tag` is the account's `accountTag`, which keys the event; `account` is the
+ * MyChart login, shown in the footer so a multi-account calendar says whose
+ * appointment it is.
+ */
+export function visitToEvent(tag: string, account: string, v: SyncVisit): CalendarEvent | null {
   if (!isSyncableVisit(v)) return null;
   const times = when(v);
   if (!times) return null;
 
-  const what = v.VisitTypeName || 'Appointment';
-  const summary = v.PrimaryProviderName ? `${what} with ${v.PrimaryProviderName}` : what;
-  const video = v.Telemedicine?.IsTelemedicine === true;
-  const dept = v.PrimaryDepartment;
-  const location = video ? 'Video visit' : [dept?.Name, ...(dept?.Address ?? [])].filter(Boolean).join(', ');
-
-  const details = [
-    v.ArrivalTime ? `Arrive by ${v.ArrivalTime}.` : null,
-    dept?.PhoneNumber ? `Clinic phone: ${dept.PhoneNumber}` : null,
-    v.organizationName,
-  ].filter(Boolean);
-  const footer = 'Synced from MyChart by OpenRecord. Edits here are overwritten on the next sync.';
+  const who = v.PrimaryProviderName || v.PrimaryDepartment?.Name;
+  const summary = who ? `Visit with ${who}` : v.VisitTypeName || 'Appointment';
+  const location = place(v);
+  const body = details(v);
+  const footer = `Synced from MyChart (${account}) by OpenRecord. Edits here are overwritten on the next sync.`;
 
   return {
     id: eventId(tag, v),
     summary,
     ...(location ? { location } : {}),
-    description: [...details, ...(details.length ? [''] : []), footer].join('\n'),
+    description: [...body, ...(body.length ? [''] : []), footer].join('\n'),
     ...times,
     status: 'confirmed',
     extendedProperties: { private: { [ACCOUNT_PROPERTY]: tag } },

@@ -226,11 +226,17 @@ done** when the accounts have appointments to sync; otherwise ask Claude to
   lost ID can never be recovered and would leave a second "MyChart
   Appointments" beside the first. `connect` also reuses a grant Google still
   honours, and only asks for consent again on `invalid_grant`.
-- **What it writes.** Visit type and provider, clinic and address (or "Video
-  visit"), arrival time and clinic phone. Each event's id is derived from
-  (account, CSN), so a re-sync updates the same event. The account appears on an
-  event only as a hash (`accountTag`), never the MyChart username, because
-  calendars get shared. Future events whose visit is gone are deleted, but only
+- **What it writes.** The title is "Visit with <provider>" (or the clinic). The
+  location is the clinic and its address, "Video visit", or the organization.
+  The event lasts the visit's duration (30 minutes if MyChart gives none). The
+  description holds everything MyChart gives about the visit: visit type,
+  providers, reason, procedures, department and specialty, address, clinic
+  phone, arrival time and check-in place, copay, organization, the clinic's
+  instructions, and which MyChart login it came from.
+- **Keys and pruning.** Each event's id is derived from (account, CSN), so a
+  re-sync updates the same event; the CSN held across two fresh logins on one
+  real account. The id and the private property use a hash of the account
+  (`accountTag`). Future events whose visit is gone are deleted, but only
   after that account's read succeeded. A failed read never empties the calendar.
   An account removed from OpenRecord has its future events deleted on the next
   sync. Canceled visits are left off.

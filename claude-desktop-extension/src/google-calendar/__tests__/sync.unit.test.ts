@@ -38,8 +38,8 @@ describe('syncAccount', () => {
     expect(events.has('stale-event')).toBe(false);
     // Pruning only ever looks at this account's own events.
     expect(listed).toEqual([`openrecordAccount=${accountTag('pat@host.org')}`]);
-    // Nothing on the calendar names the MyChart login.
-    expect(JSON.stringify([...events.values()])).not.toContain('pat');
+    // The login is shown in the footer, but never in what keys the event.
+    for (const e of events.values()) if (e) expect(JSON.stringify([e.id, e.extendedProperties])).not.toContain('pat');
   });
 
   it('never prunes when the MyChart read fails — a failed read is not "everything was canceled"', async () => {
