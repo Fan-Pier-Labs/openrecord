@@ -66,7 +66,11 @@ async function main(): Promise<void> {
         'will silently re-authenticate using the saved passkey or password — no user interaction ' +
         'required. The `sessionActive: false` flag means "no live in-memory session"; it does NOT ' +
         'mean the account needs to be reconfigured. Only run the setup flow below if list_accounts ' +
-        'returns `count: 0` or if a data tool fails with "invalid_login" or "no passkey/TOTP saved".' +
+        'returns `count: 0` or if a data tool says the saved password was rejected.' +
+        '\n\n' +
+        'If a data tool returns `state: "need_2fa"`, signing in made MyChart text or email the user a ' +
+        'verification code. Ask the user for it, call complete_2fa(pending_id, code), then repeat the ' +
+        'data tool call. Do not call setup_account for this — the account is already saved.' +
         '\n\n' +
         'Interactive Setup (Recommended for first-time setup):' +
         '\n  If the user has no configured account, call get_setup_widget() to display the ' +

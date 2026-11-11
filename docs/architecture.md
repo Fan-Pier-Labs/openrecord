@@ -29,13 +29,16 @@ Raw `makeRequest` remains the transport for the pre-login world: mount discovery
 terms, keepalive pings. That is also what makes renewal deadlock-free — the renewal path itself
 only issues raw or `autoRenew: false` calls.
 
-## Silent login ladder (`scrapers/myChart/auth/silentLogin.ts`)
+## Login modes (`scrapers/myChart/auth/loginModes.ts`)
 
-The shared non-interactive login behind every client's `reauthenticate` hook: saved passkey (with
-WebAuthn signature-counter retry) → username/password → TOTP-secret 2FA. Anything needing a human
-returns a failure instead of blocking.
+One ladder — saved passkey (with WebAuthn signature-counter retry) → username/password →
+TOTP-secret 2FA — behind two functions split by who asked. `machineLogin` (renewal, background
+work) never makes MyChart send a 2FA code and answers `logged_in` / `needs_human` / `failed`.
+`humanLogin` (a person asked, including through a Claude tool call) may send one and returns the
+pending login for the caller to finish. A code may only be sent by a caller that can accept it
+afterwards. Diagrams of every trigger: [`login-modes.md`](login-modes.md).
 
-`wireSilentReauthentication(request, getParams, onRenewed?)` wires the hook. `getParams` runs at
+`wireSilentReauthentication(request, getParams, onRenewed?)` wires the hook to `machineLogin`. `getParams` runs at
 renewal time so credential stores are re-read fresh, and success adopts the fresh state onto the
 SAME request object via `MyChartRequest.adoptStateFrom` — login functions construct a new instance,
 and everything holding a reference mid-scrape has to keep working.

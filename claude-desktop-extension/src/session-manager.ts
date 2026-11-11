@@ -8,13 +8,18 @@
  *   with its own cookies, passkey and renewal credentials. Kept warm by the
  *   shared sessionStore keepalive (30s /Home/KeepAlive pings, matching
  *   MyChart's own JS).
- * - On first use: try the on-disk cookie cache, then the shared silent login
- *   ladder (saved passkey with signature-counter retry → saved password →
- *   TOTP secret).
+ * - On first use: try the on-disk cookie cache, then `humanLogin` (saved
+ *   passkey with signature-counter retry → saved password → TOTP secret →
+ *   otherwise MyChart sends the user a code). A tool call is human-triggered —
+ *   the user asked Claude, Claude called the tool — and Claude can relay the
+ *   code back through complete_2fa, so it may send one. See
+ *   docs/login-modes.md.
  * - Every session carries a `reauthenticate` hook, so an expiry mid-scrape is
  *   renewed transparently by makeAuthenticatedRequest instead of failing the
- *   tool call. (The keepalive never renews: a dead heartbeat only marks the
- *   session expired until the next real request.)
+ *   tool call. That hook is `machineLogin`: it runs mid-request, where nobody
+ *   could hand it a code, so it never sends one. (The keepalive never renews:
+ *   a dead heartbeat only marks the session expired until the next real
+ *   request.)
  * - Persists cookie state to disk after login and after every renewal so a
  *   Claude Desktop restart doesn't force a fresh login.
  *
@@ -25,7 +30,9 @@
 
 import { MyChartRequest } from '../../scrapers/myChart/core/myChartRequest';
 import { areCookiesValid } from '../../scrapers/myChart/auth/login';
-import { silentLogin, wireSilentReauthentication, type SilentLoginParams } from '../../scrapers/myChart/auth/silentLogin';
+import { humanLogin, machineLogin, wireSilentReauthentication, type StoredLoginParams } from '../../scrapers/myChart/auth/loginModes';
+import type { TwoFaDeliveryInfo } from '../../scrapers/myChart/auth/login';
+import { addPending, findPendingFor } from './pending-logins';
 import { sessionStore } from '../../scrapers/myChart/core/sessionStore';
 import {
   deserializeCredential,
@@ -79,7 +86,8 @@ export function clearSession(ref: string): void {
   const session = sessions.get(key);
   if (session) sessionStore.unregister(session);
   sessions.delete(key);
-  loginLocks.delete(key);
+  loginLocks.delete(lockKey(key, 'human'));
+  loginLocks.delete(lockKey(key, 'machine'));
 }
 
 export function clearAllSessions(): void {
@@ -91,7 +99,35 @@ export function clearAllSessions(): void {
   sessionStore.stopKeepalive();
 }
 
-// ── Login (cookie cache → passkey → user/pass + optional TOTP) ──────────────
+// ── Login (cookie cache → passkey → user/pass → TOTP or a sent code) ────────
+
+/**
+ * Signing in to answer a tool call made MyChart send the user a code. Not a
+ * failure: the tool hands Claude the pending_id to finish with complete_2fa.
+ * The message carries no contact details — errors reach telemetry.
+ */
+export class NeedsTwoFactorError extends Error {
+  constructor(
+    readonly account: string,
+    readonly pendingId: string,
+    readonly delivery: TwoFaDeliveryInfo | undefined,
+  ) {
+    super(`MyChart sent a verification code to sign in to ${account}.`);
+    this.name = 'NeedsTwoFactorError';
+  }
+}
+
+/**
+ * A machine-mode sign-in hit 2FA with nothing stored that answers it. No code
+ * was sent; retrying won't help until the user signs in, or saves a passkey
+ * or an authenticator app.
+ */
+export class NeedsHumanSignInError extends Error {
+  constructor(readonly account: string) {
+    super(`MyChart needs a verification code to sign in to ${account}, and no passkey or authenticator app is saved for it.`);
+    this.name = 'NeedsHumanSignInError';
+  }
+}
 
 /**
  * Try to restore a session from the on-disk cookie cache. Returns null if
@@ -112,11 +148,11 @@ async function tryRestoreSession(hostname: string, username: string): Promise<My
 }
 
 /**
- * The non-interactive credential set for one account, read fresh from disk so
- * a renewal picks up anything saved since login (an updated password, a
- * passkey registered mid-session).
+ * The stored credential set for one account, read fresh from disk so a
+ * renewal picks up anything saved since login (an updated password, a passkey
+ * registered mid-session).
  */
-function silentLoginParams(hostname: string, username: string): SilentLoginParams {
+function storedLoginParams(hostname: string, username: string): StoredLoginParams {
   const account = findAccount(hostname, username);
   const passkeySerialized = readAccountPasskey(hostname, username);
   let passkey = null;
@@ -138,23 +174,60 @@ function silentLoginParams(hostname: string, username: string): SilentLoginParam
   };
 }
 
-async function loginAccount(account: AccountIdentity): Promise<MyChartRequest> {
+async function loginAccountAsHuman(account: AccountIdentity): Promise<MyChartRequest> {
   const hostname = normalizeHostname(account.hostname);
   const id = accountId(account);
 
   const restored = await tryRestoreSession(hostname, account.username);
   if (restored) return restored;
 
-  const outcome = await silentLogin(silentLoginParams(hostname, account.username));
-  if (outcome.state === 'logged_in') {
-    await persistSession(hostname, account.username, outcome.mychartRequest);
-    return outcome.mychartRequest;
-  }
+  // A code is already on its way for this account — hand back the same
+  // pending login instead of making MyChart send another.
+  const waiting = findPendingFor(hostname, account.username);
+  if (waiting) throw new NeedsTwoFactorError(id, waiting.id, waiting.delivery);
 
-  if (outcome.reason.includes('2FA required')) {
-    throw new Error(`MyChart requires 2FA for ${id} and no passkey or TOTP is saved. Run setup_account to register one.`);
+  const params = storedLoginParams(hostname, account.username);
+  const outcome = await humanLogin(params);
+  switch (outcome.state) {
+    case 'logged_in':
+      await persistSession(hostname, account.username, outcome.mychartRequest);
+      return outcome.mychartRequest;
+    case 'need_2fa': {
+      const pendingId = addPending({
+        hostname,
+        username: account.username,
+        // need_2fa is only reached through the password rung.
+        password: params.password ?? '',
+        mychartRequest: outcome.mychartRequest,
+        delivery: outcome.delivery,
+      });
+      throw new NeedsTwoFactorError(id, pendingId, outcome.delivery);
+    }
+    case 'invalid_login':
+      throw new Error(`MyChart rejected the saved password for ${id}. Ask the user for the current one and run setup_account.`);
+    case 'failed':
+      throw new Error(`Login failed for ${id}: ${outcome.reason}. Run setup_account to update credentials.`);
   }
-  throw new Error(`Login failed for ${id}: ${outcome.reason}. Run setup_account to update credentials.`);
+}
+
+/** Sign in with nobody waiting on a code. Never makes MyChart send one. */
+async function loginAccountAsMachine(account: AccountIdentity): Promise<MyChartRequest> {
+  const hostname = normalizeHostname(account.hostname);
+  const id = accountId(account);
+
+  const restored = await tryRestoreSession(hostname, account.username);
+  if (restored) return restored;
+
+  const outcome = await machineLogin(storedLoginParams(hostname, account.username));
+  switch (outcome.state) {
+    case 'logged_in':
+      await persistSession(hostname, account.username, outcome.mychartRequest);
+      return outcome.mychartRequest;
+    case 'needs_human':
+      throw new NeedsHumanSignInError(id);
+    case 'failed':
+      throw new Error(`Login failed for ${id}: ${outcome.reason}.`);
+  }
 }
 
 export async function persistSession(hostname: string, username: string, req: MyChartRequest): Promise<void> {
@@ -168,14 +241,14 @@ export async function persistSession(hostname: string, username: string, req: My
 // ── Session lifecycle (renewal hook + keepalive + lazy login) ───────────────
 
 /**
- * Turn a freshly acquired session into a managed one: wire the silent
+ * Turn a freshly acquired session into a managed one: wire the machine-mode
  * re-login hook (this is what makes mid-scrape expiry invisible to tools) and
  * enroll it in the shared keepalive heartbeat.
  */
 function manageSession(hostname: string, username: string, session: MyChartRequest): MyChartRequest {
   wireSilentReauthentication(
     session,
-    () => silentLoginParams(hostname, username),
+    () => storedLoginParams(hostname, username),
     (renewed) => persistSession(hostname, username, renewed),
   );
   sessionStore.registerForKeepalive(session);
@@ -183,7 +256,14 @@ function manageSession(hostname: string, username: string, session: MyChartReque
   return session;
 }
 
-async function ensureAccountSession(account: AccountIdentity): Promise<MyChartRequest> {
+type LoginMode = 'human' | 'machine';
+
+/** One in-flight sign-in per account AND mode: a human caller must not inherit a machine sign-in's needs_human. */
+function lockKey(key: string, mode: LoginMode): string {
+  return `${key}\0${mode}`;
+}
+
+async function ensureAccountSession(account: AccountIdentity, mode: LoginMode): Promise<MyChartRequest> {
   const hostname = normalizeHostname(account.hostname);
   const key = sessionKey(hostname, account.username);
 
@@ -192,28 +272,25 @@ async function ensureAccountSession(account: AccountIdentity): Promise<MyChartRe
   const existing = sessions.get(key);
   if (existing) return existing;
 
-  const lock = loginLocks.get(key);
+  const lk = lockKey(key, mode);
+  const lock = loginLocks.get(lk);
   if (lock) return lock;
 
-  const promise = loginAccount(account).then(session => {
+  const login = mode === 'human' ? loginAccountAsHuman : loginAccountAsMachine;
+  const promise = login(account).then(session => {
     manageSession(hostname, account.username, session);
-    loginLocks.delete(key);
+    loginLocks.delete(lk);
     return session;
   }).catch((err: unknown) => {
-    loginLocks.delete(key);
+    loginLocks.delete(lk);
     throw err;
   });
 
-  loginLocks.set(key, promise);
+  loginLocks.set(lk, promise);
   return promise;
 }
 
-/**
- * Get a logged-in MyChartRequest for the given account id. The id must be an
- * exact `username@hostname` match — anything else throws, listing the
- * configured ids.
- */
-export async function resolveSession(ref: string): Promise<MyChartRequest> {
+function requireAccount(ref: string): AccountIdentity {
   if (!ref) {
     throw new Error('account is required. Call list_accounts to see configured account IDs, then pass one as `account`.');
   }
@@ -226,7 +303,25 @@ export async function resolveSession(ref: string): Promise<MyChartRequest> {
         : `Account "${ref}" is not configured. Configured accounts: ${available.join(', ')}.`,
     );
   }
-  return ensureAccountSession(account);
+  return account;
+}
+
+/**
+ * Get a logged-in MyChartRequest for the given account id, for a tool call —
+ * human mode: signing in may make MyChart send a code, surfaced as
+ * NeedsTwoFactorError. The id must be an exact `username@hostname` match —
+ * anything else throws, listing the configured ids.
+ */
+export async function resolveSession(ref: string): Promise<MyChartRequest> {
+  return ensureAccountSession(requireAccount(ref), 'human');
+}
+
+/**
+ * The same, for work nobody is waiting on (a background sync). Machine mode:
+ * never sends a code; throws NeedsHumanSignInError when only a code would do.
+ */
+export async function resolveSessionWithoutUser(ref: string): Promise<MyChartRequest> {
+  return ensureAccountSession(requireAccount(ref), 'machine');
 }
 
 /**
@@ -239,7 +334,8 @@ export async function adoptSession(hostname: string, username: string, session: 
   const existing = sessions.get(key);
   if (existing) sessionStore.unregister(existing);
   sessions.delete(key);
-  loginLocks.delete(key);
+  loginLocks.delete(lockKey(key, 'human'));
+  loginLocks.delete(lockKey(key, 'machine'));
   await persistSession(hostname, username, session);
   manageSession(normalizeHostname(hostname), username, session);
 }
