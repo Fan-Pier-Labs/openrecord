@@ -160,14 +160,12 @@ export const authPost: ExactRoutes = {
 
 export const authPostPatterns: readonly PatternRoute[] = [
   // ── 2FA ────────────────────────────────────────────────────────
-  prefix('authentication/secondaryvalidation/sendcode', async ({ request }) => {
-    const body = await request.text();
-    const isEmail = body.includes('deliveryMethodEmail=true');
-    const maskedEmail = 'ho***@springfield.net';
-    const maskedPhone = '***-***-7890';
-    const contact = isEmail ? maskedEmail : maskedPhone;
-    return html(`Code sent to ${contact}`);
-  }),
+  // Real MyChart answers SendCode with JSON carrying `Success` — a parameter
+  // shape the instance doesn't take comes back `Success: false` (seen on
+  // bilh.org, commit f00286da). Clients stop trying delivery formats at the
+  // first `Success: true`, so an HTML answer here made every sign-in post
+  // SendCode three times. The masked contact is read off the 2FA page, not this.
+  prefix('authentication/secondaryvalidation/sendcode', () => json({ Success: true })),
 
   prefix('authentication/secondaryvalidation/validate', async ({ request }) => {
     const body = await request.text();
