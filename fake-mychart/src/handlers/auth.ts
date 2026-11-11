@@ -12,6 +12,7 @@ import {
 import { findUser, findUserByPasskey, state } from '@/lib/state';
 import { getRequireTerms } from '@/lib/terms';
 import { verifyTotpCode } from '@/lib/totp';
+import { channelFromSendCodeBody, deliverCode, wasSentTo } from '@/lib/outbox';
 import { html, json, redirectTo } from './respond';
 import { acceptAny } from './guards';
 import { currentUser } from './records';
@@ -165,7 +166,13 @@ export const authPostPatterns: readonly PatternRoute[] = [
   // bilh.org, commit f00286da). Clients stop trying delivery formats at the
   // first `Success: true`, so an HTML answer here made every sign-in post
   // SendCode three times. The masked contact is read off the 2FA page, not this.
-  prefix('authentication/secondaryvalidation/sendcode', () => json({ Success: true })),
+  // The code itself goes to the outbox (GET /outbox), standing in for the
+  // patient's phone or inbox.
+  prefix('authentication/secondaryvalidation/sendcode', async ({ request }) => {
+    const channel = channelFromSendCodeBody(await request.text());
+    deliverCode(getSessionUsername(request.headers.get('cookie')), channel);
+    return json({ Success: true });
+  }),
 
   prefix('authentication/secondaryvalidation/validate', async ({ request }) => {
     const body = await request.text();
@@ -177,7 +184,8 @@ export const authPostPatterns: readonly PatternRoute[] = [
     // code) be exercised end to end.
     const userSecret = currentUser(request)?.totpSecret ?? null;
     const totpValid = !!userSecret && verifyTotpCode(userSecret, submittedCode);
-    if (submittedCode === '123456' || acceptAny() || totpValid) {
+    const deliveredCode = wasSentTo(getSessionUsername(request.headers.get('cookie')), submittedCode);
+    if (submittedCode === '123456' || acceptAny() || totpValid || deliveredCode) {
       // Preserve the username from the pending session so the post-2FA
       // session continues to know who's logged in (matters for per-user
       // TOTP/passkey state).
