@@ -195,6 +195,32 @@ describe('makeAuthenticatedRequest', () => {
     cleanup(request);
   });
 
+  // Stanford's myhealth_sso: /Authentication/Login itself 302s on to a 200 error page, so
+  // neither the final URL nor the body looks like a login page.
+  it('detects the bounce that ends on the AuthError referring page', async () => {
+    const referringPage = 'https://mychart.example.org/MyChart/custom/referringpage.asp?&errorNamespace=AuthError&errorKey=genericloginfailed';
+    const { request, state } = fakeMyChart((url) => {
+      if (url === referringPage) {
+        // A real fetch reports the URL it answered; a constructed Response doesn't.
+        const page = new Response('<html></html>', { status: 200, headers: { 'Content-Type': 'text/html' } });
+        Object.defineProperty(page, 'url', { value: url });
+        return page;
+      }
+      if (url.includes('/Authentication/Login')) return new Response(null, { status: 302, headers: { Location: referringPage } });
+      return null;
+    });
+    let hookCalls = 0;
+    request.reauthenticate = async () => {
+      hookCalls++;
+      state.loggedIn = true;
+      return true;
+    };
+    const resp = await makeAuthenticatedRequest(request, { path: '/api/allergies/LoadAllergies', method: 'POST', body: '{}' });
+    expect(await resp.json()).toEqual({ dataList: [{ name: 'Vegetables' }] });
+    expect(hookCalls).toBe(1);
+    cleanup(request);
+  });
+
   it('leaves non-HTML bodies unconsumed (binary passthrough)', async () => {
     const pdfBytes = new Uint8Array([0x25, 0x50, 0x44, 0x46]);
     const { request, state } = fakeMyChart((url) =>

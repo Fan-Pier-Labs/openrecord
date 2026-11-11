@@ -30,7 +30,7 @@
 
 import type { MyChartRequest } from './myChartRequest';
 import type { RequestConfig } from './types';
-import { looksLikeSignedOutPage } from './signedOutPage';
+import { looksLikeSignedOutPage, SIGNED_OUT_URL_RE } from './signedOutPage';
 import { sessionStore } from './sessionStore';
 import { renewMyChartSession } from './sessionRenewal';
 import { sendTelemetryEvent } from '../../../shared/telemetry';
@@ -66,8 +66,6 @@ export type AuthenticatedRequestOptions = {
   autoRenew?: boolean | undefined;
 };
 
-const LOGIN_URL_RE = /\/authentication\/login/i;
-
 const REDIRECT_STATUSES = [301, 302, 303, 307, 308];
 
 /**
@@ -89,7 +87,8 @@ function rebuildResponse(original: Response, bodyText: string): Response {
  * Make the request and decide whether the response is actually the login page.
  *
  * Three signals, cheapest first:
- *  1. The final URL is /Authentication/Login — covers both the Node path
+ *  1. The final URL is /Authentication/Login (or SIGNED_OUT_URL_RE's other
+ *     shape) — covers both the Node path
  *     (makeRequest recursed through the 302 chain) and iOS (the platform fetch
  *     auto-follows, so only the final URL survives).
  *  2. An unfollowed redirect whose Location is the login page, for callers
@@ -106,13 +105,13 @@ async function requestDetectingSignOut(
 ): Promise<{ response: Response; signedOut: boolean }> {
   const response = await mychartRequest.makeRequest(config);
 
-  if (LOGIN_URL_RE.test(response.url ?? '')) {
+  if (SIGNED_OUT_URL_RE.test(response.url ?? '')) {
     return { response, signedOut: true };
   }
 
   if (REDIRECT_STATUSES.includes(response.status)) {
     const location = response.headers.get('Location') ?? '';
-    if (LOGIN_URL_RE.test(location)) {
+    if (SIGNED_OUT_URL_RE.test(location)) {
       return { response, signedOut: true };
     }
   }
