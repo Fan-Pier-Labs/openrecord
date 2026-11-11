@@ -160,9 +160,9 @@ sequenceDiagram
 | iOS app | `connectAccount` (onboarding) → `humanLogin` → twofa step → `complete2fa` | `connectAll` / `requireSession` (chat, alerts, memory) and the `reauthenticate` hook → `machineLogin` |
 | npm library | `MyChartClient.connect` returns `need_2fa` with `complete(code)`; `skipSendCode` is the caller's choice | `wireSilentReauthentication` → `machineLogin` |
 
-## Unverified
+## Verified on one instance
 
-The design assumes MyChart sends a code only when `SendCode` is called. The 2FA page offers
-"email me" / "text me" buttons, which suggests it does, but it has not been confirmed on a real
-account. To check: sign in with `machineLogin` to an account that has 2FA and no TOTP, and confirm
-that no text or email arrives.
+The design assumes MyChart sends a code only when `SendCode` is posted, not when a login reaches
+the 2FA page. On one real instance, `machineLogin` with only a password reached the 2FA page and
+stopped with `needs_human`, and no text or email arrived. That has not been checked on any other
+instance.
