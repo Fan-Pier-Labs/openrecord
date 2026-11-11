@@ -601,7 +601,7 @@ export async function detectUsernameField(mychartRequest: MyChartRequest, loginP
   }
 }
 
-export async function myChartUserPassLogin ({hostname, user, pass, skipSendCode, protocol}: {hostname: string, user: string, pass: string, skipSendCode?: boolean | undefined, protocol?: string | undefined}): Promise<LoginResult> {
+export async function myChartUserPassLogin ({hostname, user, pass, skipSendCode, protocol, trustedDeviceId}: {hostname: string, user: string, pass: string, skipSendCode?: boolean | undefined, protocol?: string | undefined, trustedDeviceId?: string | null | undefined}): Promise<LoginResult> {
   // Fire-and-forget telemetry — never blocks or breaks the scraper
   sendTelemetryEvent('scraper_login_started', { hostname }, 'scraper');
 
@@ -622,7 +622,7 @@ export async function myChartUserPassLogin ({hostname, user, pass, skipSendCode,
 
   // Stanford's MyChart has no /Authentication/Login; its own portal logs in instead.
   if (isStanfordHealthCare(hostname)) {
-    return stanfordLogin(user, pass, skipSendCode);
+    return stanfordLogin(user, pass, skipSendCode, trustedDeviceId ?? undefined);
   }
 
   // Use HTTP for localhost and hostnames without a dot (e.g. Docker service names like "fake-mychart:3000")

@@ -154,11 +154,13 @@ describe('silentLogin', () => {
     expect(outcome).toEqual({ state: 'failed', reason: 'no stored credentials' });
   });
 
-  it('fails when 2FA is required and no TOTP secret is stored', async () => {
-    fakeMyChart({ passwordLogin: 'need_2fa' });
+  it('fails when 2FA is required and no TOTP secret is stored, without sending a code', async () => {
+    const { calls } = fakeMyChart({ passwordLogin: 'need_2fa' });
     const outcome = await silentLogin({ hostname: HOST, username: 'homer', password: 'donuts123' });
     expect(outcome.state).toBe('failed');
     expect(outcome.state === 'failed' && outcome.reason).toContain('2FA required');
+    // Nobody is there to read an emailed or texted code.
+    expect(calls.some((url) => url.includes('/SecondaryValidation/SendCode'))).toBe(false);
   });
 
   it('completes 2FA with a generated TOTP code', async () => {

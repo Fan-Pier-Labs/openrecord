@@ -45,6 +45,8 @@ export type SilentLoginParams = {
    * native-cookie fetch on device, jar-driven fetch on Node/Bun — on its own.)
    */
   passkey?: PasskeyCredential | null | undefined;
+  /** Saved `mychartRequest.trustedDeviceId` — lets a Stanford Health Care login skip 2FA. */
+  trustedDeviceId?: string | null | undefined;
   /** 'http' for local fake-mychart; defaults to https. */
   protocol?: string | undefined;
   /** A passkey login succeeded — persist the bumped signature counter. */
@@ -91,8 +93,10 @@ export async function silentLogin(params: SilentLoginParams): Promise<SilentLogi
     hostname,
     user: params.username,
     pass: params.password,
-    skipSendCode: !!params.totpSecret,
+    // Nobody is here to type an emailed or texted code, so never ask for one.
+    skipSendCode: true,
     protocol,
+    trustedDeviceId: params.trustedDeviceId,
   });
 
   if (userPass.state === 'logged_in') {

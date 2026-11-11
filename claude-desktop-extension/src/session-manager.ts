@@ -132,6 +132,7 @@ function silentLoginParams(hostname: string, username: string): SilentLoginParam
     username: account?.username ?? username,
     password: account?.password,
     totpSecret: account?.totpSecret,
+    trustedDeviceId: account?.trustedDeviceId,
     passkey,
     onPasskeyUsed: (credential) => saveAccountPasskey(hostname, username, serializeCredential(credential)),
     onPasskeyInvalid: () => clearAccountPasskey(hostname, username),

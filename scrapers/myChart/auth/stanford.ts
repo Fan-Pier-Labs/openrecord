@@ -14,34 +14,25 @@ import type { LoginResult, TwoFaResult, TwoFaDeliveryInfo } from './login';
 import { MASKED_EMAIL_RE, MASKED_PHONE_RE } from './maskedContact';
 import { looksLikeSignedOutPage, SIGNED_OUT_URL_RE } from '../core/signedOutPage';
 import { logger } from '../../../shared/logger';
+import { DetailedError } from '../../../shared/detailedError';
 
 const LOGIN_API = 'https://myhealth.stanfordhealthcare.org/Private/Ajax/V1/MyHealthLogin';
 const MYCHART_HOST = 'mychart.stanfordhealthcare.org';
 const MYCHART_PREFIX = 'myhealth_sso';
-const STANFORD_HOSTS = new Set(['myhealth.stanfordhealthcare.org', MYCHART_HOST]);
+/** The host the directory lists and users type; clients save Stanford accounts under it. */
+export const STANFORD_PORTAL_HOST = 'myhealth.stanfordhealthcare.org';
+const STANFORD_HOSTS = new Set([STANFORD_PORTAL_HOST, MYCHART_HOST]);
 
 /** Login state carried from the password step to the 2FA step. */
 const pendingStanford = new WeakMap<MyChartRequest, { userName: string; deviceId: string }>();
 
-/**
- * The portal stops asking for 2FA once a deviceId has passed it (the web app keeps one in
- * localStorage). Kept per process, not on disk, because this code also runs on-device —
- * enough for a silent re-login mid-session to skip 2FA.
- */
-const deviceIds = new Map<string, string>();
+const UNSUPPORTED_TEXT = 'Stanford Health Care signs in through its own MyHealth login, so a MyChart passkey or authenticator app would never be used. OpenRecord remembers this device after the first verification code instead.';
+export function stanfordSignInUnsupported(): DetailedError {
+  return new DetailedError(UNSUPPORTED_TEXT, UNSUPPORTED_TEXT);
+}
 
 export function isStanfordHealthCare(hostname: string): boolean {
   return STANFORD_HOSTS.has(hostname.toLowerCase().trim().replace(/^https?:\/\//, '').split('/')[0]!);
-}
-
-function deviceIdFor(userName: string): string {
-  const key = userName.toLowerCase();
-  let id = deviceIds.get(key);
-  if (!id) {
-    id = randomUUID();
-    deviceIds.set(key, id);
-  }
-  return id;
 }
 
 interface PortalResponse {
@@ -93,10 +84,16 @@ function pickDelivery(r: PortalResponse): { sendType: 'EMAIL' | 'SMS'; delivery:
   return { sendType: 'SMS', delivery: { method: 'sms', contact: phone } };
 }
 
-export async function stanfordLogin(user: string, pass: string, skipSendCode?: boolean): Promise<LoginResult> {
+/**
+ * `trustedDeviceId` is the id a previous login left on `mychartRequest.trustedDeviceId` and the
+ * client saved. The portal stops asking for 2FA once an id has passed it (the web app keeps one
+ * in localStorage), so without one every login needs a code.
+ */
+export async function stanfordLogin(user: string, pass: string, skipSendCode?: boolean, trustedDeviceId?: string): Promise<LoginResult> {
   const req = new MyChartRequest(MYCHART_HOST);
   req.setFirstPathPart(MYCHART_PREFIX);
-  const deviceId = deviceIdFor(user);
+  const deviceId = trustedDeviceId || randomUUID();
+  req.trustedDeviceId = deviceId;
 
   const r = await postJson(req, LOGIN_API, { username: user, password: pass, deviceId });
   logger.debug('[stanford] login response shape:', shape(r));

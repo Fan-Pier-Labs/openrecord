@@ -194,9 +194,19 @@ account. Here only the unauthenticated behaviour below was probed.
   with nothing login-like in the body. So the SSO hop is judged by `/Home`, and
   `SIGNED_OUT_URL_RE` (`../core/signedOutPage.ts`) counts that page as an expired session.
 - **`deviceId` is what skips 2FA.** The web app keeps a random one in localStorage, and the
-  portal stops asking once it has passed 2FA. Here it is random per username and kept in
-  memory, because this code also runs on-device: a silent re-login skips 2FA within one
-  process, and a fresh process asks again.
+  portal stops asking once it has passed 2FA. A login leaves the id it used on
+  `mychartRequest.trustedDeviceId`; each client saves it with the account's other secrets
+  (the MCPB's keystore, the CLI's `.totp-secrets/`, the app's secure store) and passes it
+  back as `trustedDeviceId` to `myChartUserPassLogin` and `silentLogin`. Without a saved one,
+  the login mints a new id and needs a code.
+- **Silent logins never send a code**, here or on any MyChart (`silentLogin` always sets
+  `skipSendCode`): nobody is there to type it, so it would only reach the patient's phone
+  unasked.
+- **No passkey or authenticator app.** Both would register on Stanford's MyChart and never be
+  used, since login goes through the portal. `setupPasskey` and `setupTotp` refuse, and the
+  clients don't offer them.
+- **Two hosts, one account.** The MCPB files `mychart.stanfordhealthcare.org` under
+  `myhealth.stanfordhealthcare.org`, the host the directory lists.
 - **The masked contact for 2FA delivery is read out of the login JSON** with the same
   regexes as the MyChart 2FA page ([`maskedContact.ts`](maskedContact.ts)). Email is
   preferred, and SMS is used only when no email is found.

@@ -3,6 +3,10 @@
 import { describe, it, expect, beforeAll, afterAll, afterEach } from 'bun:test'
 import { myChartUserPassLogin, complete2faFlow } from '../login'
 import { isStanfordHealthCare } from '../stanford'
+import { silentLogin } from '../silentLogin'
+import { setupPasskey } from '../setupPasskey'
+import { setupTotp } from '../setupTotp'
+import { MyChartRequest } from '../../core/myChartRequest'
 import { setTestTransport } from '../../../http'
 
 const PORTAL = 'https://myhealth.stanfordhealthcare.org/Private/Ajax/V1/MyHealthLogin'
@@ -118,14 +122,29 @@ describe('Stanford MyHealth login', () => {
     expect(verify.body?.deviceId).toBe(calls[0]!.body?.deviceId)
   })
 
-  it('reuses one deviceId per username so a re-login can skip 2FA', async () => {
+  it('sends a saved trustedDeviceId, and leaves the id it used on the request for the client to save', async () => {
     const calls = fakeStanford({ login: { action: 'Private', meta: { code: 200 } } })
-    await myChartUserPassLogin({ hostname: 'myhealth.stanfordhealthcare.org', user: 'Repeat', pass: 'pw' })
-    await myChartUserPassLogin({ hostname: 'mychart.stanfordhealthcare.org', user: 'repeat', pass: 'pw' })
-    await myChartUserPassLogin({ hostname: 'mychart.stanfordhealthcare.org', user: 'someone-else', pass: 'pw' })
-    const ids = calls.filter((c) => c.url === PORTAL).map((c) => c.body?.deviceId)
-    expect(ids[0]).toBe(ids[1])
-    expect(ids[2]).not.toBe(ids[0])
+    const saved = await myChartUserPassLogin({ hostname: 'myhealth.stanfordhealthcare.org', user: 'pat', pass: 'pw', trustedDeviceId: 'saved-id' })
+    expect(calls[0]!.body?.deviceId).toBe('saved-id')
+    expect(saved.mychartRequest.trustedDeviceId).toBe('saved-id')
+
+    const fresh = await myChartUserPassLogin({ hostname: 'myhealth.stanfordhealthcare.org', user: 'pat', pass: 'pw' })
+    expect(fresh.mychartRequest.trustedDeviceId).toMatch(/^[0-9a-f-]{36}$/)
+    expect(fresh.mychartRequest.trustedDeviceId).not.toBe('saved-id')
+  })
+
+  it('reaches the portal from a silent re-login with the saved id, and never sends a code there', async () => {
+    const calls = fakeStanford({ login: { twoFactorRequired: true, meta: { code: 200 } } })
+    const outcome = await silentLogin({ hostname: 'myhealth.stanfordhealthcare.org', username: 'pat', password: 'pw', trustedDeviceId: 'saved-id' })
+    expect(outcome.state).toBe('failed')
+    expect(calls[0]!.body?.deviceId).toBe('saved-id')
+    expect(calls.some((c) => c.url.endsWith('/generateTwoFactorLoginCode'))).toBe(false)
+  })
+
+  it('refuses to register a passkey or an authenticator, which Stanford logins would never use', async () => {
+    const req = new MyChartRequest('mychart.stanfordhealthcare.org')
+    await expect(setupPasskey(req)).rejects.toThrow('own MyHealth login')
+    await expect(setupTotp(req, 'pw')).rejects.toThrow('own MyHealth login')
   })
 
   it('never asks the portal to send a code when skipSendCode is set', async () => {

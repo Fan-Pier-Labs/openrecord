@@ -75,6 +75,7 @@ interface ConnectArgs extends MyChartClientOptions {
   pass: string;
   skipSendCode?: boolean;         // don't ask MyChart to send an email/SMS code (use with TOTP)
   totpSecret?: string;            // lets a silent re-login answer 2FA by itself
+  trustedDeviceId?: string;       // Stanford Health Care only: a saved client.request.trustedDeviceId, skips 2FA
 }
 
 type ConnectResult =

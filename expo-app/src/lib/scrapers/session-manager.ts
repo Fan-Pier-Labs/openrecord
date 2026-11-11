@@ -51,6 +51,7 @@ import { wireSilentReauthentication } from "../../../../scrapers/myChart/auth/si
 import { sessionStore } from "../../../../scrapers/myChart/core/sessionStore";
 import { getMemorySummary } from "@/lib/storage/database";
 import { detailedMessage } from "../../../../shared/detailedError";
+import { fireAndForget } from "../fire-and-forget";
 
 type SessionEntry = {
   account: StoredMyChartAccount;
@@ -156,6 +157,7 @@ export async function connectAccount(account: StoredMyChartAccount): Promise<Con
       user: account.username,
       pass: account.password,
       skipSendCode: hasTotpSecret,
+      trustedDeviceId: account.trustedDeviceId,
     });
     console.log(`[session] Login result: state=${result.state} error=${result.error || 'none'}`);
 
@@ -333,6 +335,11 @@ export function getAllSessions(): Array<{ accountId: string; hostname: string; s
  * registered (or a password updated) after connect still counts.
  */
 function manageSession(entry: SessionEntry) {
+  const deviceId = entry.request.trustedDeviceId;
+  if (deviceId && deviceId !== entry.account.trustedDeviceId) {
+    entry.account = { ...entry.account, trustedDeviceId: deviceId };
+    fireAndForget(updateMyChartAccount(entry.account.id, { trustedDeviceId: deviceId }), "session:saveTrustedDeviceId");
+  }
   wireSilentReauthentication(entry.request, async () => {
     const accounts = await getMyChartAccounts();
     const account = accounts.find((a) => a.id === entry.account.id) ?? entry.account;
@@ -349,6 +356,7 @@ function manageSession(entry: SessionEntry) {
       username: account.username,
       password: account.password,
       totpSecret: account.totpSecret,
+      trustedDeviceId: account.trustedDeviceId,
       passkey,
       onPasskeyUsed: (credential) =>
         updateMyChartAccount(account.id, { passkeyCredential: serializeCredential(credential) }),

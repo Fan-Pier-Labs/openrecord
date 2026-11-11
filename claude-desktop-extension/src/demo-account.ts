@@ -31,10 +31,10 @@ export function demoConflictMessage(accounts: string[]): string {
 }
 
 /** Save a login that just succeeded, enforcing the rule above. */
-export function saveAccount(hostname: string, username: string, password: string): void {
+export function saveAccount(hostname: string, username: string, password: string, trustedDeviceId?: string | null): void {
   const conflict = demoConflict(hostname);
   if (conflict.length) throw new Error(demoConflictMessage(conflict));
-  upsertAccount({ hostname: normalizeHostname(hostname), username, password });
+  upsertAccount({ hostname: normalizeHostname(hostname), username, password, trustedDeviceId: trustedDeviceId ?? undefined });
   if (isDemoHostname(hostname)) return;
   for (const demo of readAccounts().filter((a) => isDemoHostname(a.hostname))) {
     clearSession(accountId(demo));

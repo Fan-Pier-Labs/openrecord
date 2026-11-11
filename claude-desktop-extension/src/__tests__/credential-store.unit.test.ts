@@ -57,6 +57,11 @@ describe('normalizeHostname', () => {
     const once = store.normalizeHostname('HTTPS://MyChart.Example.ORG/app')
     expect(store.normalizeHostname(once)).toBe(once)
   })
+
+  it("files both of Stanford's hosts under one, so one login is one account", () => {
+    expect(store.normalizeHostname('https://mychart.stanfordhealthcare.org/myhealth_sso')).toBe('myhealth.stanfordhealthcare.org')
+    expect(store.normalizeHostname('myhealth.stanfordhealthcare.org')).toBe('myhealth.stanfordhealthcare.org')
+  })
 })
 
 describe('accountId', () => {
@@ -368,6 +373,14 @@ describe('store location', () => {
     store.upsertAccount({ ...account('mychart.example.org'), totpSecret: 'SEED' })
     expect(store.findAccount('mychart.example.org', 'homer')?.totpSecret).toBe('SEED')
     expect(JSON.parse(memfs.read(store._paths.ACCOUNTS_PATH)!).accounts[0].totpSecret).toBe('SEED')
+  })
+
+  it('stores, updates and removes the trusted device id with the account', () => {
+    store.upsertAccount({ ...account('myhealth.stanfordhealthcare.org'), trustedDeviceId: 'device-1' })
+    expect(store.readAccountTrustedDeviceId('myhealth.stanfordhealthcare.org', 'homer')).toBe('device-1')
+    expect(store.findAccount('myhealth.stanfordhealthcare.org', 'homer')?.trustedDeviceId).toBe('device-1')
+    store.removeAccount('myhealth.stanfordhealthcare.org', 'homer')
+    expect(store.readAccountTrustedDeviceId('myhealth.stanfordhealthcare.org', 'homer')).toBeUndefined()
   })
 
   it('saveAccountTotpSecret targets one login, not the hostname', () => {

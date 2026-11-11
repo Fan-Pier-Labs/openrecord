@@ -17,6 +17,7 @@ import { PickerStep } from "./steps/picker-step";
 import { MyChartStep } from "./steps/mychart-step";
 import { TwoFaStep } from "./steps/twofa-step";
 import { PasskeyStep } from "./steps/passkey-step";
+import { isStanfordHealthCare } from "../../../../scrapers/myChart/auth/stanford";
 
 type Step = "welcome" | "google" | "ai" | "picker" | "mychart" | "twofa" | "passkey";
 
@@ -54,6 +55,12 @@ export default function OnboardingScreen() {
       }
     })(), "onboarding:devShortcut");
   }, [setSetupComplete]);
+
+  // Stanford can't use a MyChart passkey (it logs in through its own portal), so skip the offer.
+  function afterLogin(acc: StoredMyChartAccount | null) {
+    if (acc && isStanfordHealthCare(acc.hostname)) fireAndForget(finishSetup(), "onboarding:finishSetup");
+    else setStep("passkey");
+  }
 
   async function finishSetup() {
     await setSecureValue("setup_complete", "true");
@@ -104,7 +111,7 @@ export default function OnboardingScreen() {
         onChangeInstance={() => setStep("picker")}
         onLoggedIn={(acc) => {
           setAccount(acc);
-          setStep("passkey");
+          afterLogin(acc);
         }}
         onNeed2fa={(acc, label) => {
           setAccount(acc);
@@ -120,7 +127,7 @@ export default function OnboardingScreen() {
       <TwoFaStep
         accountId={account!.id}
         deliveryLabel={twoFaDelivery}
-        onLoggedIn={() => setStep("passkey")}
+        onLoggedIn={() => afterLogin(account)}
       />
     );
   }

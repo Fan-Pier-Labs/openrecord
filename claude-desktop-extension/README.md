@@ -314,9 +314,10 @@ The short version, for what this extension does:
   native binding used to reach the OS credential store — see below.
 - **Secrets live in the OS keystore** — the macOS Keychain, Windows Credential
   Manager, or the Secret Service on Linux, under service `openrecord-mcpb`,
-  three items per identity:
+  up to four items per identity:
   - `password:<hostname>:<username>`
   - `totp:<hostname>:<username>`
+  - `device:<hostname>:<username>` (Stanford Health Care accounts only — the id that lets a login skip 2FA)
   - `passkey:<hostname>:<username>` — a raw P-256 private key that logs in with
     neither password nor 2FA
 

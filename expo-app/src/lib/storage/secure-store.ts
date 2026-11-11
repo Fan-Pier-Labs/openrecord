@@ -58,6 +58,7 @@ export type StoredMyChartAccount = {
   password: string;
   totpSecret?: string;
   passkeyCredential?: string; // JSON-serialized PasskeyCredential
+  trustedDeviceId?: string; // Stanford's "remember this device" id (MyChartRequest.trustedDeviceId)
 };
 
 const ACCOUNTS_KEY = "mychart_accounts";
