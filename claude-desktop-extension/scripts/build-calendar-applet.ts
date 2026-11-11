@@ -16,9 +16,9 @@
  * ~/.config/fan-pier-labs/google-oauth-client.json (the JSON Google Cloud
  * downloads for a Desktop client) and never committed.
  *
- * Signed with the Developer ID when this machine has it — the keychain's
- * "Always Allow" for the binary is tied to its signature, and an ad-hoc one
- * changes with every build, so each update would ask again.
+ * Signed with the Developer ID, or the build fails: the keychain's "Always
+ * Allow" for the binary is tied to its signature, and an ad-hoc one changes
+ * with every build, so each update would ask again.
  */
 
 import { execFileSync } from 'child_process';
@@ -53,7 +53,8 @@ if (!client?.client_id || !client.client_secret) {
   fail(`No Desktop OAuth client at ${OAUTH_CLIENT}. Download it from Google Cloud → Credentials and save it there.`);
 }
 
-const identity = /"(Developer ID Application: [^"]+)"/.exec(run('security', ['find-identity', '-v', '-p', 'codesigning']))?.[1] ?? '-';
+const identity = /"(Developer ID Application: [^"]+)"/.exec(run('security', ['find-identity', '-v', '-p', 'codesigning']))?.[1];
+if (!identity) fail('No "Developer ID Application" signing identity in this keychain. The calendar binaries must be signed with it.');
 
 fs.rmSync(OUT_DIR, { recursive: true, force: true });
 fs.mkdirSync(OUT_DIR, { recursive: true });
@@ -76,6 +77,6 @@ for (const arch of ARCHES) {
   run('codesign', ['--force', '--sign', identity, '--identifier', 'com.fanpierlabs.openrecord.calendar', out]);
   run('codesign', ['--verify', '--strict', out]);
   hashes[arch] = crypto.createHash('sha256').update(fs.readFileSync(out)).digest('hex');
-  console.log(`Built ${path.relative(EXTENSION_DIR, out)} (${identity === '-' ? 'ad-hoc signed' : identity})`);
+  console.log(`Built ${path.relative(EXTENSION_DIR, out)} (${identity})`);
 }
 fs.writeFileSync(path.join(OUT_DIR, 'calendar-binaries.json'), JSON.stringify(hashes, null, 2) + '\n');

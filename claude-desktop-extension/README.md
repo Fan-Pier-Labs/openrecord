@@ -231,8 +231,8 @@ done** when the accounts have appointments to sync; otherwise ask Claude to
   (`google-calendar:refresh-token`, same `openrecord-mcpb` service). The MyChart
   passwords and passkeys it reads were created by the MCPB, so the first
   background sign-in raises macOS's "Always Allow" prompt for
-  `openrecord-calendar`. It's signed with the Developer ID when it's built on a
-  machine that has one, so that approval survives updates.
+  `openrecord-calendar`. It's always signed with the Developer ID (the build
+  fails without one), so that approval survives updates.
 - **Build.** `bun run build:applet` (part of `bun run pack`) writes
   `applet/openrecord-calendar-darwin-{arm64,x64}` (about 96 and 106 MB) and
   `applet/calendar-binaries.json`. It bakes
