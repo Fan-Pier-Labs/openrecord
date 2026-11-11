@@ -77,7 +77,9 @@ import {
   isConnected,
   clearSession,
   adoptSession,
+  NeedsTwoFactorError,
 } from './session-manager';
+import { SessionExpiredError } from '../../scrapers/myChart/core/makeAuthenticatedRequest';
 import {
   accountId,
   lookupAccount,
@@ -405,10 +407,35 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
         // data modes go out as JSON.
         return typeof payload === 'string' ? textResult(payload) : jsonResult(payload);
       } catch (err) {
+        if (err instanceof NeedsTwoFactorError) return needTwoFactorResult(err, capability.id);
+        if (err instanceof SessionExpiredError && !isPublicCapability(capability)) {
+          // The mid-request renewal is machine mode and never sends a code, so
+          // keeping this session would fail every later call the same way.
+          // Dropping it makes the next call sign in fresh, as a human.
+          clearSession(readAccountArg(args) ?? '');
+          const result = errorResult(
+            `${err.message} Call ${capability.id} again to sign in. If MyChart asks for a verification code, ` +
+              'that call sends one and returns a pending_id for complete_2fa.',
+          );
+          caughtErrors.set(result, err);
+          return result;
+        }
         return caughtErrorResult(err);
       }
     },
   );
+}
+
+function needTwoFactorResult(err: NeedsTwoFactorError, toolId: string): ToolResult {
+  return jsonResult({
+    state: 'need_2fa',
+    pending_id: err.pendingId,
+    account: err.account,
+    delivery: err.delivery ?? null,
+    message:
+      `To sign in, MyChart sent the user a verification code. Ask the user for it, call complete_2fa with this ` +
+      `pending_id and the code, then call ${toolId} again.`,
+  });
 }
 
 /** Image types Claude Desktop renders from an `image` content block. */
@@ -922,9 +949,9 @@ export function registerAllTools(rawServer: McpServer): void {
   server.registerTool(
     'complete_2fa',
     {
-      description: 'Finish a setup_account flow that returned `need_2fa`. Pass the `pending_id` from that response and the 6-digit code the user gave you. On success the account is saved and immediately usable. Like setup_account it changes no sign-in settings; on `logged_in`, treat `passkey_saved` and `message` exactly as you would from setup_account.',
+      description: 'Finish a sign-in that returned `need_2fa` — from setup_account, connect_imported_account, or a data tool that had to sign in. Pass the `pending_id` from that response and the 6-digit code the user gave you. After a data tool\'s `need_2fa`, call that data tool again once this succeeds. On success the account is saved and immediately usable. Like setup_account it changes no sign-in settings; on `logged_in`, treat `passkey_saved` and `message` exactly as you would from setup_account.',
       inputSchema: {
-        pending_id: z.string().describe('The pending_id returned by setup_account when state was need_2fa.'),
+        pending_id: z.string().describe('The pending_id from the response whose state was need_2fa.'),
         code: z.string().describe('6-digit code the user read from email/SMS/authenticator.'),
       } satisfies ZodRawShape,
       ...toolMeta('Finish 2FA (step 2)', { readOnlyHint: false, destructiveHint: false, openWorldHint: true }),

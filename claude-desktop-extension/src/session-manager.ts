@@ -8,13 +8,18 @@
  *   with its own cookies, passkey and renewal credentials. Kept warm by the
  *   shared sessionStore keepalive (30s /Home/KeepAlive pings, matching
  *   MyChart's own JS).
- * - On first use: try the on-disk cookie cache, then the shared silent login
- *   ladder (saved passkey with signature-counter retry → saved password →
- *   TOTP secret).
+ * - On first use: try the on-disk cookie cache, then `humanLogin` (saved
+ *   passkey with signature-counter retry → saved password → TOTP secret →
+ *   otherwise MyChart sends the user a code). A tool call is human-triggered —
+ *   the user asked Claude, Claude called the tool — and Claude can relay the
+ *   code back through complete_2fa, so it may send one. See
+ *   docs/login-modes.md.
  * - Every session carries a `reauthenticate` hook, so an expiry mid-scrape is
  *   renewed transparently by makeAuthenticatedRequest instead of failing the
- *   tool call. (The keepalive never renews: a dead heartbeat only marks the
- *   session expired until the next real request.)
+ *   tool call. That hook is `machineLogin`: it runs mid-request, where nobody
+ *   could hand it a code, so it never sends one. (The keepalive never renews:
+ *   a dead heartbeat only marks the session expired until the next real
+ *   request.)
  * - Persists cookie state to disk after login and after every renewal so a
  *   Claude Desktop restart doesn't force a fresh login.
  *
@@ -25,7 +30,9 @@
 
 import { MyChartRequest } from '../../scrapers/myChart/core/myChartRequest';
 import { areCookiesValid } from '../../scrapers/myChart/auth/login';
-import { silentLogin, wireSilentReauthentication, type SilentLoginParams } from '../../scrapers/myChart/auth/silentLogin';
+import { humanLogin, wireSilentReauthentication, type StoredLoginParams } from '../../scrapers/myChart/auth/loginModes';
+import type { TwoFaDeliveryInfo } from '../../scrapers/myChart/auth/login';
+import { addPending, findPendingFor } from './pending-logins';
 import { sessionStore } from '../../scrapers/myChart/core/sessionStore';
 import {
   deserializeCredential,
@@ -91,7 +98,23 @@ export function clearAllSessions(): void {
   sessionStore.stopKeepalive();
 }
 
-// ── Login (cookie cache → passkey → user/pass + optional TOTP) ──────────────
+// ── Login (cookie cache → passkey → user/pass → TOTP or a sent code) ────────
+
+/**
+ * Signing in to answer a tool call made MyChart send the user a code. Not a
+ * failure: the tool hands Claude the pending_id to finish with complete_2fa.
+ * The message carries no contact details — errors reach telemetry.
+ */
+export class NeedsTwoFactorError extends Error {
+  constructor(
+    readonly account: string,
+    readonly pendingId: string,
+    readonly delivery: TwoFaDeliveryInfo | undefined,
+  ) {
+    super(`MyChart sent a verification code to sign in to ${account}.`);
+    this.name = 'NeedsTwoFactorError';
+  }
+}
 
 /**
  * Try to restore a session from the on-disk cookie cache. Returns null if
@@ -112,11 +135,11 @@ async function tryRestoreSession(hostname: string, username: string): Promise<My
 }
 
 /**
- * The non-interactive credential set for one account, read fresh from disk so
- * a renewal picks up anything saved since login (an updated password, a
- * passkey registered mid-session).
+ * The stored credential set for one account, read fresh from disk so a
+ * renewal picks up anything saved since login (an updated password, a passkey
+ * registered mid-session).
  */
-function silentLoginParams(hostname: string, username: string): SilentLoginParams {
+function storedLoginParams(hostname: string, username: string): StoredLoginParams {
   const account = findAccount(hostname, username);
   const passkeySerialized = readAccountPasskey(hostname, username);
   let passkey = null;
@@ -145,16 +168,33 @@ async function loginAccount(account: AccountIdentity): Promise<MyChartRequest> {
   const restored = await tryRestoreSession(hostname, account.username);
   if (restored) return restored;
 
-  const outcome = await silentLogin(silentLoginParams(hostname, account.username));
-  if (outcome.state === 'logged_in') {
-    await persistSession(hostname, account.username, outcome.mychartRequest);
-    return outcome.mychartRequest;
-  }
+  // A code is already on its way for this account — hand back the same
+  // pending login instead of making MyChart send another.
+  const waiting = findPendingFor(hostname, account.username);
+  if (waiting) throw new NeedsTwoFactorError(id, waiting.id, waiting.delivery);
 
-  if (outcome.reason.includes('2FA required')) {
-    throw new Error(`MyChart requires 2FA for ${id} and no passkey or TOTP is saved. Run setup_account to register one.`);
+  const params = storedLoginParams(hostname, account.username);
+  const outcome = await humanLogin(params);
+  switch (outcome.state) {
+    case 'logged_in':
+      await persistSession(hostname, account.username, outcome.mychartRequest);
+      return outcome.mychartRequest;
+    case 'need_2fa': {
+      const pendingId = addPending({
+        hostname,
+        username: account.username,
+        // need_2fa is only reached through the password rung.
+        password: params.password ?? '',
+        mychartRequest: outcome.mychartRequest,
+        delivery: outcome.delivery,
+      });
+      throw new NeedsTwoFactorError(id, pendingId, outcome.delivery);
+    }
+    case 'invalid_login':
+      throw new Error(`MyChart rejected the saved password for ${id}. Ask the user for the current one and run setup_account.`);
+    case 'failed':
+      throw new Error(`Login failed for ${id}: ${outcome.reason}. Run setup_account to update credentials.`);
   }
-  throw new Error(`Login failed for ${id}: ${outcome.reason}. Run setup_account to update credentials.`);
 }
 
 export async function persistSession(hostname: string, username: string, req: MyChartRequest): Promise<void> {
@@ -168,14 +208,14 @@ export async function persistSession(hostname: string, username: string, req: My
 // ── Session lifecycle (renewal hook + keepalive + lazy login) ───────────────
 
 /**
- * Turn a freshly acquired session into a managed one: wire the silent
+ * Turn a freshly acquired session into a managed one: wire the machine-mode
  * re-login hook (this is what makes mid-scrape expiry invisible to tools) and
  * enroll it in the shared keepalive heartbeat.
  */
 function manageSession(hostname: string, username: string, session: MyChartRequest): MyChartRequest {
   wireSilentReauthentication(
     session,
-    () => silentLoginParams(hostname, username),
+    () => storedLoginParams(hostname, username),
     (renewed) => persistSession(hostname, username, renewed),
   );
   sessionStore.registerForKeepalive(session);

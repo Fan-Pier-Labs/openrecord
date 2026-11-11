@@ -453,7 +453,7 @@ const meds = await getMedications(req);
 | Area | Functions |
 | --- | --- |
 | Sign-in | `myChartUserPassLogin`, `myChartPasskeyLogin`, `complete2faFlow`, `areCookiesValid`, `parse2faDeliveryMethods` |
-| Sessions | `MyChartRequest` (`serialize()`, `MyChartRequest.unserialize(json)`), `makeAuthenticatedRequest`, `silentLogin`, `wireSilentReauthentication`, `renewMyChartSession` |
+| Sessions | `MyChartRequest` (`serialize()`, `MyChartRequest.unserialize(json)`), `makeAuthenticatedRequest`, `machineLogin`, `humanLogin`, `wireSilentReauthentication`, `renewMyChartSession` |
 | Passkeys | `setupPasskey`, `listPasskeys`, `deletePasskey`, `serializeCredential`, `deserializeCredential` |
 | TOTP | `setupTotp`, `disableTotp`, `generateTotpCode(secret, timestamp?)`, `parseTotpUri(uri)` |
 | Profile and proxy | `getMyChartProfile`, `getProfile`, `getEmail`, `discoverProxyTargets`, `switchProxyTarget`, `verifyActiveProxyTarget`, `compareProfileNames` |

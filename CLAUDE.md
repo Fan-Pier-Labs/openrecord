@@ -63,6 +63,8 @@ detail for every line here is in [`docs/architecture.md`](docs/architecture.md).
   client derives its surface from it; none hand-maintains a list — including account-free lookups,
   which are `kind: 'public'` and whose `run` takes no session, so they cannot reach a chart. Add an
   entry and it ships everywhere. `capability-parity.unit.test.ts` fails if a client drops one.
+- **Only a caller that can collect a 2FA code may make MyChart send one** — renewal and background
+  work use `machineLogin`, never `humanLogin`. [`docs/login-modes.md`](docs/login-modes.md).
 - **An error message never carries chart data** — it reaches Sentry and analytics. Throw a
   `DetailedError` (`shared/detailedError.ts`); clients show its `detailedMessage`.
 - **Never read a chart without asserting whose it is.** MyChart's active patient is server-side
@@ -120,9 +122,7 @@ selects on the suffix and nothing else.
 - **Never assert against logic pasted into the test file.** Import the real function; if a module
   isn't importable because it runs at load time, guard it with `if (import.meta.main)` and export.
 
-- **CI also smokes the Android build, in two tiers**: a fast prebuild + Hermes bundle check on
-  expo-app PRs (must stay under ~5 min), and a weekly cron/dispatch emulator run of
-  `expo-app/e2e/android-smoke.yaml`. Neither may ever be able to reach a real model — see
+- **The Android CI smoke tests may never be able to reach a real model** —
   [`docs/testing.md`](docs/testing.md#android-smoke-tests).
 
 Details — the coverage gate, CI integration setup, known gaps: [`docs/testing.md`](docs/testing.md).

@@ -15,6 +15,8 @@
 import { describe, it, expect, beforeEach, afterEach, afterAll, mock } from 'bun:test'
 import { MyChartRequest } from '../../../scrapers/myChart/core/myChartRequest'
 import * as memfs from './memfs'
+import { setTestTransport } from '../../../scrapers/http'
+import { takePending } from '../pending-logins'
 
 const store = await import('../credential-store')
 const sessionManager = await import('../session-manager')
@@ -196,5 +198,58 @@ describe('resolveSession', () => {
     await sessionManager.adoptSession('mychart.example.org', 'homer', adopted)
 
     expect(await sessionManager.resolveSession('homer@mychart.example.org')).toBe(adopted)
+  })
+})
+
+describe('resolveSession signing in for a tool call', () => {
+  const TOKEN_INPUT = '<input name="__RequestVerificationToken" value="tok123" />'
+  const HOST = 'mychart.example.org'
+
+  /** A MyChart whose password login always lands on the 2FA page. Counts SendCode calls. */
+  function twoFactorMyChart() {
+    const counts = { sendCode: 0 }
+    setTestTransport(async (url: string) => {
+      if (url === `https://${HOST}` || url === `https://${HOST}/`) {
+        return new Response('', { status: 302, headers: { Location: '/MyChart/' } })
+      }
+      if (url.endsWith('/Authentication/Login')) return new Response(TOKEN_INPUT, { status: 200 })
+      if (url.includes('/Authentication/Login/DoLogin')) {
+        return new Response(`<html><body>secondaryvalidationcontroller${TOKEN_INPUT}</body></html>`, { status: 200 })
+      }
+      if (url.includes('/SecondaryValidation/SendCode')) {
+        counts.sendCode++
+        return Response.json({ Success: true })
+      }
+      if (url.includes('/SecondaryValidation/GetSMSConsentStrings')) return new Response('{}', { status: 200 })
+      return new Response('', { status: 404 })
+    })
+    return counts
+  }
+
+  afterEach(() => {
+    setTestTransport(null)
+  })
+
+  it('sends one code and returns a pending_id, and a second call reuses it instead of sending another', async () => {
+    // A tool call is human-triggered — the user asked Claude — so it may make
+    // MyChart send a code. But only one: every later call while that code is
+    // outstanding must hand back the same pending login.
+    const counts = twoFactorMyChart()
+
+    const first = await sessionManager.resolveSession('homer@mychart.example.org').catch((e: unknown) => e)
+    expect(first).toBeInstanceOf(sessionManager.NeedsTwoFactorError)
+    expect(counts.sendCode).toBe(1)
+
+    const second = await sessionManager.resolveSession('homer@mychart.example.org').catch((e: unknown) => e)
+    expect(second).toBeInstanceOf(sessionManager.NeedsTwoFactorError)
+    expect((second as InstanceType<typeof sessionManager.NeedsTwoFactorError>).pendingId).toBe(
+      (first as InstanceType<typeof sessionManager.NeedsTwoFactorError>).pendingId,
+    )
+    expect(counts.sendCode).toBe(1)
+
+    // The pending login is what complete_2fa finishes.
+    const pending = takePending((first as InstanceType<typeof sessionManager.NeedsTwoFactorError>).pendingId)
+    expect(pending?.username).toBe('homer')
+    expect(pending?.password).toBe('donuts123')
   })
 })

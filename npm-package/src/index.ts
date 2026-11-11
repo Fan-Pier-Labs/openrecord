@@ -44,11 +44,13 @@ export {
 export { MyChartResponseError } from '../../scrapers/myChart/core/rawResponse';
 export { DetailedError, detailedMessage } from '../../shared/detailedError';
 export {
-  silentLogin,
+  machineLogin,
+  humanLogin,
   wireSilentReauthentication,
-  type SilentLoginParams,
-  type SilentLoginOutcome,
-} from '../../scrapers/myChart/auth/silentLogin';
+  type StoredLoginParams,
+  type MachineLoginOutcome,
+  type HumanLoginOutcome,
+} from '../../scrapers/myChart/auth/loginModes';
 
 export { generateTotpCode, parseTotpUri } from '../../scrapers/myChart/auth/totp';
 export {
