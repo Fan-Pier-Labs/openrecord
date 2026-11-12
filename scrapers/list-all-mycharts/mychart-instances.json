@@ -510,7 +510,7 @@
       "Alfred",
       "DuPont"
     ],
-    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/5143ED02-CA5D-4973-A30C-372B4F714A3D/63db5ae059ffe2cf29b854cb09d2ca09.png",
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/160427A6-F11C-40BE-916F-1893ABFBAA0E/5081707338935aef0ed9d7258fafdeb2.png",
     "name": "Nemours Children's Health",
     "slgId": "321",
     "url": "https://mychart.nemours.org/MyChartPRD/"
@@ -569,11 +569,11 @@
     "aliases": [
       "Tamarack Health"
     ],
-    "directoryUrl": "https://ashlandmmc.com/mychart/",
+    "down": true,
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/5028C3F7-FF3B-4FF9-92E5-BB4242985511/aa2d5264cb4c201a6195e72d7359a9e4.png",
     "name": "Ashland Medical Center",
     "slgId": "343-7",
-    "url": "https://communityconnect.essentiahealth.org/MyChart/"
+    "url": "https://ashlandmmc.com/mychart/"
   },
   {
     "aliases": [],
@@ -677,11 +677,10 @@
   },
   {
     "aliases": [],
-    "down": true,
-    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/DE7EF240-4807-4EF7-A016-ED95665992F8/2bb99e40e502abee81b8e87091bfd82e.png",
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/E9101FD4-264D-4666-896F-06E2AEEB624E/39877533b927ee2f62a11ea8b664bd4a.png",
     "name": "Presbyterian Healthcare Services",
     "slgId": "416",
-    "url": "https://mypres.phs.org/Pages/default.aspx"
+    "url": "https://mychart.phs.org/mychart/"
   },
   {
     "aliases": [
@@ -2605,6 +2604,22 @@
     "url": "https://mychart.ochin.org/MyWestside/"
   },
   {
+    "aliases": [
+      "NHBP"
+    ],
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/CAC45ADB-E10C-48D6-9626-5B56572D1E7A/f5f6820fd1d72eb5db2800157d669c54.png",
+    "name": "Nottawaseppi Huron Band of the Potawatomi",
+    "slgId": "432-258",
+    "url": "https://mychart.ochin.org/NHBP/"
+  },
+  {
+    "aliases": [],
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/00E2F375-0176-45D1-9B18-8FA73E4358AF/fb5587c599061c4c5557352cce842527.png",
+    "name": "Inland Behavioral and Health Services",
+    "slgId": "432-259",
+    "url": "https://mychart.ochin.org/Ibhealthmychart/"
+  },
+  {
     "aliases": [],
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/EF3C0132-BD37-4C1A-ABD3-EB8AB8E565D5/917d3c5f4ad06d3f51af3910995fa279.png",
     "name": "Guthrie",
@@ -3540,6 +3555,13 @@
   },
   {
     "aliases": [],
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/75217D52-711C-4EDE-B119-AD68D74B201F/6d04041d5a2f15b2448fe4606ef7d1cc.png",
+    "name": "Janning ENT",
+    "slgId": "515-14",
+    "url": "https://mychart.centracare.com/mychart/"
+  },
+  {
+    "aliases": [],
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/0425B269-A87B-4C65-9728-77E833F88F0B/65108cec87d0217e8256abd5a0fd529c.png",
     "name": "Salem Health",
     "slgId": "516",
@@ -4195,6 +4217,7 @@
       "Foothill Cardiology",
       "Marina Hospital"
     ],
+    "down": true,
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/C835A918-CEA4-4A64-A9B5-A2C33D1E6B46/6fee18fce7850edfade671b6219bffb7.png",
     "name": "Cedars-Sinai",
     "slgId": "612",
@@ -4417,6 +4440,7 @@
   },
   {
     "aliases": [],
+    "down": true,
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/2D1263C9-A487-4F71-9EF2-329DBE9CA7FA/c4b7f415751acb59f0bdb1fc04f4438e.png",
     "name": "Baylor",
     "slgId": "663",
@@ -4596,6 +4620,17 @@
     "name": "Altru",
     "slgId": "714",
     "url": "https://mychart.altru.org/myhealth/"
+  },
+  {
+    "aliases": [
+      "Community Memorial Hospital",
+      "Cloquet",
+      "Raiter Family Clinic"
+    ],
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/903F3FCB-61AC-47DE-BFE3-7B294D0E2E97/5c9b10b4bdddbea66476c76b86426bff.png",
+    "name": "CMH",
+    "slgId": "714-2",
+    "url": "https://mychart.cmhmn.org/cmh/"
   },
   {
     "aliases": [],
@@ -6248,6 +6283,14 @@
     "url": "https://mychart.tidelandshealth.org/tidelands-cc/"
   },
   {
+    "aliases": [],
+    "down": true,
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/EC5D603A-31D7-490B-9BFE-E9F7C83E64F4/0da8aba7619c6bd40255ce4728f055dc.png",
+    "name": "Neighbors Pediatrics Health",
+    "slgId": "824-3",
+    "url": "https://mychart.neighborspediatrics.com/neighbors-cc/"
+  },
+  {
     "aliases": [
       "NMC"
     ],
@@ -6812,7 +6855,7 @@
     "aliases": [
       "SHS"
     ],
-    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/4A1865CA-46D7-49BB-BD5A-9A07A6286E31/49e1078ce797d012d5d615e415186b79.png",
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/8C5AD834-CF0A-4291-B940-F9BD7616225B/a4e479c1a3a918853ebc6a08ff4959e6.png",
     "name": "Samaritan Health Services",
     "slgId": "849",
     "url": "https://mychart.samhealth.org/MyChart/"
@@ -8018,14 +8061,6 @@
   },
   {
     "aliases": [],
-    "directoryUrl": "https://mychart.mah.org/mychart/",
-    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/93AE1427-0818-407B-9F4B-81C40EAE5369/c56d8d88f22f081eab988ebf79802ce1.png",
-    "name": "Mount Auburn",
-    "slgId": "968",
-    "url": "https://mychart.bilh.org/MyChart-BILH/"
-  },
-  {
-    "aliases": [],
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/259DDE9A-6C0B-4B65-8325-389418E5FD71/e0f5d86ad7fb66c77f80243c3e26b795.png",
     "name": "Texas Scottish Rite Hospital for Children",
     "slgId": "970",
@@ -8471,6 +8506,7 @@
   },
   {
     "aliases": [],
+    "down": true,
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/15D61105-034F-41ED-9B8E-42DCFBEADE28/e16ddf79c878547d9e75e435cfb02ef1.png",
     "name": "UMCG",
     "slgId": "1012",
@@ -8944,6 +8980,15 @@
   },
   {
     "aliases": [
+      "JBH"
+    ],
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/0EE85096-6A57-438E-8A02-885AEF98C60B/2f03f3864a69619e44e2c6680ffa2c97.png",
+    "name": "Joseph Brant Hospital",
+    "slgId": "1045-2",
+    "url": "https://mydovetale.ca/josephbranthospital/"
+  },
+  {
+    "aliases": [
       "Dayton",
       "Ohio"
     ],
@@ -9023,6 +9068,7 @@
   },
   {
     "aliases": [],
+    "down": true,
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/E9EDC1A3-9022-4B17-A86A-A36DF5696970/9c32d443de8a8d92c61d99cbf6bee0bd.png",
     "name": "North Mississippi Health Services",
     "slgId": "1060",
@@ -9468,6 +9514,85 @@
   },
   {
     "aliases": [
+      "BNMM",
+      "Buffalo NMM"
+    ],
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/AA3D9D5C-9D01-438E-BB93-1447430470BE/004880cf501a9f9d4e09feb013add345.png",
+    "name": "Buffalo Neuromusculoskeletal Medicine",
+    "slgId": "1144-2",
+    "url": "https://buffalonmm.mychartwny.org/BNM/"
+  },
+  {
+    "aliases": [
+      "Medical Care of WNY",
+      "Dejac"
+    ],
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/C428CB22-C618-480A-9988-F47E88753C70/d0d82480eef7737d8f0260af96bb4d20.png",
+    "name": "Medical Care of Western New York",
+    "slgId": "1144-3",
+    "url": "https://medicalcareofwny.mychartwny.org/DEJAC/"
+  },
+  {
+    "aliases": [
+      "Fare Well",
+      "Alisha Lall"
+    ],
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/48E1107E-5969-451B-9F82-CF72A554940D/aa545e7ebad5ebb1428a4c46e08de4cd.png",
+    "name": "Fare Well Medical Practice",
+    "slgId": "1144-4",
+    "url": "https://farewellhealth.mychartwny.org/FAREWELL/"
+  },
+  {
+    "aliases": [
+      "O'Gorman"
+    ],
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/FB3EBF1C-7EF5-4701-A37B-E56A68521FC6/bad53662cc7177a296bc2a041992bca9.png",
+    "name": "Eden Primary Care",
+    "slgId": "1144-5",
+    "url": "https://edenprimarycare.mychartwny.org/EDEN/"
+  },
+  {
+    "aliases": [
+      "Niagara Kidney",
+      "NPN",
+      "Nephrology Niagara"
+    ],
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/77284D20-EDDC-47B5-8F99-C46C2A4DD9F1/c0772da363008bd6af2dc95143d51156.png",
+    "name": "Nephrology Practice of Niagara",
+    "slgId": "1144-6",
+    "url": "https://niagarakidney.mychartwny.org/NPN/"
+  },
+  {
+    "aliases": [
+      "SAWNY",
+      "Surgical Associates of WNY"
+    ],
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/AFBA15DD-3165-4458-BF52-40D37D796588/8d50ab71292e5807bbdd57f06a2008cf.png",
+    "name": "Surgical Associates of Western New York",
+    "slgId": "1144-7",
+    "url": "https://surgicalassociateswny.mychartwny.org/SAWNY/"
+  },
+  {
+    "aliases": [
+      "Southtowns Neurology WNY",
+      "Southtowns Neuro"
+    ],
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/207ADDA1-29E9-47A8-AD81-4B5BDE917267/eb1332da3b2f127afccbe09100bc68a5.png",
+    "name": "Southtowns Neurology of Western New York",
+    "slgId": "1144-8",
+    "url": "https://southtownsneurology.mychartwny.org/SN/"
+  },
+  {
+    "aliases": [
+      "Gaddi"
+    ],
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/9BE46423-EC8E-4CF1-9AFF-CEFEA1490C4A/62aa3336d6253f22b6ea27aad2290666.png",
+    "name": "Gaddi Family Medicine PLLC",
+    "slgId": "1144-9",
+    "url": "https://GaddiFamilyMed.mychartwny.org/GADDI/"
+  },
+  {
+    "aliases": [
       "SVMHS",
       "SVH"
     ],
@@ -9488,8 +9613,8 @@
       "CCN",
       "Central Coast Nephrology"
     ],
-    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/BFC7CA6B-801F-4C5C-8E41-D049EB2CB879/5e664b5d669edeeb6108c6cbc2760bd0.png",
-    "name": "Salinas Valley Health Affiliates",
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/A3106F5E-106D-41D4-81D1-F243C8A83FD8/7735a648b2529453f89cdf9e7f39f93f.png",
+    "name": "Central Coast Nephrology",
     "slgId": "1146-2",
     "url": "https://mychart.svmh.com/affiliates/"
   },
@@ -9497,14 +9622,14 @@
     "aliases": [
       "SLMG"
     ],
-    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/F6B042E4-1452-460A-8754-50185E2C5A69/cce8657454a9bf37c2c139817e46ecf1.png",
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/3920CE86-AFD1-4738-A763-E4AED8A38E05/1f642c8a13c74bfa3786c440879ffae7.png",
     "name": "Santa Lucia Medical Group",
     "slgId": "1146-3",
     "url": "https://mychart.svmh.com/affiliates/"
   },
   {
     "aliases": [],
-    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/4A4C088A-5C30-4259-8177-B149A9144BC7/cda572508b2c374bb94b0471a800dbb2.png",
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/F8C19397-F24E-4B1A-93A2-37FB4B9033EE/009bceba4c27872c5916f99663aab82b.png",
     "name": "Johnny Blanchard, MD",
     "slgId": "1146-4",
     "url": "https://mychart.salinasvalleyhealth.com/affiliates/Authentication/Login"
@@ -9583,6 +9708,7 @@
   },
   {
     "aliases": [],
+    "down": true,
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/AB2FED51-43CF-4565-A14A-16FFF1A54117/386a17b9ad95b74c53f0b97d098ad795.png",
     "name": "Southeast Health",
     "slgId": "1156",
@@ -10019,6 +10145,13 @@
   },
   {
     "aliases": [],
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/13525C6A-6D92-41FC-B17E-7A711BC23E0A/84453b7b7df3440ab650c83b059eb305.png",
+    "name": "HSS at NCH",
+    "slgId": "1233-7",
+    "url": "https://mychart-cc-hssasc-nchmd.org/MyChart-cc-nchmd/"
+  },
+  {
+    "aliases": [],
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/308F59AA-45E7-4185-A7CB-83AAC5BB1760/504cbc6546a8ea766f09c3a2e4fd304e.png",
     "name": "Naples Concierge Cardiology and Internal Medicine",
     "slgId": "1233-8",
@@ -10030,6 +10163,13 @@
     "name": "EverWell Precision Health",
     "slgId": "1233-9",
     "url": "https://mychart-cc-ewp-nchmd.org/MyChart-cc-nchmd/"
+  },
+  {
+    "aliases": [],
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/1534C6D7-2AC1-4442-9D48-22D614FEE760/e642e3b7c5f94665d8937507092d00d1.png",
+    "name": "Old Naples Concierge Medicine",
+    "slgId": "1233-10",
+    "url": "https://mychart-cc-oncm-nchmd.org/MyChart-cc-nchmd/"
   },
   {
     "aliases": [],
@@ -10435,6 +10575,58 @@
     "url": "https://mychart.hcnetwork.org/MyChart/"
   },
   {
+    "aliases": [
+      "CHNWF"
+    ],
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/F1E0A063-3B98-410A-ABA1-ABBDE3135CD5/dab6207c9d861bbc536c42913861933e.png",
+    "name": "Community Health Northwest Florida",
+    "slgId": "1256-37",
+    "url": "https://mychart.hcnetwork.org/CHNWFMyChart/"
+  },
+  {
+    "aliases": [
+      "HCH"
+    ],
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/EF4B8554-8276-49FE-8955-561DEF1BE6D8/2ecfaeb3d112bc60e3ed1d1c06bf6e60.png",
+    "name": "Honor Community Health",
+    "slgId": "1256-38",
+    "url": "https://mychart.hcnetwork.org/HCHMyChart/"
+  },
+  {
+    "aliases": [
+      "MFC"
+    ],
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/052D985B-905F-4B31-8BD5-DA1EDB3F4F8A/cd8667da053e68cdef413fef8757f806.png",
+    "name": "Muskegon Family Care",
+    "slgId": "1256-39",
+    "url": "https://mychart.hcnetwork.org/MFCMyChart/"
+  },
+  {
+    "aliases": [],
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/0839E985-B1A9-40D5-B532-9EC8EE1C7173/fb7cd3ab179202187671d5654d8b508a.png",
+    "name": "MyCare Health Center",
+    "slgId": "1256-40",
+    "url": "https://mychart.hcnetwork.org/MYCAREMyChart/"
+  },
+  {
+    "aliases": [
+      "TBCHS"
+    ],
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/9C52CA36-2276-4AA0-8C3C-CDB5F056D86C/92d9c7f6844b4148a65d30cfeab24f73.png",
+    "name": "Thunder Bay Community Health Service Inc",
+    "slgId": "1256-41",
+    "url": "https://mychart.hcnetwork.org/TBCHSMyChart/"
+  },
+  {
+    "aliases": [
+      "WCHD"
+    ],
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/151BC7DD-9C46-4AAE-A1B2-B3100ADD99E2/3a6d8306c064dcb50baaf76bcc80daad.png",
+    "name": "Whiteside County Community Health Clinic",
+    "slgId": "1256-42",
+    "url": "https://mychart.hcnetwork.org/WCHDMyChart/"
+  },
+  {
     "aliases": [],
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/ABDB6072-60C5-470B-82E1-B67F54E9C1E3/a7765b01ffd22ecfab6a93c68b0ff4bb.png",
     "name": "Lakeland Regional Health",
@@ -10443,7 +10635,6 @@
   },
   {
     "aliases": [],
-    "down": true,
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/92891993-135D-4EE0-86F6-4FD4E6C374A2/2dc5b53064b00182295070e5ede71ac6.png",
     "name": "University Hospitals Cleveland",
     "slgId": "1258",
@@ -10503,7 +10694,7 @@
   },
   {
     "aliases": [],
-    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/021A1CD5-BCE6-4939-96E1-9B9013710A2E/239042a846ec99b4a2eec35da6bd2b98.png",
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/56EA92E0-8C39-40A7-B5CF-4CF083A467B8/926864fb713ff5f116d37ccb7f6d9802.png",
     "name": "KeyCare",
     "slgId": "1284",
     "url": "https://mychart.keycare.org/mychart/"
@@ -11032,10 +11223,11 @@
     "aliases": [
       "UT Medicine"
     ],
-    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/6082A2D0-CEBA-4F0B-9908-0614130CA381/c8966dda6b34213b579f9dadf47509c3.png",
+    "directoryUrl": "https://portal.utmedicine.org/mychart/",
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/72BE0AC7-B091-4E8D-A556-1607289991BB/2a15c9f3acc22e885e04ec6a6fba7582.png",
     "name": "UT Dell Medicine",
     "slgId": "1337",
-    "url": "https://portal.utmedicine.org/mychart/"
+    "url": "https://portal.utdellmedicine.org/mychart/"
   },
   {
     "aliases": [
@@ -11862,7 +12054,7 @@
       "Virginia Mason Franciscan Health",
       "The Doctors Clinic"
     ],
-    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/EB15B354-62CE-4217-BBA8-C520B3BCFB03/b08ae3c43f353d6dc5a77d4112af0c05.png",
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/08773F96-2735-4CFC-959B-44BE5018FFC4/a31dfb07b0e5b9b6d48ceb3954e43d2e.png",
     "name": "CommonSpirit Health",
     "slgId": "1482",
     "url": "https://patientportal.commonspirit.org/MyChart/"
@@ -11875,11 +12067,23 @@
     "url": "https://mychart.freemanhealth.com/Mychart/"
   },
   {
-    "aliases": [],
+    "aliases": [
+      "ENTA",
+      "ENT & Allergy Associates"
+    ],
     "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/778399B2-D7BA-49EB-9F66-D42E4FF50B94/2c3bd190077450ab6fa3927bad3462ee.png",
     "name": "ENT and Allergy Associates",
     "slgId": "1512",
     "url": "https://mychart.entandallergy.com/MyChart/"
+  },
+  {
+    "aliases": [
+      "MedCenter  Health"
+    ],
+    "logoUrl": "https://media.epic.com/mychartdotorg/directus/organizations/22810545-F327-480A-95AD-5E0B7E0D0E7C/ccf0544bcad67ddb1b993ca17533b3ec.png",
+    "name": "Med Center Health",
+    "slgId": "1514",
+    "url": "https://mychart.medcenterhealth.org/Mychart/"
   },
   {
     "aliases": [

@@ -2,7 +2,7 @@
   "versions": {
     "scrapers": "1.0.0",
     "cli": "2.2.1",
-    "mcpb": "2.2.0",
+    "mcpb": "2.3.0",
     "app": "1.0.0"
   },
   "updateUrls": {
