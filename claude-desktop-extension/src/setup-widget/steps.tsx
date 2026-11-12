@@ -381,7 +381,7 @@ export function CalendarOffer({ step, onConnect, onSkip }: { step: StepOf<'calen
           <li><strong>Kept up to date.</strong> A small menu-bar app starts when you log in and syncs every 4 hours. New, moved and canceled appointments follow.</li>
           <li><strong>Sign in with Google.</strong> Your browser opens Google's sign-in page. Finish there, then come back here.</li>
         </ul>
-        <p className="passkey-note">Appointment details (time, visit type, provider and clinic) are stored in your Google account. Turn it off any time from the menu-bar app.</p>
+        <p className="passkey-note">All appointment details will be sent to Google Calendar. Turn it off any time from the menu-bar app.</p>
       </div>
       <div className="actions">
         <BusyButton busy={busy} busyLabel="Waiting for Google sign-in…" autoFocus onClick={() => void run(onConnect)}>
