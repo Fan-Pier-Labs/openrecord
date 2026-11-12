@@ -156,6 +156,11 @@ export interface ConnectArgs extends MyChartClientOptions {
   skipSendCode?: boolean;
   /** TOTP secret used to auto-complete 2FA during a silent re-login. */
   totpSecret?: string;
+  /**
+   * Instances with their own login portal only: the `client.request.trustedDeviceId` a previous login left.
+   * Save it (it skips 2FA, so treat it as a secret) and pass it back to skip the code.
+   */
+  trustedDeviceId?: string;
 }
 
 // Every member carries a UNIT discriminant on purpose: with a combined
@@ -222,12 +227,14 @@ export class MyChartClient {
       user: args.user,
       pass: args.pass,
       skipSendCode: args.skipSendCode,
+      trustedDeviceId: args.trustedDeviceId,
     });
     return MyChartClient.wrapLoginResult(result, args, () => ({
       hostname: args.hostname,
       username: args.user,
       password: args.pass,
       totpSecret: args.totpSecret,
+      trustedDeviceId: result.mychartRequest.trustedDeviceId,
       protocol: args.protocol,
     }));
   }

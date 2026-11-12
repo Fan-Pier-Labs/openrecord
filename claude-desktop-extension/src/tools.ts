@@ -46,6 +46,7 @@ import { z, type ZodRawShape } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
 import { myChartUserPassLogin, complete2faFlow } from '../../scrapers/myChart/auth/login';
+import { supportsPasskeyAndTotp } from '../../scrapers/myChart/auth/customPortals';
 
 import {
   ACCOUNT_PARAM,
@@ -87,6 +88,7 @@ import {
   readAccountPasskey,
   removeAccount,
   saveAccountPasskey,
+  readAccountTrustedDeviceId,
   saveAccountTotpSecret,
   normalizeHostname,
 } from './credential-store';
@@ -200,6 +202,14 @@ function recommendPasskeyMessage(id: string): string {
  */
 function loggedInResult(hostname: string, username: string): ToolResult {
   const id = accountId({ hostname, username });
+  // No passkey_saved field: that is what the setup widget and the model offer a passkey on.
+  if (!supportsPasskeyAndTotp(hostname)) {
+    return jsonResult({
+      state: 'logged_in',
+      account: id,
+      message: 'Account connected — nothing further is required to read this chart. This health system signs in through its own portal, so passkeys are not available; this device is remembered instead, and later sign-ins should not need a code.',
+    });
+  }
   // Per (hostname, username): another user's passkey on the same hostname says
   // nothing about this login.
   const hasPasskey = !!readAccountPasskey(normalizeHostname(hostname), username);
@@ -609,15 +619,17 @@ async function connectWithPassword(hostname: string, username: string, passwords
     // password moves on to the next: 2FA or any other outcome means MyChart
     // has accepted it or something else is wrong, and either way we stop.
     let password = passwords[0]!;
-    let result = await myChartUserPassLogin({ hostname, user: username, pass: password });
+    // A remembered device saved by an earlier setup can skip the code this time.
+    const trustedDeviceId = readAccountTrustedDeviceId(hostname, username);
+    let result = await myChartUserPassLogin({ hostname, user: username, pass: password, trustedDeviceId });
     for (const next of passwords.slice(1)) {
       if (result.state !== 'invalid_login') break;
       password = next;
-      result = await myChartUserPassLogin({ hostname, user: username, pass: password });
+      result = await myChartUserPassLogin({ hostname, user: username, pass: password, trustedDeviceId });
     }
 
     if (result.state === 'logged_in') {
-      saveAccount(hostname, username, password);
+      saveAccount(hostname, username, password, result.mychartRequest.trustedDeviceId);
       await adoptSession(hostname, username, result.mychartRequest);
       return loggedInResult(hostname, username);
     }
@@ -934,7 +946,7 @@ export function registerAllTools(rawServer: McpServer): void {
           isTOTP: false,
         });
         if (twoFa.state === 'logged_in') {
-          saveAccount(pending.hostname, pending.username, pending.password);
+          saveAccount(pending.hostname, pending.username, pending.password, twoFa.mychartRequest.trustedDeviceId);
           await adoptSession(pending.hostname, pending.username, twoFa.mychartRequest);
           return loggedInResult(pending.hostname, pending.username);
         }

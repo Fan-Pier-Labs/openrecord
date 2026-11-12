@@ -8,6 +8,8 @@ import { getRequestVerificationTokenFromBody } from "../core/util";
 import { sendTelemetryEvent } from "../../../shared/telemetry";
 import { acceptTermsAndConditions } from "./termsAndConditions";
 import { isBlockedInstance } from "./blockedInstances";
+import { MASKED_EMAIL_RE, MASKED_PHONE_RE } from "./maskedContact";
+import { customPortalFor, completeCustomPortal2fa } from "./customPortals";
 import { createAssertion, type PasskeyCredential } from "./softwareAuthenticator";
 import { logger } from '../../../shared/logger';
 
@@ -487,20 +489,6 @@ export type LoginResult = {
 }
 
 /**
- * Masked contacts as MyChart prints them on the 2FA page — a masked address
- * and a masked number. Both are rewrites of patterns whose adjacent quantifiers
- * could each claim the same `*`, so a long run of mask characters with no `@`
- * or trailing digits — easy to plant in scraped portal HTML — got divided
- * between them every possible way: 800 stars took 25s, on the login path. Each
- * accepts exactly the same strings as the pattern it replaces. The lookbehinds
- * are the other half of the fix: a match can never start mid-run (the star
- * before it would have started an equally good match one character earlier),
- * and refusing those start offsets is what takes the scan to linear.
- */
-const MASKED_EMAIL_RE = /(?<![\w*])[\w*]\w*\*[\w*]*@[\w.]+/;
-const MASKED_PHONE_RE = /(?<!\*)\*\*[\d*-]*\d{4}/;
-
-/**
  * Parse the secondary validation (2FA) page to detect which delivery methods are available.
  * Real MyChart pages show buttons like "Email to me" or "Text to my phone".
  * Returns which methods are available and any masked contact info found near the buttons.
@@ -613,7 +601,7 @@ export async function detectUsernameField(mychartRequest: MyChartRequest, loginP
   }
 }
 
-export async function myChartUserPassLogin ({hostname, user, pass, skipSendCode, protocol}: {hostname: string, user: string, pass: string, skipSendCode?: boolean | undefined, protocol?: string | undefined}): Promise<LoginResult> {
+export async function myChartUserPassLogin ({hostname, user, pass, skipSendCode, protocol, trustedDeviceId}: {hostname: string, user: string, pass: string, skipSendCode?: boolean | undefined, protocol?: string | undefined, trustedDeviceId?: string | null | undefined}): Promise<LoginResult> {
   // Fire-and-forget telemetry — never blocks or breaks the scraper
   sendTelemetryEvent('scraper_login_started', { hostname }, 'scraper');
 
@@ -632,6 +620,8 @@ export async function myChartUserPassLogin ({hostname, user, pass, skipSendCode,
     throw new Error(`${hostname} is not supported. central.mychart.org is a portal aggregator and cannot be scraped directly. Please use the individual hospital MyChart instance instead.`);
   }
 
+  const portal = customPortalFor(hostname);
+  if (portal) return portal.login(user, pass, !!skipSendCode, trustedDeviceId ?? undefined);
 
   // Use HTTP for localhost and hostnames without a dot (e.g. Docker service names like "fake-mychart:3000")
   const hostnameWithoutPort = hostname.split(':')[0]!; // split() always yields a first element
@@ -876,6 +866,9 @@ export async function complete2faFlow({mychartRequest, code, twofaCodeArray, isT
   // Copy before sorting: `twofaCodeArray` belongs to the caller, and an
   // in-place sort would reorder their array as a side effect of completing 2FA.
   const sortedCodes = [...codeArray].sort((a, b) => b.score - a.score);
+
+  const portalResult = sortedCodes[0] && await completeCustomPortal2fa(mychartRequest, sortedCodes[0].code);
+  if (portalResult) return portalResult;
 
   // // To make sure we don't grab an old code from the user's email, we only look for emails that arrived after the above API request was made. 
   // // Also, look up to 5 seconds before the request was made.

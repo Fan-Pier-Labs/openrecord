@@ -50,6 +50,7 @@ import {
 import { sessionStore } from "../../../../scrapers/myChart/core/sessionStore";
 import { getMemorySummary } from "@/lib/storage/database";
 import { detailedMessage } from "../../../../shared/detailedError";
+import { fireAndForget } from "../fire-and-forget";
 
 type SessionEntry = {
   account: StoredMyChartAccount;
@@ -111,6 +112,7 @@ function storedLoginParams(account: StoredMyChartAccount): StoredLoginParams {
     username: account.username,
     password: account.password,
     totpSecret: account.totpSecret,
+    trustedDeviceId: account.trustedDeviceId,
     passkey,
     // Persist the accepted (incremented) sign counter so the next login
     // starts from the right place and doesn't have to retry.
@@ -292,6 +294,11 @@ export function getAllSessions(): Array<{ accountId: string; hostname: string; s
  * registered (or a password updated) after connect still counts.
  */
 function manageSession(entry: SessionEntry) {
+  const deviceId = entry.request.trustedDeviceId;
+  if (deviceId && deviceId !== entry.account.trustedDeviceId) {
+    entry.account = { ...entry.account, trustedDeviceId: deviceId };
+    fireAndForget(updateMyChartAccount(entry.account.id, { trustedDeviceId: deviceId }), "session:saveTrustedDeviceId");
+  }
   wireSilentReauthentication(entry.request, async () => {
     const accounts = await getMyChartAccounts();
     return storedLoginParams(accounts.find((a) => a.id === entry.account.id) ?? entry.account);

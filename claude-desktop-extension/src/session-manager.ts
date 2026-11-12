@@ -168,6 +168,7 @@ function storedLoginParams(hostname: string, username: string): StoredLoginParam
     username: account?.username ?? username,
     password: account?.password,
     totpSecret: account?.totpSecret,
+    trustedDeviceId: account?.trustedDeviceId,
     passkey,
     onPasskeyUsed: (credential) => saveAccountPasskey(hostname, username, serializeCredential(credential)),
     onPasskeyInvalid: () => clearAccountPasskey(hostname, username),

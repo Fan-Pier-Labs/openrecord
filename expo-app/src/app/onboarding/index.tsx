@@ -17,6 +17,7 @@ import { PickerStep } from "@/components/onboarding/steps/picker-step";
 import { MyChartStep } from "@/components/onboarding/steps/mychart-step";
 import { TwoFaStep } from "@/components/onboarding/steps/twofa-step";
 import { PasskeyStep } from "@/components/onboarding/steps/passkey-step";
+import { supportsPasskeyAndTotp } from "../../../../scrapers/myChart/auth/customPortals";
 
 type Step = "welcome" | "google" | "ai" | "picker" | "mychart" | "twofa" | "passkey";
 
@@ -54,6 +55,12 @@ export default function OnboardingScreen() {
       }
     })(), "onboarding:devShortcut");
   }, [setSetupComplete]);
+
+  // An instance with its own login portal can't use a MyChart passkey, so skip the offer.
+  function afterLogin(acc: StoredMyChartAccount | null) {
+    if (acc && !supportsPasskeyAndTotp(acc.hostname)) fireAndForget(finishSetup(), "onboarding:finishSetup");
+    else setStep("passkey");
+  }
 
   async function finishSetup() {
     await setSecureValue("setup_complete", "true");
@@ -104,7 +111,7 @@ export default function OnboardingScreen() {
         onChangeInstance={() => setStep("picker")}
         onLoggedIn={(acc) => {
           setAccount(acc);
-          setStep("passkey");
+          afterLogin(acc);
         }}
         onNeed2fa={(acc, label) => {
           setAccount(acc);
@@ -120,7 +127,7 @@ export default function OnboardingScreen() {
       <TwoFaStep
         accountId={account!.id}
         deliveryLabel={twoFaDelivery}
-        onLoggedIn={() => setStep("passkey")}
+        onLoggedIn={() => afterLogin(account)}
       />
     );
   }

@@ -5,11 +5,12 @@
  *
  * Every secret goes to the OS keystore — the macOS Keychain, the Windows
  * Credential Manager, or the Secret Service on Linux — via `secret-store.ts`,
- * which falls back to the files below wherever no keystore answers. Three items
- * per identity, under service `openrecord-mcpb`:
+ * which falls back to the files below wherever no keystore answers. Up to four
+ * items per identity, under service `openrecord-mcpb`:
  *   password:<hostname>:<username>
  *   totp:<hostname>:<username>
  *   passkey:<hostname>:<username>
+ *   device:<hostname>:<username>   — custom login portals only: the remembered device id
  *
  * What stays on disk under ~/.openrecord-mcpb/:
  *   accounts.json                          — the index: { accounts: [{ hostname, username }] }.
@@ -42,6 +43,7 @@ import * as os from 'os';
 import * as path from 'path';
 
 import { clearSecret, readSecret, writeSecret, activeBackend, type BackendName, type FileSlot } from './secret-store';
+import { canonicalHostname } from '../../scrapers/myChart/auth/customPortals';
 
 const ROOT = path.join(os.homedir(), '.openrecord-mcpb');
 const ACCOUNTS_PATH = path.join(ROOT, 'accounts.json');
@@ -55,6 +57,8 @@ export interface AccountConfig {
   // Hydrated from the keystore, which returns undefined for "nothing saved".
   // `AccountRow` is the persisted shape; this one is in-memory only.
   totpSecret?: string | undefined;
+  /** A custom login portal's "remember this device" id (`MyChartRequest.trustedDeviceId`) — it skips 2FA, so it is a secret. */
+  trustedDeviceId?: string | undefined;
 }
 
 export function normalizeHostname(hostname: string): string {
@@ -62,7 +66,8 @@ export function normalizeHostname(hostname: string): string {
   try {
     // Strips protocol and path, keeps host:port
     const parsed = new URL(trimmed.includes('://') ? trimmed : `https://${trimmed}`);
-    return parsed.host;
+    // A portal that answers on several hosts must not turn one login into several accounts.
+    return canonicalHostname(parsed.host);
   } catch {
     return trimmed;
   }
@@ -104,6 +109,7 @@ interface AccountRow {
   username: string;
   password?: string;
   totpSecret?: string;
+  trustedDeviceId?: string;
 }
 
 function readRows(): AccountRow[] {
@@ -136,6 +142,9 @@ function passwordKey(hostname: string, username: string): string {
 function totpKey(hostname: string, username: string): string {
   return `totp:${normalizeHostname(hostname)}:${usernameKey(username)}`;
 }
+function deviceKey(hostname: string, username: string): string {
+  return `device:${normalizeHostname(hostname)}:${usernameKey(username)}`;
+}
 
 /**
  * The accounts.json field a secret used to live in — the fallback when there is
@@ -147,7 +156,7 @@ function totpKey(hostname: string, username: string): string {
 function accountFieldSlot(
   hostname: string,
   username: string,
-  field: 'password' | 'totpSecret',
+  field: 'password' | 'totpSecret' | 'trustedDeviceId',
 ): FileSlot {
   return {
     read() {
@@ -199,6 +208,7 @@ function hydrate(row: AccountRow): AccountConfig {
       totpKey(row.hostname, row.username),
       accountFieldSlot(row.hostname, row.username, 'totpSecret'),
     ),
+    trustedDeviceId: readAccountTrustedDeviceId(row.hostname, row.username),
   };
 }
 
@@ -272,6 +282,13 @@ export function upsertAccount(account: AccountConfig): void {
   if (account.totpSecret !== undefined) {
     writeSecret(totpKey(hostname, username), account.totpSecret, accountFieldSlot(hostname, username, 'totpSecret'));
   }
+  if (account.trustedDeviceId !== undefined) {
+    writeSecret(deviceKey(hostname, username), account.trustedDeviceId, accountFieldSlot(hostname, username, 'trustedDeviceId'));
+  }
+}
+
+export function readAccountTrustedDeviceId(hostname: string, username: string): string | undefined {
+  return readSecret(deviceKey(hostname, username), accountFieldSlot(hostname, username, 'trustedDeviceId'));
 }
 
 export function removeAccount(hostname: string, username: string): boolean {
@@ -282,6 +299,7 @@ export function removeAccount(hostname: string, username: string): boolean {
   // fallback's own storage out from under it and orphan the keystore items.
   clearSecret(passwordKey(hostname, username), accountFieldSlot(hostname, username, 'password'));
   clearSecret(totpKey(hostname, username), accountFieldSlot(hostname, username, 'totpSecret'));
+  clearSecret(deviceKey(hostname, username), accountFieldSlot(hostname, username, 'trustedDeviceId'));
   clearAccountPasskey(hostname, username);
   clearAccountSession(hostname, username);
 

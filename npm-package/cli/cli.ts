@@ -15,7 +15,8 @@ import { checkProxyContext } from '../../scrapers/myChart/proxy/proxyContext';
 import { sessionStore } from '../../scrapers/myChart/core/sessionStore';
 import { generateTotpCode } from '../../scrapers/myChart/auth/totp';
 import { setupTotp } from '../../scrapers/myChart/auth/setupTotp';
-import { saveTotpSecret, loadTotpSecret } from './totpStore';
+import { saveTotpSecret, loadTotpSecret, saveTrustedDeviceId, loadTrustedDeviceId } from './totpStore';
+import { supportsPasskeyAndTotp } from '../../scrapers/myChart/auth/customPortals';
 import { savePasskeyCredential, loadPasskeyCredential } from './passkeyStore';
 import { passkeyLoginWithCounterRetry } from '../../scrapers/myChart/auth/passkeyLoginRetry';
 import { wireSilentReauthentication } from '../../scrapers/myChart/auth/loginModes';
@@ -333,6 +334,7 @@ function wireCliSessionRenewal(mychartRequest: MyChartRequest, creds: LoginCrede
     username: 'username' in creds ? creds.username : undefined,
     password: 'password' in creds ? creds.password : undefined,
     totpSecret: ('totp' in creds ? creds.totp : undefined) ?? await loadTotpSecret(creds.hostname),
+    trustedDeviceId: await loadTrustedDeviceId(creds.hostname),
     passkey: 'passkey' in creds ? creds.passkey : await loadPasskeyCredential(creds.hostname),
     protocol: cliArgs.local ? 'http' : undefined,
     onPasskeyUsed: (credential) => savePasskeyCredential(creds.hostname, credential),
@@ -401,6 +403,7 @@ async function login(creds: LoginCredentials): Promise<MyChartRequest | null> {
       pass: creds.password,
       skipSendCode: !!useTotpSecret,
       protocol: cliArgs.local ? 'http' : undefined,
+      trustedDeviceId: await loadTrustedDeviceId(creds.hostname),
     });
 
     if (loginResult.state === 'invalid_login') {
@@ -477,8 +480,9 @@ async function login(creds: LoginCredentials): Promise<MyChartRequest | null> {
 
       mychartRequest = twoFaResult.mychartRequest;
 
-      // After successful email-based 2FA, offer TOTP auto-setup
-      if (!useTotpSecret && !cliArgs.setupTotp) {
+      // After successful email-based 2FA, offer TOTP auto-setup — unless the instance has its own
+      // login portal, which remembers the device instead (saved below).
+      if (!useTotpSecret && !cliArgs.setupTotp && supportsPasskeyAndTotp(creds.hostname)) {
         const existingSecret = await loadTotpSecret(creds.hostname);
         if (!existingSecret) {
           console.log('\n  To let the CLI sign in automatically in the future, we can set up');
@@ -504,6 +508,7 @@ async function login(creds: LoginCredentials): Promise<MyChartRequest | null> {
     }
 
     console.log('  Logged in successfully!');
+    if (mychartRequest.trustedDeviceId) await saveTrustedDeviceId(creds.hostname, mychartRequest.trustedDeviceId);
     await saveCachedSession(creds.hostname, mychartRequest);
     wireCliSessionRenewal(mychartRequest, creds);
     return mychartRequest;
