@@ -85,6 +85,7 @@ import {
   lookupAccount,
   lookupIdentity,
   readAccounts,
+  readAccountIdentities,
   secretBackend,
   readAccountPasskey,
   removeAccount,
@@ -105,7 +106,7 @@ import { saveFilePayload, saveTextFile } from './save-file';
 import { reportToolCall } from './tool-telemetry';
 import { withUpdateNotice } from './update-notice';
 import { detailedMessage } from '../../shared/detailedError';
-import { calendarSyncStatus, connectGoogleCalendar, uninstallGoogleCalendar } from './google-calendar/applet';
+import { calendarSyncStatus, connectGoogleCalendar, uninstallGoogleCalendar, unsupportedReason as calendarSyncUnsupported } from './google-calendar/applet';
 
 // ── Result helpers ──────────────────────────────────────────────────────────
 
@@ -1058,16 +1059,38 @@ export function registerAllTools(rawServer: McpServer): void {
     'connect_google_calendar',
     {
       description:
-        "Sync the user's upcoming MyChart appointments (every connected account) to their Google Calendar, and keep them in sync every 4 hours. " +
-        'All appointment details will be sent to Google Calendar. Only call this when the user has asked for it. The first time, it downloads the sync app (about 100 MB). ' +
-        'Unless this Mac already holds a working Google grant, it opens Google sign-in in their browser and waits for them to finish; ' +
-        'access is limited to one new calendar it creates ("MyChart Appointments") and it cannot read their other calendars. ' +
-        'It then adds a menu-bar item that starts at login and runs the sync. macOS only.',
-      inputSchema: {} satisfies ZodRawShape,
+        "Sync the user's upcoming MyChart appointments (every connected account) to their Google Calendar, and keep them in sync every 4 hours. macOS only. " +
+        'Only call this when the user has asked for it. Call it first without confirmed_with_user: that changes nothing and returns what setup involves, ' +
+        'to explain to the user. Call it again with confirmed_with_user: true only after the user has agreed.',
+      inputSchema: {
+        confirmed_with_user: z.boolean().optional().describe(
+          'true only once the user has read what setup involves (returned by a call without this) and agreed to go ahead.',
+        ),
+      } satisfies ZodRawShape,
       ...toolMeta('Sync appointments to Google Calendar', { readOnlyHint: false, destructiveHint: false, openWorldHint: true }),
     },
-    async () => {
+    async ({ confirmed_with_user }) => {
       try {
+        const unsupported = calendarSyncUnsupported();
+        if (unsupported) throw new Error(unsupported);
+        if (confirmed_with_user !== true) {
+          const accounts = readAccountIdentities().map(accountId);
+          if (accounts.length === 0) {
+            return jsonResult({ state: 'no_accounts', message: 'No MyChart account is connected yet, so there is nothing to sync. Help the user connect one first.' });
+          }
+          return jsonResult({
+            state: 'needs_confirmation',
+            message_for_user:
+              'Want to install the OpenRecord Google Calendar Sync applet?\n\n' +
+              `This applet copies all of your upcoming appointments from all of your connected MyChart accounts (${accounts.join(', ')}) ` +
+              'to a new "MyChart Appointments" calendar in your Google Calendar. It only touches this new calendar. ' +
+              'This applet will sit in your macOS status bar, launch at login, and sync appointments every 4 hours. ' +
+              'Setup will download the 100 MB applet and trigger permission prompts (macOS and Google sign-in).',
+            message:
+              'Nothing has been set up yet. Show the user message_for_user exactly as written, and wait for their answer. ' +
+              'Only if they agree, call connect_google_calendar again with confirmed_with_user: true.',
+          });
+        }
         const { sync } = await connectGoogleCalendar();
         const failed = (sync.accounts ?? []).filter((a) => a.error);
         return jsonResult({
