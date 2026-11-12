@@ -134,8 +134,8 @@ describe('accounts', () => {
     store.upsertAccount(account('mychart.example.org', 'homer'))
     store.upsertAccount(account('mychart.example.org', 'marge'))
 
-    expect(store.removeAccount('mychart.example.org', 'homer')).toBe(true)
-    expect(store.removeAccount('mychart.example.org', 'homer')).toBe(false)
+    expect(store.removeAccount('mychart.example.org', 'homer')).toBe('removed')
+    expect(store.removeAccount('mychart.example.org', 'homer')).toBe('not_found')
     expect(store.readAccounts().map((a) => a.username)).toEqual(['marge'])
   })
 

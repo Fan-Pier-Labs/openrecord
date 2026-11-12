@@ -274,22 +274,31 @@ export function upsertAccount(account: AccountConfig): void {
   }
 }
 
-export function removeAccount(hostname: string, username: string): boolean {
+/**
+ * `keystore_copy_left` means the account is gone from the index but the OS
+ * keystore refused to delete at least one of its secrets, which is still there.
+ */
+export function removeAccount(
+  hostname: string,
+  username: string,
+): 'not_found' | 'removed' | 'keystore_copy_left' {
   const rows = readRows();
   const idx = rowIndex(rows, hostname, username);
-  if (idx < 0) return false;
+  if (idx < 0) return 'not_found';
   // Secrets first: dropping the row before clearing them would strip the file
   // fallback's own storage out from under it and orphan the keystore items.
-  clearSecret(passwordKey(hostname, username), accountFieldSlot(hostname, username, 'password'));
-  clearSecret(totpKey(hostname, username), accountFieldSlot(hostname, username, 'totpSecret'));
-  clearAccountPasskey(hostname, username);
+  const keystoreCleared = [
+    clearSecret(passwordKey(hostname, username), accountFieldSlot(hostname, username, 'password')),
+    clearSecret(totpKey(hostname, username), accountFieldSlot(hostname, username, 'totpSecret')),
+    clearSecret(passkeyKey(hostname, username), passkeySlot(hostname, username)),
+  ].every(Boolean);
   clearAccountSession(hostname, username);
 
   const remaining = readRows();
   const stillThere = rowIndex(remaining, hostname, username);
   if (stillThere >= 0) remaining.splice(stillThere, 1);
   writeRows(remaining);
-  return true;
+  return keystoreCleared ? 'removed' : 'keystore_copy_left';
 }
 
 /**
