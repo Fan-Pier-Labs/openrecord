@@ -129,9 +129,20 @@ function requestFailingOnDetail(
  * a truncated chart that reads exactly like a complete one.
  */
 describe('partial-failure handling', () => {
-  it('listLabResults throws rather than truncating when a detail fetch fails', async () => {
+  it('keeps the other orders when one detail fetch fails, and names the missing one', async () => {
+    // A thrown transport error is never recorded, so the gap has to be read
+    // off what GetList promised, not off a failed request.
     const req = requestFailingOnDetail(['order-1', 'order-2', 'order-3'], 'order-2')
+    const result = await listLabResults(req)
 
+    expect(result.orders.map((o) => o.key)).toEqual(['order-1', 'order-3'])
+    expect(result.unloadedOrders).toEqual([{ key: 'order-2', names: [], formattedDate: null }])
+    expect(result.notice).toContain('MyChart failed to return 1 of 3 result orders')
+    expect(result.notice).toContain('not that those tests have no results')
+  })
+
+  it('throws when every detail fetch fails — there is nothing loaded to return', async () => {
+    const req = requestFailingOnDetail(['order-1'], 'order-1')
     await expect(listLabResults(req)).rejects.toThrow('connection reset')
   })
 
@@ -143,10 +154,12 @@ describe('partial-failure handling', () => {
     await expect(listLabResults(req)).rejects.toBeInstanceOf(SessionExpiredError)
   })
 
-  it('getImagingResults throws rather than truncating when a detail fetch fails', async () => {
+  it('getImagingResults carries the same gaps, since it is the same fetch', async () => {
     const req = requestFailingOnDetail(['study-1', 'study-2'], 'study-2')
+    const result = await getImagingResults(req)
 
-    await expect(getImagingResults(req)).rejects.toThrow('connection reset')
+    expect(result.unloadedOrders.map((o) => o.key)).toEqual(['study-2'])
+    expect(result.notice).toContain('1 of 2 result orders')
   })
 
   it('throws when both accepted group types failed — the instance has not said "no results"', async () => {
@@ -207,7 +220,7 @@ describe('partial-failure handling', () => {
       return new Response('', { status: 404 })
     })
 
-    await expect(listLabResults(req)).resolves.toEqual({ orders: [] })
+    await expect(listLabResults(req)).resolves.toEqual({ notice: null, orders: [], unloadedOrders: [], unloadedReports: [] })
   })
 
   it('tolerates a failed trend fetch — the order is still reported, without a trend', async () => {
@@ -348,7 +361,7 @@ describe('listLabResults', () => {
       '/app/test-results': [{ body: TOKEN_PAGE }],
       'GetList': [emptyList],
     })
-    expect(await listLabResults(req)).toEqual({ orders: [] })
+    expect(await listLabResults(req)).toEqual({ notice: null, orders: [], unloadedOrders: [], unloadedReports: [] })
   })
 
   it('records every request in the envelope, keyed by the body posted', async () => {
@@ -608,12 +621,42 @@ describe('labResultsProcessor.standard', () => {
       post('/api/test-results/GetDetails', { orderKey: 'order-9' }, null),
       post('/api/test-results/GetDetails', { orderKey: 'order-10' }, '<html>Request Rejected</html>', 403),
     ]))
-    expect(broken.orders.map((o) => o.key)).toEqual(['order-9', 'order-10'])
+    // order-9 answered (with null); order-10 was refused, so it never loaded.
+    expect(broken.orders.map((o) => o.key)).toEqual(['order-9'])
+    expect(broken.unloadedOrders.map((o) => o.key)).toEqual(['order-10'])
     expect(broken.orders[0]).toMatchObject({ orderName: null, results: [], historicalResults: {}, isInpatient: null })
   })
 
+  it('names an unloaded order from GetList, and lists a result whose report failed', () => {
+    const gaps = labResultsProcessor.standard(envelope([
+      post('/api/test-results/GetList', { groupType: 0 }, {
+        newResultGroups: [
+          { key: 'GRP-A', resultList: ['RES-A'], formattedDate: 'Jan 10, 2026' },
+          { key: 'GRP-B', resultList: ['RES-B'], formattedDate: 'Feb 2, 2026' },
+        ],
+        newResults: { 'RES-A^': { key: 'RES-A', name: 'Lipid Panel' }, 'RES-B^': { key: 'RES-B', name: 'Chest X-Ray' } },
+      }),
+      post('/api/test-results/GetDetails', { orderKey: 'GRP-A' }, '<html>error</html>', 500),
+      post('/api/test-results/GetDetails', { orderKey: 'GRP-B' }, {
+        orderName: 'Chest X-Ray', key: 'GRP-B',
+        results: [{ name: 'Chest X-Ray', reportDetails: { reportID: 'RPT-1', reportVars: { ordId: '1', ordDat: '2' } } }],
+      }),
+      post('/api/report-content/LoadReportContent', { reportID: 'RPT-1', assumedVariables: { ordId: '1', ordDat: '2' } }, '<html>error</html>', 500),
+    ]))
+
+    expect(gaps.orders.map((o) => o.key)).toEqual(['GRP-B'])
+    expect(gaps.unloadedOrders).toEqual([{ key: 'GRP-A', names: ['Lipid Panel'], formattedDate: 'Jan 10, 2026' }])
+    expect(gaps.unloadedReports).toEqual([{ orderName: 'Chest X-Ray', name: 'Chest X-Ray' }])
+    expect(gaps.notice).toContain('1 of 2 result orders: Lipid Panel (Jan 10, 2026)')
+    expect(gaps.notice).toContain('The report text for Chest X-Ray failed to load')
+
+    const concise = labResultsProcessor.concise(gaps) as { notice: string; unloadedOrders: unknown[] }
+    expect(concise.notice).toBe(gaps.notice!)
+    expect(concise.unloadedOrders).toEqual([{ names: ['Lipid Panel'], formattedDate: 'Jan 10, 2026' }])
+  })
+
   it('returns no orders for an empty envelope', () => {
-    expect(labResultsProcessor.standard(envelope([]))).toEqual({ orders: [] })
+    expect(labResultsProcessor.standard(envelope([]))).toEqual({ notice: null, orders: [], unloadedOrders: [], unloadedReports: [] })
   })
 })
 

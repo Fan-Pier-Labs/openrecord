@@ -162,6 +162,8 @@ export {
   labResultsProcessor,
   imagingResultsProcessor,
   type LabResultsStandard,
+  type UnloadedOrderStandard,
+  type UnloadedReportStandard,
   type LabOrderStandard,
   type ImagingResultsStandard,
   type ImagingOrderStandard,

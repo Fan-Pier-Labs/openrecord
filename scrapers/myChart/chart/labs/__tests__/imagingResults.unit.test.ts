@@ -113,7 +113,7 @@ describe('getImagingResults', () => {
       }],
     })
 
-    expect(await getImagingResults(req)).toEqual({ orders: [] })
+    expect(await getImagingResults(req)).toEqual({ notice: null, orders: [], unloadedOrders: [], unloadedReports: [] })
   })
 
   it('classifies by content when the name carries no keyword', async () => {
@@ -283,7 +283,7 @@ describe('imagingResultsProcessor.concise', () => {
   })
 
   it('returns no orders for an empty envelope', () => {
-    expect(imagingResultsProcessor.standard({ requests: [] })).toEqual({ orders: [] })
+    expect(imagingResultsProcessor.standard({ requests: [] })).toEqual({ notice: null, orders: [], unloadedOrders: [], unloadedReports: [] })
   })
 })
 

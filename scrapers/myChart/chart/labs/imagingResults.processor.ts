@@ -27,6 +27,7 @@ import type { ImagingOrderConcise, ImagingOrderStandard, ImagingResultsStandard 
 
 export type { ImagingOrderConcise, ImagingOrderStandard, ImagingResultsStandard } from './standardized.types';
 import {
+  conciseGaps,
   conciseLabOrder,
   labResultsProcessor,
   rawResultsForOrder,
@@ -91,7 +92,8 @@ export function imageIdFor(fdi: FdiContext): string {
 export const imagingResultsProcessor: Processor<ImagingResultsStandard> = {
   standard(raw: RawResponse): ImagingResultsStandard {
     const orders: ImagingOrderStandard[] = [];
-    for (const order of labResultsProcessor.standard(raw).orders) {
+    const labs = labResultsProcessor.standard(raw);
+    for (const order of labs.orders) {
       const byName = isImagingByName(order.orderName);
       const byContent = isImagingByContent(order);
       if (!byName && !byContent) continue;
@@ -105,7 +107,9 @@ export const imagingResultsProcessor: Processor<ImagingResultsStandard> = {
         ...order,
       });
     }
-    return { orders };
+    // An order that never loaded cannot be told apart as imaging or lab, so
+    // the gaps are the shared fetch's, unfiltered.
+    return { notice: labs.notice, orders, unloadedOrders: labs.unloadedOrders, unloadedReports: labs.unloadedReports };
   },
   concise(standard) {
     const orders: ImagingOrderConcise[] = standard.orders.map((order) => {
@@ -119,6 +123,6 @@ export const imagingResultsProcessor: Processor<ImagingResultsStandard> = {
         historicalResults: lab.historicalResults,
       };
     });
-    return { orders };
+    return { notice: standard.notice, orders, ...conciseGaps(standard) };
   },
 };

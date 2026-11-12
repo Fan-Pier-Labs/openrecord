@@ -19,7 +19,7 @@ export interface ImagingOrderStandard extends LabOrderStandard {
   isImagingByContent: boolean;
 }
 
-export interface ImagingResultsStandard {
+export interface ImagingResultsStandard extends TestResultGaps {
   orders: ImagingOrderStandard[];
 }
 
@@ -179,7 +179,33 @@ export interface LabOrderStandard {
   historicalResults: Record<string, HistoricalComponentStandard>;
 }
 
-export interface LabResultsStandard {
+/**
+ * An order `GetList` listed whose `GetDetails` failed, named from what
+ * `GetList` itself carries: its result names (`newResults[*].name`) and date.
+ */
+export interface UnloadedOrderStandard {
+  key: string;
+  names: string[];
+  formattedDate: string | null;
+}
+
+/** A result whose report names a `LoadReportContent` that failed; it is in `orders` without `reportContentText`. */
+export interface UnloadedReportStandard {
+  orderName: string | null;
+  name: string | null;
+}
+
+/** What did not load, shared by `get_lab_results` and `get_imaging_results` (one fetch). */
+export interface TestResultGaps {
+  /** Derived: sentences for the reader when anything did not load; null when everything did. */
+  notice: string | null;
+  /** Derived: orders left out of `orders` because their details failed. */
+  unloadedOrders: UnloadedOrderStandard[];
+  /** Derived: results in `orders` whose report text failed to load. */
+  unloadedReports: UnloadedReportStandard[];
+}
+
+export interface LabResultsStandard extends TestResultGaps {
   orders: LabOrderStandard[];
 }
 

@@ -30,8 +30,8 @@ so this script has nothing to run them against — see [`scrapers/npi/README.md`
 | `get_visit_notes` | 353 | 352 | 424 | 247 |
 | `get_note_content` | 687 | 482 | 497 | 497 |
 | `get_visit_avs` | 712 | 497 | 526 | 526 |
-| `get_lab_results` | 42001 | 17190 | 21363 | 5338 |
-| `get_imaging_results` | 42725 | 5210 | 6090 | 2781 |
+| `get_lab_results` | 42001 | 17245 | 21445 | 5420 |
+| `get_imaging_results` | 42725 | 5265 | 6172 | 2863 |
 | `get_messages` | 67450 | 45421 | 55469 | 6390 |
 | `get_message_thread` | 3828 | 1489 | 1807 | 1140 |
 | `get_message_recipients` | 983 | 862 | 597 | 277 |
@@ -8598,7 +8598,9 @@ Lab results with reference ranges and prior values for trending.
 </details>
 
 <details>
-<summary><code>mode: standard</code> (21363 chars)</summary>
+<summary><code>mode: standard</code> (21445 chars)</summary>
+
+- **notice**: (none)
 
 ## orders (5)
 
@@ -9599,10 +9601,15 @@ FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent wit
 
 (empty)
 
+- **unloadedOrders**: (none)
+- **unloadedReports**: (none)
+
 </details>
 
 <details>
-<summary><code>mode: concise</code> (5338 chars)</summary>
+<summary><code>mode: concise</code> (5420 chars)</summary>
+
+- **notice**: (none)
 
 ## orders (5)
 
@@ -9784,13 +9791,17 @@ FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent wit
 
 (empty)
 
+- **unloadedOrders**: (none)
+- **unloadedReports**: (none)
+
 </details>
 
 <details>
-<summary><code>mode: json</code> (17190 chars)</summary>
+<summary><code>mode: json</code> (17245 chars)</summary>
 
 ```json
 {
+  "notice": null,
   "orders": [
     {
       "orderName": "Comprehensive Metabolic Panel",
@@ -10149,9 +10160,8 @@ FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent wit
               "contentAsString": "",
               "signingInstantTimestamp": ""
             },
-            "addenda": [],
-
-… (truncated; 18279 more characters)
+         
+… (truncated; 18346 more characters)
 ```
 
 </details>
@@ -10531,7 +10541,9 @@ Imaging result metadata (X-ray, MRI, CT, ultrasound, …) with reports. Entries 
 </details>
 
 <details>
-<summary><code>mode: standard</code> (6090 chars)</summary>
+<summary><code>mode: standard</code> (6172 chars)</summary>
+
+- **notice**: (none)
 
 ## orders (2)
 
@@ -10745,10 +10757,15 @@ FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent wit
 
 (empty)
 
+- **unloadedOrders**: (none)
+- **unloadedReports**: (none)
+
 </details>
 
 <details>
-<summary><code>mode: concise</code> (2781 chars)</summary>
+<summary><code>mode: concise</code> (2863 chars)</summary>
+
+- **notice**: (none)
 
 ## orders (2)
 
@@ -10828,13 +10845,17 @@ FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent wit
 
 (empty)
 
+- **unloadedOrders**: (none)
+- **unloadedReports**: (none)
+
 </details>
 
 <details>
-<summary><code>mode: json</code> (5210 chars)</summary>
+<summary><code>mode: json</code> (5265 chars)</summary>
 
 ```json
 {
+  "notice": null,
   "orders": [
     {
       "index": 0,
@@ -11020,7 +11041,9 @@ FINDINGS: Multiple radiopaque foreign bodies within cranial vault consistent wit
       ],
       "historicalResults": {}
     }
-  ]
+  ],
+  "unloadedOrders": [],
+  "unloadedReports": []
 }
 ```
 
