@@ -14,7 +14,10 @@
  */
 export function looksLikeSignedOutPage(html: string): boolean {
   const bodyLower = html.toLowerCase();
-  return bodyLower.includes('isprelogin')          // <body class="… isPrelogin">
+  // A class token only: signed-in pages on some instances embed routing JSON
+  // carrying `"isPrelogin":false`, which a bare substring match mistakes for
+  // the login page.
+  return /class\s*=\s*["'][^"']*\bisprelogin\b/.test(bodyLower) // <body class="… isPrelogin">
     || bodyLower.includes('login with passkey')     // real instances
     || bodyLower.includes('sign in with passkey')
     || bodyLower.includes('forgot login information')
