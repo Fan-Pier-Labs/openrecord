@@ -160,6 +160,7 @@ export async function downloadMessageAttachment(
       throw new Error(
         `MyChart has no document ${attachment.dcsId} on the active patient record, although the thread lists it. ` +
           'Check that the right patient is active.',
+        { cause: error },
       );
     }
     if (failure.reason === 'not_released') {

@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@expo/metro-runtime": "~58.0.17",
-    "@react-native-google-signin/google-signin": "^16.2.0",
+    "@react-native-google-signin/google-signin": "^17.0.0",
     "assert": "^2.1.0",
     "buffer": "^6.0.3",
     "cheerio": "^1.2.0",
