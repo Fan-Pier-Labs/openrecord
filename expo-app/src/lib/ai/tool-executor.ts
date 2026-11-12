@@ -10,7 +10,8 @@
  */
 import { Alert } from "react-native";
 import { executeScraperTool as sessionExecute } from "@/lib/scrapers/session-manager";
-import { WRITE_TOOL_META } from "./tool-catalog";
+import { SAVE_FILE_TOOL, WRITE_TOOL_META } from "./tool-catalog";
+import { putFile } from "@/lib/files/file-store";
 import {
   ACCOUNT_PARAM_NAMES,
   MODE_PARAM,
@@ -66,6 +67,13 @@ export async function executeLocalTool(
           message: `User declined to run ${toolName}. Do not retry unless they ask again.`,
         });
       }
+    }
+    if (toolName === SAVE_FILE_TOOL) {
+      const fileName = typeof input.file_name === "string" ? input.file_name : "";
+      const content = typeof input.content === "string" ? input.content : "";
+      if (!fileName.trim()) throw new Error('Missing required argument "file_name".');
+      const fileId = putFile(content, fileName, "text/plain");
+      return JSON.stringify({ file_id: fileId, size_bytes: new TextEncoder().encode(content).byteLength });
     }
     // This executor feeds a model, so a read the model did not ask a mode for
     // gets the concise projection. The alerts generator and anything else

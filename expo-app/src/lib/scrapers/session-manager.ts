@@ -28,6 +28,7 @@ import {
 } from "../../../../shared/capabilities";
 import { Image } from "react-native";
 import { convertCloToJpgPureJs } from "../../../../scrapers/myChart/clo-image-parser/exporters/to_jpg_purejs";
+import { putFile } from "@/lib/files/file-store";
 import { putImageAttachment } from "@/lib/imaging/attachment-store";
 
 import {
@@ -437,9 +438,9 @@ const CHAT_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/gif", "image
 /**
  * Run a `returnsFile` capability (a message attachment, say). An image goes
  * into the attachment store like an X-ray does, so the reply can carry an
- * [image:ID] token; anything else (a PDF, say) has no place to go on this
- * client yet — there is no file viewer or share sheet — so the model is told
- * so rather than handed bytes.
+ * [image:ID] token; anything else (a PDF, say) goes into the file store and
+ * comes back as a [file:ID] token the user taps to share or save. Either way
+ * the model sees the capability's metadata, never the bytes.
  */
 async function downloadFileForChat(
   capability: Capability,
@@ -453,11 +454,9 @@ async function downloadFileForChat(
     return { error: `Could not download the file: ${(err as Error).message}` };
   }
   if (!CHAT_IMAGE_TYPES.has(file.mimeType)) {
-    return {
-      error:
-        `${file.fileName} is a ${file.mimeType} file, which the app cannot display yet. ` +
-        "It can be downloaded with the OpenRecord Claude Desktop extension or the mychart-cli, which save it to disk.",
-    };
+    const { bytes, fileName, mimeType, ...rest } = file;
+    const fileId = putFile(bytes, fileName, mimeType);
+    return { ...rest, file_id: fileId, file_name: fileName, mime_type: mimeType, size_bytes: bytes.byteLength };
   }
   const dataUri = `data:${file.mimeType};base64,${Buffer.from(file.bytes).toString("base64")}`;
   const { width, height } = await imageSize(dataUri);

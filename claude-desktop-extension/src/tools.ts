@@ -4,18 +4,16 @@
  * Tool registry for the OpenRecord MCPB stdio MCP server.
  *
  * Two groups of tools:
- *   1. Meta tools — list_accounts, get_setup_widget, get_hospital_info,
- *                   setup_account, import_browser_passwords,
+ *   1. Meta tools — list_accounts, get_setup_widget, setup_account, import_browser_passwords,
  *                   connect_imported_account, complete_2fa,
  *                   disconnect_account, check_pending_call. These are
  *                   MCPB-specific: most manage the credentials stored on this
  *                   machine, get_setup_widget returns a Claude Desktop UI
  *                   resource, and check_pending_call collects a result that
  *                   outran Claude Desktop's request timeout (pending-call.ts).
- *                   `search_mycharts` used to be one of them and is now
- *                   a `public` capability in the shared registry, so every
- *                   client has it; `get_hospital_info` is account-free in the
- *                   same way and is the obvious next one to move.
+ *                   `search_mycharts` and `get_hospital_info` used to be
+ *                   meta tools and are now `public` capabilities in the
+ *                   shared registry, so every client has them.
  *   2. Capability tools — one per entry in `shared/capabilities/`, which is
  *                   the single source of truth for what OpenRecord can do with
  *                   a MyChart account. Nothing in this file decides what the
@@ -70,7 +68,6 @@ import {
 } from '../../shared/capabilities';
 import { readLocalFile } from '../../shared/readLocalFile';
 
-import { fetchHospitalNetworkProfile } from '../../scrapers/myChart/prelogin';
 import { BACKEND_DESCRIPTION } from './secret-store';
 import {
   resolveSession,
@@ -816,42 +813,6 @@ export function registerAllTools(rawServer: McpServer): void {
         },
       ],
     }),
-  );
-
-  server.registerTool(
-    'get_hospital_info',
-    {
-      description:
-        'What a MyChart instance publishes about its health system to anyone, with no account: the ' +
-        "organization's support, scheduling and billing phone lines and support email; the \"Find a Doctor\" " +
-        'directory of bookable providers (name, credentials, specialties, languages, photo) with every clinic ' +
-        'they work at (street address, phone, coordinates, hours); billing entities and their facilities; and ' +
-        'which portal features are switched on. Pass the `hostname` from search_mycharts. Slow on large ' +
-        'systems — one specialty is 0.6–2 MB and some list twenty — so narrow with `specialties` or skip the ' +
-        'crawl with `include_providers: false`. Never returns a fax number or an accepted-insurance list: ' +
-        'MyChart publishes neither (the payer list sits behind a reCAPTCHA-protected disclaimer).',
-      inputSchema: {
-        hostname: z.string().min(1).describe('The MyChart hostname, e.g. mychart.example.org. A full login URL also works.'),
-        specialties: z.array(z.string()).optional().describe('Only crawl these "Find a Doctor" specialties (by name). Default: all of them.'),
-        max_specialties: z.number().int().min(0).optional().describe('Stop after this many specialties.'),
-        include_providers: z.boolean().optional().describe('Crawl the provider and clinic directory (default true).'),
-        include_billing: z.boolean().optional().describe('Read the billing entities (default true).'),
-      } satisfies ZodRawShape,
-      ...toolMeta('Public profile of a health system', { readOnlyHint: true, openWorldHint: true }),
-    },
-    async ({ hostname, specialties, max_specialties, include_providers, include_billing }) => {
-      try {
-        const profile = await fetchHospitalNetworkProfile(hostname, {
-          ...(specialties ? { specialties } : {}),
-          ...(max_specialties !== undefined ? { maxSpecialties: max_specialties } : {}),
-          ...(include_providers !== undefined ? { includeProviders: include_providers } : {}),
-          ...(include_billing !== undefined ? { includeBilling: include_billing } : {}),
-        });
-        return jsonResult(profile);
-      } catch (err) {
-        return caughtErrorResult(err);
-      }
-    },
   );
 
   server.registerTool(

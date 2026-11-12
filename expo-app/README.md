@@ -9,7 +9,7 @@ by Metro — and an on-device agent loop turns a chat message into scraper calls
 
 | Screen | File | What it does |
 | --- | --- | --- |
-| Onboarding | `src/app/onboarding/` | Welcome → Google sign-in → "Where your data goes" disclosure → pick a health system → MyChart login → 2FA (if asked) → optional passkey |
+| Onboarding | `src/app/onboarding/` (route), `src/components/onboarding/` (steps) | Welcome → Google sign-in → "Where your data goes" disclosure → pick a health system → MyChart login → 2FA (if asked) → optional passkey |
 | Chat | `src/app/(auth)/index.tsx`, `chat/[id].tsx` | A new chat (its empty state holds the alerts card and "Run a skill"), and a saved chat reopened from the drawer |
 | Drawer | `src/components/LeftDrawer.tsx` | Chat history, new chat, Insights, Settings |
 | Insights | `src/app/(auth)/insights.tsx` | The patient memory summary and AI-generated insights; an insight's suggested question opens a chat |
@@ -40,6 +40,10 @@ prompted to emit JSON objects, `{ "tool": "<name>", "args": { … } }`, so any c
 - Images (X-ray studies, image attachments on messages) are kept out of the conversation: the tool
   returns an `image_id`, the model writes `[image:ID]`, and the UI swaps in the picture from
   `src/lib/imaging/attachment-store.ts`.
+- Any other file — a PDF document, billing statement or message attachment, or an export the model
+  writes with the app's own `save_file` tool (the desktop extension's tool of the same name) — is
+  written to the cache directory and comes back as a `file_id`; the model writes `[file:ID]` and the
+  bubble shows a button that opens the iOS share sheet (`src/lib/files/file-store.ts`).
 
 ### One tool per capability
 
@@ -75,7 +79,7 @@ Add a capability to the registry and the app picks it up; don't hand-add a tool 
   database, `openrecord.db` (`src/lib/storage/schema.ts`). The schema runs on every cold start, so
   every statement must be `CREATE TABLE IF NOT EXISTS` — a drop there deletes user data on launch.
 - **AI calls** are the one thing that leaves the device, and onboarding says so before a chart is
-  connected (`src/app/onboarding/steps/ai-step.tsx`).
+  connected (`src/components/onboarding/steps/ai-step.tsx`).
 
 ### AI providers
 
