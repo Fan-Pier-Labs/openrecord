@@ -588,6 +588,12 @@ button), invalidates CloudFront, checks the live file matches what was packed, p
 restores the old bundle. A failed run can be re-run as is. Commit a refreshed directory list in
 a PR afterwards — the script says so when it changed.
 
+Publishing a GitHub Release tagged `mcpb-v<version>` triggers
+`.github/workflows/mcp-registry.yml`, which lists that version on the official MCP Registry as
+`io.github.Fan-Pier-Labs/openrecord`. It fills `server.json`'s version, download URL and SHA-256
+from the release, so the committed copy only needs editing for the description or metadata. To
+list a release again by hand, run the workflow from the Actions tab with its tag.
+
 **Don't sign the bundle.** `mcpb sign` appends a PKCS#7 block after the zip's end record, and
 Claude Desktop reads extensions with `yauzl`, which requires that record to be the file's last
 bytes — a signed 2.1.0 failed to install with "Invalid comment length". Signing also bought

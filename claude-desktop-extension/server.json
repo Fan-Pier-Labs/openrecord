@@ -1,0 +1,23 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.Fan-Pier-Labs/openrecord",
+  "title": "OpenRecord — MyChart for Claude",
+  "description": "Read and manage your Epic MyChart records: labs, meds, imaging, notes, messages, refills.",
+  "websiteUrl": "https://openrecord.fanpierlabs.com",
+  "repository": {
+    "url": "https://github.com/Fan-Pier-Labs/openrecord",
+    "source": "github",
+    "subfolder": "claude-desktop-extension"
+  },
+  "version": "2.3.0",
+  "packages": [
+    {
+      "registryType": "mcpb",
+      "identifier": "https://github.com/Fan-Pier-Labs/openrecord/releases/download/mcpb-v2.3.0/openrecord.mcpb",
+      "fileSha256": "2e466893856eb6f5ebf916af1f792e0c9b1561e8aebd68c64483ab04d3ca8a40",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}
