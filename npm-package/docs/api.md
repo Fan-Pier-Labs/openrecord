@@ -521,7 +521,7 @@ const output = await executeCapability(client.request, call.name, { ...call.args
 | --- | --- |
 | `CAPABILITIES`, `CAPABILITY_IDS` | Every capability, in registry order |
 | `AGENT_CAPABILITIES` | Everything except account-settings ones, i.e. what's safe to offer a model |
-| `PUBLIC_CAPABILITIES`, `PUBLIC_CAPABILITY_IDS` | The account-free lookups |
+| `PUBLIC_CAPABILITIES`, `PUBLIC_CAPABILITY_IDS` | The account-free lookups. Reads only |
 | `WRITE_CAPABILITY_IDS` | Capabilities that change the record. Confirm these with a human |
 | `getCapability(idOrAlias)`, `capabilitiesByGroup(list?)`, `describeCapability(c)` | Lookups and help text |
 | `executeCapability(request \| null, id, args, ctx?)` | The single dispatch path, including the active-patient check. `null` request is for public ones |

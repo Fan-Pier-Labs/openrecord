@@ -318,6 +318,7 @@ const SWITCH_PROXY_TOOL = 'switch_proxy_target';
  * Claude Desktop uses for grouping:
  *   - 'read'             → readOnlyHint: true
  *   - 'write' | 'account'→ readOnlyHint: false, destructiveHint: true
+ *     (false for an `accountFree` write, which only sends)
  *
  * `account`-kind capabilities change how the patient signs in. The MCPB's only
  * surface is tools, so they are registered — but flagged destructive, the way
@@ -354,10 +355,11 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
   if (capability.returnsFile) shape[RETURN_PARAM] = RETURN_SCHEMA;
   for (const param of capability.params) shape[param.name] = zodForParam(param);
 
+  // An account-free write sends something to us; it changes nothing that exists.
   const hints =
     capability.kind === 'read' || capability.kind === 'public' || capability.notImplemented
       ? { readOnlyHint: true, openWorldHint: true }
-      : { readOnlyHint: false, destructiveHint: true, openWorldHint: true };
+      : { readOnlyHint: false, destructiveHint: !capability.accountFree, openWorldHint: true };
 
   server.registerTool(
     capability.id,
