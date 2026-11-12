@@ -105,7 +105,7 @@ import { saveFilePayload, saveTextFile } from './save-file';
 import { reportToolCall } from './tool-telemetry';
 import { withUpdateNotice } from './update-notice';
 import { detailedMessage } from '../../shared/detailedError';
-import { calendarSyncStatus, connectGoogleCalendar, uninstallGoogleCalendar } from './google-calendar/applet';
+import { calendarSyncStatus, connectGoogleCalendar, uninstallGoogleCalendar, unsupportedReason as calendarSyncUnsupported } from './google-calendar/applet';
 
 // ── Result helpers ──────────────────────────────────────────────────────────
 
@@ -1058,16 +1058,33 @@ export function registerAllTools(rawServer: McpServer): void {
     'connect_google_calendar',
     {
       description:
-        "Sync the user's upcoming MyChart appointments (every connected account) to their Google Calendar, and keep them in sync every 4 hours. " +
-        'All appointment details will be sent to Google Calendar. Only call this when the user has asked for it. The first time, it downloads the sync app (about 100 MB). ' +
-        'Unless this Mac already holds a working Google grant, it opens Google sign-in in their browser and waits for them to finish; ' +
-        'access is limited to one new calendar it creates ("MyChart Appointments") and it cannot read their other calendars. ' +
-        'It then adds a menu-bar item that starts at login and runs the sync. macOS only.',
-      inputSchema: {} satisfies ZodRawShape,
+        "Sync the user's upcoming MyChart appointments (every connected account) to their Google Calendar, and keep them in sync every 4 hours. macOS only. " +
+        'Only call this when the user has asked for it. Call it first without confirmed_with_user: that changes nothing and returns what setup involves, ' +
+        'to explain to the user. Call it again with confirmed_with_user: true only after the user has agreed.',
+      inputSchema: {
+        confirmed_with_user: z.boolean().optional().describe(
+          'true only once the user has read what setup involves (returned by a call without this) and agreed to go ahead.',
+        ),
+      } satisfies ZodRawShape,
       ...toolMeta('Sync appointments to Google Calendar', { readOnlyHint: false, destructiveHint: false, openWorldHint: true }),
     },
-    async () => {
+    async ({ confirmed_with_user }) => {
       try {
+        const unsupported = calendarSyncUnsupported();
+        if (unsupported) throw new Error(unsupported);
+        if (confirmed_with_user !== true) {
+          return jsonResult({
+            state: 'needs_confirmation',
+            message:
+              'Nothing has been set up yet. Explain this to the user in your own words and ask whether to go ahead: ' +
+              '(1) Every connected MyChart account\'s upcoming appointments go onto a new Google calendar, "MyChart Appointments", with all appointment details, and stay in sync every 4 hours. ' +
+              'OpenRecord can see and change only that calendar, never their others. ' +
+              '(2) A menu-bar app (a medical-cross icon) runs the sync and starts at login; the first time, it downloads about 100 MB. ' +
+              '(3) Accounts are still added and removed by asking you, Claude; the sync picks up whatever accounts are connected. ' +
+              '(4) Setup opens Google sign-in in their browser, and macOS will show prompts: a notice that a background item was added, and later a keychain prompt asking whether openrecord-calendar may use OpenRecord\'s saved MyChart sign-in, where they should choose "Always Allow". ' +
+              'Once the user agrees, call connect_google_calendar again with confirmed_with_user: true.',
+          });
+        }
         const { sync } = await connectGoogleCalendar();
         const failed = (sync.accounts ?? []).filter((a) => a.error);
         return jsonResult({
