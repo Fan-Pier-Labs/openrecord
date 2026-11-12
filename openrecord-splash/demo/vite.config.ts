@@ -50,7 +50,7 @@ export default defineConfig({
   build: {
     outDir: '../dist',
     emptyOutDir: true,
-    rollupOptions: {
+    rolldownOptions: {
       input: `${__dirname}/demo.html`,
     },
   },
