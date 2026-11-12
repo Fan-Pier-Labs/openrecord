@@ -27,7 +27,7 @@ Probed on **five real instances in November 2026, across two Epic releases**:
 every request above answered 200 with `{}` on all five.
 
 - **This is the setting that differs most between orgs.** Same patient, five
-  orgs: 8–9 groups, 40–48 topics, 78–118 topic × channel toggles, group names
+  orgs: 7–9 groups, 40–48 topics, 78–118 topic × channel toggles, group names
   that don't match ("Messages" / "Messages & Letters" / "Messages &
   Documents"), and different channels offered per topic. The bundles are
   byte-identical across the four instances on one release, so the variation is
