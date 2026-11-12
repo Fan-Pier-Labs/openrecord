@@ -32,14 +32,14 @@ import {
   acceptsPatientParam,
   readOutputMode,
 } from '../capabilities';
+import * as featureRequest from '../featureRequest';
+import { setTestTransport } from '../../scrapers/http';
+
+const { FEATURE_REQUEST_TOOL } = featureRequest;
 
 const ALL = [...CAPABILITY_IDS].sort();
 const AGENT_IDS = AGENT_CAPABILITIES.map((c) => c.id).sort();
 const PUBLIC_IDS = PUBLIC_CAPABILITIES.map((c) => c.id).sort();
-/** What the CLI and npm library offer: everything but the `modelOnly` entries. */
-const PACKAGE_CAPABILITIES = CAPABILITIES.filter((c) => !c.modelOnly);
-const PACKAGE_IDS = PACKAGE_CAPABILITIES.map((c) => c.id).sort();
-const MODEL_ONLY_IDS = CAPABILITIES.filter((c) => c.modelOnly).map((c) => c.id);
 
 // ── 1. Claude Desktop extension (MCPB) ─────────────────────────────────────
 
@@ -137,9 +137,27 @@ describe('Claude Desktop extension', () => {
         expect(annotations.readOnlyHint).toBe(true);
       } else {
         expect(annotations.readOnlyHint).toBe(false);
-        expect(annotations.destructiveHint).toBe(!capability.accountFree);
+        expect(annotations.destructiveHint).toBe(true);
       }
     }
+  });
+
+  it('registers the feature-request tool by hand, as a send that is neither read-only nor destructive', async () => {
+    const { registerAllTools } = await import('../../claude-desktop-extension/src/tools');
+    const server = recordingMcpServer();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    registerAllTools(server as any);
+
+    const tool = server.tools.find((t) => t.name === FEATURE_REQUEST_TOOL.name)!;
+    expect(tool.config.description).toBe(FEATURE_REQUEST_TOOL.description);
+    expect(Object.keys(tool.config.inputSchema as Record<string, unknown>)).toEqual(
+      FEATURE_REQUEST_TOOL.params.map((p) => p.name),
+    );
+    // Read-only would let Claude Desktop run it unprompted for a user who set
+    // the read tools to "always allow" — and it sends their name and email.
+    const annotations = tool.config.annotations as { readOnlyHint?: boolean; destructiveHint?: boolean };
+    expect(annotations.readOnlyHint).toBe(false);
+    expect(annotations.destructiveHint).toBe(false);
   });
 });
 
@@ -178,7 +196,11 @@ describe('mobile app', () => {
     // Every write that does something. A declared-but-unimplemented one is
     // deliberately not gated: "Request refill?" in front of a call that does
     // nothing teaches a patient their confirmations are noise.
-    const writes = CAPABILITIES.filter((c) => c.kind === 'write' && !c.notImplemented).map((c) => c.id).sort();
+    // …plus the feature request, which is not a capability but does send.
+    const writes = [
+      ...CAPABILITIES.filter((c) => c.kind === 'write' && !c.notImplemented).map((c) => c.id),
+      FEATURE_REQUEST_TOOL.name,
+    ].sort();
     expect([...WRITE_TOOLS].sort()).toEqual(writes);
     // Every gated tool needs dialog copy, or the popup renders blank.
     for (const id of writes) {
@@ -204,6 +226,18 @@ describe('mobile app', () => {
     for (const id of AGENT_IDS) {
       expect(prompt).toContain(`- ${id}(`);
     }
+  });
+
+  it('offers the feature-request tool by hand, confirmed and alone in its turn', async () => {
+    const { TOOLS, WRITE_TOOL_META, isExclusiveTool, renderToolList } = await import(
+      '../../expo-app/src/lib/ai/tool-catalog'
+    );
+    const { name, title, description, params } = FEATURE_REQUEST_TOOL;
+    expect(TOOLS.map((t) => t.name)).not.toContain(name);
+    expect(renderToolList()).toContain(`- ${name}(${params.map((p) => p.name).join(', ')}) — ${description}`);
+    // The dialog is the consent step: it shows this copy above the payload.
+    expect(WRITE_TOOL_META[name]).toEqual({ title, description });
+    expect(isExclusiveTool(name)).toBe(true);
   });
 });
 
@@ -394,25 +428,15 @@ describe('CLI', () => {
   it('lists every capability under --list-capabilities --show-all', async () => {
     const { renderCapabilityList } = await import('../../npm-package/cli/capabilityActions');
     const listing = renderCapabilityList({ showAll: true });
-    for (const id of PACKAGE_IDS) {
+    for (const id of ALL) {
       expect(listing).toContain(id);
-    }
-  });
-
-  it('neither lists nor runs the model-only capabilities', async () => {
-    const { renderCapabilityList, resolveCliAction } = await import('../../npm-package/cli/capabilityActions');
-    expect(MODEL_ONLY_IDS.length).toBeGreaterThan(0);
-    const listing = renderCapabilityList({ showAll: true });
-    for (const id of MODEL_ONLY_IDS) {
-      expect(listing).not.toContain(id);
-      expect(resolveCliAction(id)).toBeUndefined();
     }
   });
 
   it('documents every argument each capability accepts', async () => {
     const { renderCapabilityList } = await import('../../npm-package/cli/capabilityActions');
     const listing = renderCapabilityList({ showAll: true });
-    for (const capability of PACKAGE_CAPABILITIES) {
+    for (const capability of CAPABILITIES) {
       for (const param of capability.params) {
         expect(listing).toContain(`--arg ${param.name}=<${param.type}>`);
       }
@@ -539,15 +563,46 @@ describe('CLI', () => {
 describe('npm library', () => {
   it('exposes the registry and a dynamic runner on the client', async () => {
     const { MyChartClient } = await import('../../npm-package/src/client');
-    expect(MyChartClient.capabilities().map((c) => c.id).sort()).toEqual(PACKAGE_IDS);
+    expect(MyChartClient.capabilities().map((c) => c.id).sort()).toEqual(ALL);
     expect(typeof MyChartClient.prototype.runCapability).toBe('function');
   });
 
-  it('refuses to run the model-only capabilities', async () => {
-    const { MyChartClient } = await import('../../npm-package/src/client');
-    for (const id of MODEL_ONLY_IDS) {
-      expect(() => MyChartClient.runPublicCapability(id, { request: 'x' })).toThrow(/Unknown capability/);
+  // The extension and the app register the feature-request tool themselves,
+  // each behind a confirmation. A library consumer who maps the registry onto
+  // their own model's tools, as docs/api.md shows, has no such step — so
+  // nothing this package exports may list it, describe it or run it.
+  it('exports nothing that reaches the feature-request tool', async () => {
+    const pkg: Record<string, unknown> = await import('../../npm-package/src/index');
+    const { renderCapabilityList, resolveCliAction } = await import('../../npm-package/cli/capabilityActions');
+    const { MyChartClient, getCapability, executeCapability } = await import('../../npm-package/src/index');
+    const id = FEATURE_REQUEST_TOOL.name;
+
+    for (const [exportName, value] of Object.entries(pkg)) {
+      expect(Object.values(featureRequest)).not.toContain(value);
+      if (!Array.isArray(value)) continue;
+      const ids = value.map((entry: unknown) =>
+        typeof entry === 'object' && entry !== null && 'id' in entry ? entry.id : entry,
+      );
+      expect({ exportName, listsIt: ids.includes(id) }).toEqual({ exportName, listsIt: false });
     }
+    expect(MyChartClient.capabilities().map((c) => c.id)).not.toContain(id);
+    expect(getCapability(id)).toBeUndefined();
+    expect(resolveCliAction(id)).toBeUndefined();
+    expect(renderCapabilityList({ showAll: true })).not.toContain(id);
+
+    // Scripted, so a regression fails here instead of emailing the developers.
+    let sent = 0;
+    setTestTransport(() => {
+      sent += 1;
+      return Promise.resolve(new Response('{"ok":true}'));
+    });
+    try {
+      await expect(executeCapability(null, id, { request: 'x' })).rejects.toThrow(/Unknown capability/);
+      await expect(MyChartClient.runPublicCapability(id, { request: 'x' })).rejects.toThrow(/Unknown capability/);
+    } finally {
+      setTestTransport(null);
+    }
+    expect(sent).toBe(0);
   });
 
   it('re-exports the registry from the package entry point', async () => {
@@ -643,7 +698,7 @@ describe('npm library', () => {
     // registry withdrew. `runCapability(id)` still reaches them and returns the
     // notice, like every other client.
     const unimplemented = new Set(CAPABILITIES.filter((c) => c.notImplemented).map((c) => c.id));
-    const unmapped = PACKAGE_IDS.filter((id) => !methodFor[id] && !staticMethodFor[id]);
+    const unmapped = ALL.filter((id) => !methodFor[id] && !staticMethodFor[id]);
     expect(unmapped).toEqual([...unimplemented]);
     for (const id of unimplemented) {
       expect(methodFor[id]).toBeUndefined();
@@ -668,16 +723,11 @@ describe('the browser demo', () => {
   // what a visitor judges the product by, so a capability missing here reads as
   // a capability the product does not have. Seven of them had gone missing
   // before this test existed.
-  //
-  // The one deliberate exception: a feature request from a demo visitor about
-  // a fictional chart is not one worth offering.
-  const NOT_IN_DEMO = new Set(['send_feature_request']);
-  const DEMO_CAPABILITIES = AGENT_CAPABILITIES.filter((c) => !NOT_IN_DEMO.has(c.id));
 
   it('offers a tool for every read and write capability', async () => {
     const { TOOL_SPECS, resolveToolName } = await import('../../openrecord-splash/demo/src/tools');
     const offered = new Set(TOOL_SPECS.map((t) => resolveToolName(t.name)));
-    const missing = DEMO_CAPABILITIES.map((c) => c.id).filter((id) => !offered.has(id));
+    const missing = AGENT_IDS.filter((id) => !offered.has(id));
     expect(missing).toEqual([]);
   });
 
@@ -693,7 +743,7 @@ describe('the browser demo', () => {
 
   it('flags the same tools as writes', async () => {
     const { TOOL_SPECS, resolveToolName } = await import('../../openrecord-splash/demo/src/tools');
-    const registryWrites = DEMO_CAPABILITIES.filter((c) => c.kind === 'write').map((c) => c.id);
+    const registryWrites = CAPABILITIES.filter((c) => c.kind === 'write').map((c) => c.id);
     for (const id of registryWrites) {
       const spec = TOOL_SPECS.find((t) => resolveToolName(t.name) === id)!;
       // A write the demo treats as a read would run without the confirmation
@@ -709,7 +759,7 @@ describe('the browser demo', () => {
 
   it('names every required parameter each capability declares', async () => {
     const { TOOL_SPECS, resolveToolName } = await import('../../openrecord-splash/demo/src/tools');
-    for (const capability of DEMO_CAPABILITIES) {
+    for (const capability of AGENT_CAPABILITIES) {
       const spec = TOOL_SPECS.find((t) => resolveToolName(t.name) === capability.id)!;
       for (const param of capability.params.filter((p) => p.required)) {
         expect(Object.keys(spec.args)).toContain(param.name);

@@ -4,9 +4,9 @@
  * Local tool executor — runs MyChart scrapers on-device.
  *
  * Read-only scrapers run immediately. Write tools — every `kind: 'write'`
- * entry in the shared capability registry, surfaced here as WRITE_TOOL_META —
- * require a user confirmation popup showing the exact payload before they
- * execute, similar to the Claude mobile app.
+ * entry in the shared capability registry plus `send_feature_request`, surfaced
+ * here as WRITE_TOOL_META — require a user confirmation popup showing the exact
+ * payload before they execute, similar to the Claude mobile app.
  */
 import { Alert } from "react-native";
 import { executeScraperTool as sessionExecute } from "@/lib/scrapers/session-manager";
@@ -21,6 +21,7 @@ import {
   getCapability,
 } from "../../../../shared/capabilities";
 import { detailedMessage } from "../../../../shared/detailedError";
+import { FEATURE_REQUEST_TOOL, runFeatureRequestTool } from "../../../../shared/featureRequest";
 
 function formatArgs(input: Record<string, unknown>): string {
   // Which account it is going to is context, not payload — the patient is
@@ -76,6 +77,9 @@ export async function executeLocalTool(
       if (!CAN_SHARE_FILES) throw new Error("Saving files is not available on this device yet.");
       const fileId = putFile(content, fileName);
       return JSON.stringify({ file_id: fileId, size_bytes: new TextEncoder().encode(content).byteLength });
+    }
+    if (toolName === FEATURE_REQUEST_TOOL.name) {
+      return JSON.stringify(await runFeatureRequestTool(input), null, 2);
     }
     // This executor feeds a model, so a read the model did not ask a mode for
     // gets the concise projection. The alerts generator and anything else

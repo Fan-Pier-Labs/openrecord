@@ -3,9 +3,13 @@
 import { afterEach, describe, expect, it } from 'bun:test';
 
 import { setTestTransport } from '../../scrapers/http';
-import { executeCapability } from '../capabilities';
 import { detailedMessage } from '../detailedError';
-import { ANONYMOUS_EMAIL, FEATURE_REQUEST_ENDPOINT, FEATURE_REQUEST_SITE } from '../featureRequest';
+import {
+  ANONYMOUS_EMAIL,
+  FEATURE_REQUEST_ENDPOINT,
+  FEATURE_REQUEST_SITE,
+  runFeatureRequestTool,
+} from '../featureRequest';
 
 let sent: Array<{ url: string; body: Record<string, unknown> }> = [];
 
@@ -22,7 +26,7 @@ afterEach(() => setTestTransport(null));
 describe('send_feature_request', () => {
   it('sends the description with whatever identity the user agreed to share', async () => {
     answer(200);
-    const result = await executeCapability(null, 'send_feature_request', {
+    const result = await runFeatureRequestTool({
       request: 'Export my lab results to a spreadsheet',
       name: 'Pat Example',
       email: 'pat@example.com',
@@ -43,7 +47,7 @@ describe('send_feature_request', () => {
 
   it('sends only the description when the user withholds who they are, with the placeholder email the Lambda requires', async () => {
     answer(200);
-    const result = await executeCapability(null, 'send_feature_request', { request: 'Track my steps' });
+    const result = await runFeatureRequestTool({ request: 'Track my steps' });
 
     expect(sent[0]!.body).toEqual({ site: FEATURE_REQUEST_SITE, request: 'Track my steps', email: ANONYMOUS_EMAIL });
     expect(result).toEqual({ sent: true, submitted: { request: 'Track my steps' } });
@@ -51,13 +55,13 @@ describe('send_feature_request', () => {
 
   it('refuses an empty description without sending anything', async () => {
     answer(200);
-    await expect(executeCapability(null, 'send_feature_request', { request: '  ' })).rejects.toThrow();
+    await expect(runFeatureRequestTool({ request: '  ' })).rejects.toThrow();
     expect(sent).toHaveLength(0);
   });
 
   it('keeps what was sent out of the error when the service refuses it', async () => {
     answer(400);
-    const err = await executeCapability(null, 'send_feature_request', {
+    const err = await runFeatureRequestTool({
       request: 'Track my steps',
       email: 'pat@example.com',
     }).catch((e: unknown) => e);

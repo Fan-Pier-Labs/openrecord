@@ -56,7 +56,9 @@ and `public` entry in [`shared/capabilities/`](../shared/capabilities/) to an ag
 non-stub `write` entry to a confirmation dialog. `account`-kind capabilities (passkeys, TOTP) are
 driven from the Settings screen instead. `src/lib/scrapers/session-manager.ts` executes them through
 `executeCapability`, handles login (passkey first, then password + 2FA) and keeps sessions alive.
-Add a capability to the registry and the app picks it up; don't hand-add a tool here.
+Add a capability to the registry and the app picks it up; don't hand-add a tool here. The two
+tools that are the app's own rather than MyChart's, `save_file` and `send_feature_request`, are the
+exception (`LOCAL_TOOLS`); the second is confirmed like a write.
 
 ### Skills, alerts and memory
 
