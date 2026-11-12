@@ -293,7 +293,7 @@ describe('navigation', () => {
   test("hands back to the chat only once something is connected", () => {
     expect(run([{ type: 'done' }], scanned)).toBe(scanned);
     const connected: State = { ...scanned, connected: [{ name: 'x', account: 'x@y.org', passkey: null }] };
-    expect(run([{ type: 'done' }], connected).step.kind).toBe('done');
+    expect(run([{ type: 'done' }], connected).step.kind).toBe('checkingAppointments');
     expect(stepTitle({ ...connected, connected: [...connected.connected, ...connected.connected] })).toBe('2 accounts connected');
   });
 
@@ -374,5 +374,45 @@ describe('copy', () => {
         'I chose not to set up a passkey for a@one.example.org, c@three.example.org right now, so do not offer one again. ' +
         'Access the accounts and tell me a summary of my current health history, status, appointments and bills.',
     );
+  });
+});
+
+describe('Google Calendar offer at the end of setup', () => {
+  const upcoming = (...statuses: string[]) => ({
+    visits: statuses.map((status, i) => ({ Csn: String(i), instantISO: '2026-12-01T15:00:00.000Z', PrimaryDate: '12/01/2026', status })),
+  });
+  const ready: State = { ...initialState, connected: [{ name: 'x', account: 'x@y.org', passkey: null }] };
+  const checked = (visits: unknown[], canSync = true, accounts: unknown = { calendarSync: { enabled: false } }) =>
+    run([{ type: 'done' }, { type: 'appointmentsChecked', visits, accounts, canSync }], ready);
+
+  test('"I\'m done" checks for appointments first', () => {
+    expect(run([{ type: 'done' }], ready).step).toEqual({ kind: 'checkingAppointments' });
+  });
+
+  test('offers to sync the appointments a sync would actually add', () => {
+    expect(checked([upcoming('scheduled', 'canceled'), upcoming('confirmed')]).step).toEqual({ kind: 'calendarOffer', count: 2, error: null });
+  });
+
+  test('finishes without an offer when there is nothing to sync, off a Mac, already syncing, or the read failed', () => {
+    expect(checked([upcoming('canceled')]).step.kind).toBe('done');
+    expect(checked([upcoming('scheduled')], false).step.kind).toBe('done');
+    expect(checked([upcoming('scheduled')], true, { calendarSync: { enabled: true } }).step.kind).toBe('done');
+    expect(checked(['Error: portal down']).step.kind).toBe('done');
+  });
+
+  test('a connected calendar finishes with its count; a failure stays on the offer with the error', () => {
+    const offer = checked([upcoming('scheduled')]);
+    const ok = reducer(offer, { type: 'calendarResult', result: { state: 'connected', synced: 1 } });
+    expect(ok.step.kind).toBe('done');
+    expect(ok.calendar).toEqual({ synced: 1 });
+    const failed = reducer(offer, { type: 'calendarResult', result: 'Error: Google Calendar access was not granted.' });
+    expect(failed.step).toEqual({ kind: 'calendarOffer', count: 1, error: 'Google Calendar access was not granted.' });
+    expect(reducer(offer, { type: 'skipCalendar' }).calendar).toBe('declined');
+  });
+
+  test('the done message says how the calendar offer went', () => {
+    const a = [{ account: 'a@b.org', passkey: 'saved' as const }];
+    expect(setupDoneMessage(a, 'declined')).toContain('I chose not to sync my appointments to Google Calendar, so do not offer that again.');
+    expect(setupDoneMessage(a, { synced: 3 })).toContain('3 upcoming appointment(s) are on my "MyChart Appointments" calendar');
   });
 });

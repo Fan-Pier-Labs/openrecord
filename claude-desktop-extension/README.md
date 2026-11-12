@@ -159,6 +159,107 @@ machine and have no counterpart in the other clients.
 > Send a message to Dr. Smith asking about my latest blood pressure reading.
 > Show me my last imaging study.
 
+### Google Calendar sync (macOS)
+
+`connect_google_calendar` puts every connected account's upcoming appointments on
+a Google calendar and keeps them there. The setup widget offers it after **I'm
+done** when the accounts have appointments to sync; otherwise ask Claude to
+"sync my appointments to Google Calendar".
+
+- **Scope.** The only Google scope requested is `calendar.app.created`: OpenRecord
+  creates a "MyChart Appointments" calendar and can see and change only that one.
+  It never reads the user's other calendars.
+- **All TypeScript, one binary.** `src/google-calendar/worker.ts` is compiled
+  with `bun build --compile --aot` into `openrecord-calendar`, one binary per Mac
+  architecture, using this extension's own scrapers, credential store and passkeys:
+  `tray` (the menu-bar item), `connect` (loopback + PKCE consent in the
+  browser), `sync` (one pass) and `disconnect`.
+- **The menu-bar item** (`tray.ts`) drives AppKit through `bun:ffi` (`objc.ts`).
+  `[NSApp run]` owns the main thread, and menu clicks, timers and wake
+  notifications call straight into JS, so the process sleeps in the run loop
+  while idle (0% CPU, about 80 MB). A sync runs as a child process of the same
+  binary, started with NSTask, and writes its outcome to the state file the menu
+  reads. It syncs when 4 hours have passed since the last sync, checking every
+  15 minutes and 30 seconds after a wake (once Wi-Fi is back), because a timer's
+  clock stops while the Mac sleeps.
+  Its icon is the medical cross (`cross.case`; macOS has no hospital symbol).
+  The menu lists the connected MyChart accounts and has Sync Now, Open Google
+  Calendar and Turn Off Calendar Sync.
+- **Signing in to MyChart.** A sync signs in with `machineLogin`
+  (`resolveSessionWithoutUser`), so it never makes MyChart send a 2FA code:
+  nobody is there to type one. An account that has only a password and hits
+  2FA fails with a hint to save a passkey. See
+  [`docs/login-modes.md`](../docs/login-modes.md).
+- **When a sync fails, three tries, then stop.** Any failure counts: a sign-in
+  MyChart refuses, a network error, Google, or a run that crashed or hit the
+  10-minute timeout. A failure is retried at the next four-hour sync. The third
+  failure in a row stops scheduled syncs, for that account or, when
+  the failure came before any account (Google, a crash), entirely. Repeated
+  rejected passwords can lock a MyChart account. Then macOS shows a
+  notification, once per stop (posted with `osascript`, since
+  `UNUserNotificationCenter` refuses a binary that isn't an app bundle), and the
+  menu says why. **Sync Now** retries everything with the count reset to zero, and so does
+  connecting again.
+- **Install.** The binaries are not in the `.mcpb`, which would be ~200 MB
+  bigger. `deploy.sh` uploads them beside it as
+  `https://openrecord.fanpierlabs.com/calendar/openrecord-calendar-darwin-<arch>-<sha256>`.
+  Content-addressed names make them immutable, so every released bundle keeps
+  finding its own. What ships is `applet/calendar-binaries.json`, the SHA-256 per
+  architecture. On first connect the tool downloads the matching binary and
+  installs it at `~/.openrecord-mcpb/bin/openrecord-calendar` only if the
+  download's hash matches. It downloads nothing when that binary is already
+  installed. A checkout that ran `build:applet` uses its local build instead.
+  It then runs `connect` and a first `sync`, and writes
+  `~/Library/LaunchAgents/com.fanpierlabs.openrecord.calendar.plist`
+  (`openrecord-calendar tray`) so it starts at login.
+- **Uninstall.** `disconnect_google_calendar` revokes the Google grant, then
+  unloads and deletes the LaunchAgent and the log. It keeps the binary in
+  `~/.openrecord-mcpb/bin`, so turning sync back on skips the download (delete it
+  to remove it completely). It also keeps the calendar ID, as Turn Off does.
+- **Updates.** When sync is on, the MCPB checks the installed binary's hash at
+  startup and installs this build's binary if they differ, restarting the
+  menu-bar app. An extension update therefore reaches it without a reconnect.
+- **Turning it off and on again.** Turn Off revokes the Google grant and drops
+  the token and sync status, but keeps the calendar ID in
+  `google-calendar.json`. Turning sync back on reuses that calendar: a fresh grant
+  can still reach a calendar the app created under a revoked one (checked
+  against real Google). A new calendar is made only if the user deleted the old
+  one. The ID matters because `calendar.app.created` can't list calendars, so a
+  lost ID can never be recovered and would leave a second "MyChart
+  Appointments" beside the first. `connect` also reuses a grant Google still
+  honours, and only asks for consent again on `invalid_grant`.
+- **What it writes.** The title is "Visit with <provider>" (or the clinic). The
+  location is the clinic and its address, "Video visit", or the organization.
+  The event lasts the visit's duration (30 minutes if MyChart gives none). The
+  description holds everything MyChart gives about the visit: visit type,
+  providers, reason, procedures, department and specialty, address, clinic
+  phone, arrival time and check-in place, copay, organization, the clinic's
+  instructions, and which MyChart login it came from.
+- **Keys and pruning.** Each event's id is derived from (account, CSN), so a
+  re-sync updates the same event; the CSN held across two fresh logins on one
+  real account. The id and the private property use a hash of the account
+  (`accountTag`). Future events whose visit is gone are deleted, but only
+  after that account's read succeeded. A failed read never empties the calendar.
+  An account removed from OpenRecord has its future events deleted on the next
+  sync. Canceled visits are left off.
+- **Keychain.** The binary stores the Google refresh token itself
+  (`google-calendar:refresh-token`, same `openrecord-mcpb` service). The MyChart
+  passwords and passkeys it reads were created by the MCPB, so the first
+  background sign-in raises macOS's "Always Allow" prompt for
+  `openrecord-calendar`. It's always signed with the Developer ID (the build
+  fails without one), so that approval survives updates.
+- **Build.** `bun run build:applet` (part of `bun run pack`, so packing needs a
+  Mac with the Developer ID) writes
+  `applet/openrecord-calendar-darwin-{arm64,x64}` (about 96 and 106 MB) and
+  `applet/calendar-binaries.json`. It bakes
+  in the Google "Desktop app" OAuth client from
+  `~/.config/fan-pier-labs/google-oauth-client.json`, which is never committed,
+  and refuses to build an architecture whose `@napi-rs/keyring` binding isn't
+  installed. Without that binding the binary would silently fall back to file
+  storage and never see the MCPB's keychain items. State lives in
+  `~/.openrecord-mcpb/google-calendar.json`, which `list_accounts` reports as
+  `calendarSync`.
+
 ### Imaging
 
 `download_imaging_study` returns each picture as an image content block, so

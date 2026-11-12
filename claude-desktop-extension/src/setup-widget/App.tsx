@@ -4,7 +4,7 @@ import { useEffect, useReducer, useState } from 'react';
 import { DECLINED_MESSAGE, DEMO_LOGIN, demoAccount, demoDoneMessage, initialState, reducer, setupDoneMessage, stepTitle, type FoundLogin } from './flow';
 import type { Host } from './host';
 import { Picker } from './Picker';
-import { Accounts, Choose, Connecting, Consent, Creds, Declined, DemoConnecting, Disclaimer, Done, Passkey, Start, TwoFa } from './steps';
+import { Accounts, CalendarOffer, CheckingAppointments, Choose, Connecting, Consent, Creds, Declined, DemoConnecting, Disclaimer, Done, Passkey, Start, TwoFa } from './steps';
 
 /**
  * Interactive setup widget, served as the ui://openrecord/setup MCP App. The
@@ -51,11 +51,26 @@ export function App({ host }: { host: Host }) {
     });
   };
 
-  const done = () => {
+  // The passkey and calendar offers have already been made here, so the
+  // message reports how they went rather than asking Claude to make them again.
+  const done = async () => {
     dispatch({ type: 'done' });
-    // The passkey offer has already been made here, so the message reports
-    // how it went rather than asking Claude to make it again.
-    finish(setupDoneMessage(state.connected));
+    // The sync runs from a macOS menu-bar app; elsewhere there is nothing to offer, so read no charts.
+    const canSync = navigator.userAgent.includes('Mac');
+    const [accounts, ...visits] = await Promise.all([
+      host.callTool('list_accounts', {}),
+      ...(canSync ? state.connected.map((c) => host.callTool('get_upcoming_visits', { account: c.account, mode: 'json' })) : []),
+    ]);
+    const next = reducer({ ...state, step: { kind: 'checkingAppointments' } }, { type: 'appointmentsChecked', visits, accounts, canSync });
+    dispatch({ type: 'appointmentsChecked', visits, accounts, canSync });
+    if (next.step.kind === 'done') finish(setupDoneMessage(state.connected));
+  };
+
+  const connectCalendar = async () => {
+    const result = await host.callTool('connect_google_calendar', {});
+    const next = reducer(state, { type: 'calendarResult', result });
+    dispatch({ type: 'calendarResult', result });
+    if (next.step.kind === 'done') finish(setupDoneMessage(state.connected, next.calendar));
   };
 
   const connectDemo = async () => {
@@ -104,7 +119,7 @@ export function App({ host }: { host: Host }) {
             onImport={goConsent}
             onManual={goPicker}
             onBack={back}
-            onDone={done}
+            onDone={() => void done()}
           />
         );
       case 'connecting':
@@ -148,8 +163,21 @@ export function App({ host }: { host: Host }) {
             }}
           />
         );
+      case 'checkingAppointments':
+        return <CheckingAppointments />;
+      case 'calendarOffer':
+        return (
+          <CalendarOffer
+            step={step}
+            onConnect={connectCalendar}
+            onSkip={() => {
+              dispatch({ type: 'skipCalendar' });
+              finish(setupDoneMessage(state.connected, 'declined'));
+            }}
+          />
+        );
       case 'done':
-        return <Done connected={state.connected} />;
+        return <Done connected={state.connected} calendar={state.calendar} />;
     }
   })();
 
