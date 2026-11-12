@@ -68,7 +68,13 @@ flowchart TD
     hub -- Import another<br/>while logins remain --> pick
     hub -- Import from your browser<br/>not searched yet --> consent
     hub -- Enter an account manually --> picker
-    hub -- "I'm done" --> done([One message to the chat:<br/>each account + its passkey outcome])
+    hub -- "I'm done" --> appts{{get_upcoming_visits<br/>per account}}
+    appts -- "none, not a Mac,<br/>or already syncing" --> done([One message to the chat:<br/>each account + its passkey<br/>and calendar outcome])
+    appts -- "N to sync" --> cal[Add N appointments<br/>to Google Calendar?]
+    cal -- "Sync" --> gcal{{connect_google_calendar}}
+    gcal -- connected --> done
+    gcal -- error --> cal
+    cal -- "No thanks" --> done
 ```
 
 ## Notes

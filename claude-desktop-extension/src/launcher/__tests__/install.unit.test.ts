@@ -20,21 +20,22 @@ function entries(dir: string): string[] {
 }
 
 describe('installPayload', () => {
-  it('installs a payload into its own folder', async () => {
+  it('installs a payload into its own folder, laid out like the install', async () => {
     const versionsDir = tempDir();
     serve(payload('2.5.0', '// server'));
     await install(versionsDir);
     expect(installState('2.5.0', versionsDir)).toBe('ready');
-    expect(fs.readFileSync(path.join(versionsDir, '2.5.0', 'server.cjs'), 'utf8')).toBe('// server');
+    expect(fs.readFileSync(path.join(versionsDir, '2.5.0', 'dist', 'server.cjs'), 'utf8')).toBe('// server');
+    expect(fs.existsSync(path.join(versionsDir, '2.5.0', 'applet', 'calendar-binaries.json'))).toBe(true);
     expect(entries(versionsDir)).toEqual(['2.5.0']);
   });
 
   it('refuses a file that does not match its hash', async () => {
     const versionsDir = tempDir();
     const site = payload('2.5.0');
-    site.set(`${BASE_URL}/2.5.0/server.cjs`, Buffer.from('// tampered'));
+    site.set(`${BASE_URL}/2.5.0/dist/server.cjs`, Buffer.from('// tampered'));
     serve(site);
-    await expect(install(versionsDir)).rejects.toThrow('server.cjs does not match its hash');
+    await expect(install(versionsDir)).rejects.toThrow('dist/server.cjs does not match its hash');
     expect(entries(versionsDir)).toEqual([]);
   });
 
@@ -58,12 +59,13 @@ describe('installPayload', () => {
 describe('parsePayloadManifest', () => {
   const sha = 'a'.repeat(64);
   it('rejects file names that could escape the version folder', () => {
-    for (const name of ['../server.cjs', '..', '.hidden', 'a/b', 'payload.json']) {
-      expect(parsePayloadManifest(JSON.stringify({ version: '1.0.0', launcherAbi: 1, files: { 'server.cjs': sha, [name]: sha } }))).toBeNull();
+    for (const name of ['../server.cjs', 'dist/../../x', '..', '.hidden', '/abs', 'a//b', 'payload.json']) {
+      expect(parsePayloadManifest(JSON.stringify({ version: '1.0.0', launcherAbi: 1, files: { 'dist/server.cjs': sha, [name]: sha } }))).toBeNull();
     }
   });
 
-  it('requires server.cjs', () => {
-    expect(parsePayloadManifest(JSON.stringify({ version: '1.0.0', launcherAbi: 1, files: { 'x.wasm': sha } }))).toBeNull();
+  it('accepts the install layout and requires dist/server.cjs', () => {
+    expect(parsePayloadManifest(JSON.stringify({ version: '1.0.0', launcherAbi: 1, files: { 'dist/server.cjs': sha, 'applet/calendar-binaries.json': sha } }))).not.toBeNull();
+    expect(parsePayloadManifest(JSON.stringify({ version: '1.0.0', launcherAbi: 1, files: { 'server.cjs': sha } }))).toBeNull();
   });
 });

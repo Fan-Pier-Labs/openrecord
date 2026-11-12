@@ -46,7 +46,7 @@ describe('checkForUpdate', () => {
     site.set(MANIFEST_URL, versionManifest('2.5.0'));
     serve(site);
     await check(versionsDir);
-    markBad({ version: '2.5.0', dir: path.join(versionsDir, '2.5.0'), bundled: false });
+    markBad({ version: '2.5.0', dir: path.join(versionsDir, '2.5.0', 'dist'), bundled: false });
     reportStartupFailure('2.5.0');
     await check(versionsDir);
     expect(installState('2.5.0', versionsDir)).toBe('bad');

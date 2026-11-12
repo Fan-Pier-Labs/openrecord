@@ -15,13 +15,18 @@ export function tempDir(): string {
 
 /** A payload for `version`, as `deploy.sh` would upload it: published path → bytes. */
 export function payload(version: string, serverSource = 'process.exit(0)'): Map<string, Buffer> {
-  const dist = tempDir();
-  fs.writeFileSync(path.join(dist, 'server.cjs'), serverSource);
-  fs.writeFileSync(path.join(dist, 'node-sqlite3-wasm.wasm'), Buffer.from([0, 97, 115, 109]));
+  const ext = tempDir();
+  fs.mkdirSync(path.join(ext, 'dist'));
+  fs.mkdirSync(path.join(ext, 'applet'));
+  fs.writeFileSync(path.join(ext, 'dist', 'server.cjs'), serverSource);
+  fs.writeFileSync(path.join(ext, 'dist', 'node-sqlite3-wasm.wasm'), Buffer.from([0, 97, 115, 109]));
+  fs.writeFileSync(path.join(ext, 'applet', 'calendar-binaries.json'), '{}');
   const out = tempDir();
-  buildPayload(dist, out, version);
+  buildPayload(ext, out, version);
   const site = new Map<string, Buffer>();
-  for (const name of fs.readdirSync(out)) site.set(`${BASE_URL}/${version}/${name}`, fs.readFileSync(path.join(out, name)));
+  for (const name of fs.readdirSync(out, { recursive: true, encoding: 'utf8' })) {
+    if (fs.statSync(path.join(out, name)).isFile()) site.set(`${BASE_URL}/${version}/${name}`, fs.readFileSync(path.join(out, name)));
+  }
   return site;
 }
 

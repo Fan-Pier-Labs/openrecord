@@ -54,6 +54,7 @@ export async function installPayload(
     for (const [name, expected] of Object.entries(manifest.files)) {
       const bytes = await download(base + name);
       if (sha256(bytes) !== expected) throw new Error(`payload ${version}: ${name} does not match its hash`);
+      fs.mkdirSync(path.dirname(path.join(staging, name)), { recursive: true });
       fs.writeFileSync(path.join(staging, name), bytes);
     }
     fs.writeFileSync(path.join(staging, PAYLOAD_MANIFEST), manifestBytes);

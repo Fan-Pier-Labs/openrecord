@@ -5,6 +5,7 @@
 #   1. installs dependencies
 #   2. refreshes the bundled MyChart directory list from Epic (a few minutes)
 #   3. packs openrecord.mcpb, unsigned, and boots the packed server (smoke.mjs)
+#   3b. uploads the Google Calendar binaries the bundle downloads on demand
 #   4. keeps the current live bundle as openrecord-<old version>.mcpb, then
 #      uploads the new one to the splash site's bucket and invalidates CloudFront
 #   5. checks the live download is byte-for-byte what was packed
@@ -88,6 +89,32 @@ echo "==> Building the server payload"
 PAYLOAD_DIR="$(mktemp -d)"
 trap 'rm -rf "$PAYLOAD_DIR"' EXIT
 ( cd "$EXT_DIR" && bun scripts/build-payload.ts "$PAYLOAD_DIR" )
+
+# The calendar binaries are too big to ship inside the bundle (~100 MB each),
+# so they go beside it under content-addressed names: immutable, never
+# invalidated, and every released bundle keeps finding the exact bytes whose
+# hash it carries. They go up and are checked before the bundle that needs them.
+HASHES="$EXT_DIR/applet/calendar-binaries.json"
+if [ ! -f "$HASHES" ]; then
+  echo "!! $HASHES is missing — pack did not build the calendar binaries" >&2
+  exit 1
+fi
+for ARCH in arm64 x64; do
+  HASH="$(node -p "require('$HASHES')['$ARCH']")"
+  NAME="openrecord-calendar-darwin-$ARCH-$HASH"
+  if ! "${AWS[@]}" s3 ls "s3://$BUCKET/calendar/$NAME" >/dev/null 2>&1; then
+    echo "==> Uploading s3://$BUCKET/calendar/$NAME"
+    "${AWS[@]}" s3 cp "$EXT_DIR/applet/openrecord-calendar-darwin-$ARCH" "s3://$BUCKET/calendar/$NAME" \
+      --content-type application/octet-stream \
+      --cache-control "public, max-age=31536000, immutable" \
+      --only-show-errors
+  fi
+  LIVE_HASH="$(curl -fsSL "https://openrecord.fanpierlabs.com/calendar/$NAME" | shasum -a 256 | cut -d' ' -f1)"
+  if [ "$LIVE_HASH" != "$HASH" ]; then
+    echo "!! https://openrecord.fanpierlabs.com/calendar/$NAME serves $LIVE_HASH, expected $HASH" >&2
+    exit 1
+  fi
+done
 
 # Only the first attempt at a release keeps a copy: on a re-run, what is live
 # may already be this release's bundle.

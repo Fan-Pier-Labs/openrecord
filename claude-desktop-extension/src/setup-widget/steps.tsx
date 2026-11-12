@@ -2,7 +2,7 @@
 
 import { useRef, useState, type KeyboardEvent } from 'react';
 import { BackLink, BusyButton, FieldError, InstanceHeader, RowText, Spinner } from './components';
-import { accountsView, FULL_DISK_ACCESS_STEPS, twoFaDeliveryLabel, type Connected, type CredsStep, type FoundLogin, type State, type Step } from './flow';
+import { accountsView, FULL_DISK_ACCESS_STEPS, twoFaDeliveryLabel, type CalendarOutcome, type Connected, type CredsStep, type FoundLogin, type State, type Step } from './flow';
 
 type StepOf<K extends Step['kind']> = Extract<Step, { kind: K }>;
 
@@ -344,7 +344,7 @@ export function Passkey({ step, onRegister, onSkip }: { step: StepOf<'passkey'>;
   );
 }
 
-export function Done({ connected }: { connected: Connected[] }) {
+export function Done({ connected, calendar }: { connected: Connected[]; calendar: CalendarOutcome }) {
   return (
     <div className="success-card">
       <div className="check-circle">
@@ -352,7 +352,45 @@ export function Done({ connected }: { connected: Connected[] }) {
       </div>
       <p className="success-title">Connected!</p>
       <p className="success-sub">{connected.map((c) => c.account).join(', ')}</p>
+      {calendar && calendar !== 'declined' && (
+        <p className="success-sub">{calendar.synced === 1 ? '1 appointment' : `${calendar.synced} appointments`} synced to Google Calendar</p>
+      )}
       <p className="success-hint">Press <kbd>Enter</kbd> in the chat to continue.</p>
+    </div>
+  );
+}
+
+export function CheckingAppointments() {
+  return (
+    <div className="step">
+      <div className="working"><Spinner /><span>Checking for upcoming appointments…</span></div>
+    </div>
+  );
+}
+
+/** Offered once at the end of setup, only when there is something to sync. */
+export function CalendarOffer({ step, onConnect, onSkip }: { step: StepOf<'calendarOffer'>; onConnect: () => Promise<void>; onSkip: () => void }) {
+  const [busy, run] = useBusy();
+  const appts = step.count === 1 ? '1 upcoming appointment' : `${step.count} upcoming appointments`;
+  return (
+    <div className="step">
+      <div className="passkey-card">
+        <p><strong>You have {appts}.</strong> Want them on your Google Calendar?</p>
+        <ul>
+          <li><strong>Its own calendar.</strong> OpenRecord adds a "MyChart Appointments" calendar and can only see and change that one, never your other calendars.</li>
+          <li><strong>Kept up to date.</strong> A small menu-bar app starts when you log in and syncs every 4 hours. New, moved and canceled appointments follow.</li>
+          <li><strong>Sign in with Google.</strong> Your browser opens Google's sign-in page. Finish there, then come back here.</li>
+        </ul>
+        <p className="passkey-note">All appointment details will be sent to Google Calendar. Turn it off any time from the menu-bar app.</p>
+      </div>
+      <div className="actions">
+        <BusyButton busy={busy} busyLabel="Waiting for Google sign-in…" autoFocus onClick={() => void run(onConnect)}>
+          {step.error ? 'Try again' : 'Sync to Google Calendar'}
+        </BusyButton>
+        <button className="link-btn" type="button" disabled={busy} onClick={onSkip}>No thanks</button>
+        {busy && <p className="step-sub">Finish signing in to Google in the browser tab that opened.</p>}
+        <FieldError message={step.error} />
+      </div>
     </div>
   );
 }

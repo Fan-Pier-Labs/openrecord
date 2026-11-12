@@ -9,11 +9,11 @@ import { tempDir } from './fixtures';
 const BUNDLED: Payload = { version: '2.4.0', dir: '/install/dist', bundled: true };
 
 function downloaded(versionsDir: string, version: string, launcherAbi = LAUNCHER_ABI): Payload {
-  const dir = path.join(versionsDir, version);
-  fs.mkdirSync(dir, { recursive: true });
-  const files = { 'server.cjs': 'a'.repeat(64) };
-  fs.writeFileSync(path.join(dir, 'payload.json'), JSON.stringify({ version, launcherAbi, files }));
-  return { version, dir, bundled: false };
+  const root = path.join(versionsDir, version);
+  fs.mkdirSync(path.join(root, 'dist'), { recursive: true });
+  const files = { 'dist/server.cjs': 'a'.repeat(64) };
+  fs.writeFileSync(path.join(root, 'payload.json'), JSON.stringify({ version, launcherAbi, files }));
+  return { version, dir: path.join(root, 'dist'), bundled: false };
 }
 
 describe('payloadOrder', () => {
@@ -21,7 +21,10 @@ describe('payloadOrder', () => {
     const versionsDir = tempDir();
     downloaded(versionsDir, '2.5.0');
     downloaded(versionsDir, '2.10.0');
-    expect(payloadOrder(BUNDLED, versionsDir).map((p) => p.version)).toEqual(['2.10.0', '2.5.0', '2.4.0']);
+    const order = payloadOrder(BUNDLED, versionsDir);
+    expect(order.map((p) => p.version)).toEqual(['2.10.0', '2.5.0', '2.4.0']);
+    // The server runs from dist/, so its `__dirname/..` lookups land in the payload as they do in the install.
+    expect(order[0]!.dir).toBe(path.join(versionsDir, '2.10.0', 'dist'));
   });
 
   it('skips downloads that are older, marked bad, incomplete, or need a newer launcher', () => {
