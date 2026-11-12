@@ -216,6 +216,13 @@ description.
 | `list_proxy_targets`<br><sub>alias: `list_patients`, `get_active_patient`</sub> | List every patient record this MyChart account can access — the account holder plus any family members reachable via proxy access (a parent viewing a child's chart) — and which one is currently active. | — | `listProxyTargets()` |
 | `switch_proxy_target`<br>**writes**<br><sub>alias: `switch_patient`</sub> | Switch which patient's record MyChart has active. Changes server-side state: every later read on the account returns the new record. Verified against the profile page. | `patient` | `switchToPatient(name)` |
 
+### Settings
+
+| Capability | What it does | Arguments | `MyChartClient` method |
+| --- | --- | --- | --- |
+| `get_notification_preferences`<br>_less used_ | Which notifications this MyChart sends and on which channels (email, text, push, phone, mail), topic by topic, as this health system arranges them — including the ones locked on — plus the email and mobile number they go to. | — | `getNotificationPreferences()` |
+| `get_account_settings`<br>_less used_ | Paperless enrollment (statements, EOBs, invoices, after-visit summaries), when new test results are released, two-step verification and password age, text-message consent, and whether the record is shared through Care Everywhere. | — | `getAccountSettings()` |
+
 ### Account security
 
 | Capability | What it does | Arguments | `MyChartClient` method |

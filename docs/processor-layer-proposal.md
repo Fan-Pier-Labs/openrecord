@@ -241,6 +241,8 @@ of each of the two), with the drop reasons from §2.
 | `get_ehi_export` | [`scrapers/myChart/chart/ehiExport/README.md`](../scrapers/myChart/chart/ehiExport/README.md) |
 | `get_linked_accounts` | [`scrapers/myChart/chart/otherMyCharts/README.md`](../scrapers/myChart/chart/otherMyCharts/README.md) |
 | `get_emergency_contacts` | [`scrapers/myChart/chart/emergencyContacts/README.md`](../scrapers/myChart/chart/emergencyContacts/README.md) |
+| `get_notification_preferences` | [`scrapers/myChart/chart/notificationPreferences/README.md`](../scrapers/myChart/chart/notificationPreferences/README.md) |
+| `get_account_settings` | [`scrapers/myChart/chart/accountSettings/README.md`](../scrapers/myChart/chart/accountSettings/README.md) |
 | `list_proxy_targets` | [`scrapers/myChart/proxy/README.md`](../scrapers/myChart/proxy/README.md) |
 | `lookup_npi`, `search_npi_registry` | [`scrapers/npi/README.md`](../scrapers/npi/README.md) |
 

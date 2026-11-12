@@ -294,6 +294,13 @@ and count limits are checked before anything is sent.
 | `updateEmergencyContact({ id, name?, relationshipType?, phoneNumber? })` | `{ success, error? }` | `update_emergency_contact` |
 | `removeEmergencyContact(id)` | `{ success, error? }` | `remove_emergency_contact` |
 
+**Settings**
+
+| Method | Returns | Capability |
+| --- | --- | --- |
+| `getNotificationPreferences()` | `NotificationPreferencesStandard` | `get_notification_preferences` |
+| `getAccountSettings()` | `AccountSettingsStandard` | `get_account_settings` |
+
 There is no refill method. Refill requests are declared but not implemented, because the request
 has never been confirmed to reach a real pharmacy. See the [changelog](../CHANGELOG.md).
 
@@ -457,7 +464,7 @@ const meds = await getMedications(req);
 | Passkeys | `setupPasskey`, `listPasskeys`, `deletePasskey`, `serializeCredential`, `deserializeCredential` |
 | TOTP | `setupTotp`, `disableTotp`, `generateTotpCode(secret, timestamp?)`, `parseTotpUri(uri)` |
 | Profile and proxy | `getMyChartProfile`, `getProfile`, `getEmail`, `discoverProxyTargets`, `switchProxyTarget`, `verifyActiveProxyTarget`, `compareProfileNames` |
-| Chart reads | `getHealthSummary`, `getVitals`, `getMedications`, `getAllergies`, `getHealthIssues`, `getMedicalHistory`, `getImmunizations`, `listLabResults`, `getImagingResults`, `upcomingVisits`, `pastVisits`, `getVisitNotes`, `getNoteContent`, `getVisitAVS`, `getBillingHistory`, `getCareTeam`, `getReferrals`, `getInsurance`, `getInsuranceBenefits`, `getInsurancePayers`, `getDocuments`, `getGoals`, `getCareJourneys`, `getUpcomingOrders`, `getPreventiveCare`, `getEducationMaterials`, `getQuestionnaires`, `getActivityFeed`, `getLetters`, `getLetterDetails`, `getEmergencyContacts`, `getLinkedMyChartAccounts`, `getEhiExportTemplates` |
+| Chart reads | `getHealthSummary`, `getVitals`, `getMedications`, `getAllergies`, `getHealthIssues`, `getMedicalHistory`, `getImmunizations`, `listLabResults`, `getImagingResults`, `upcomingVisits`, `pastVisits`, `getVisitNotes`, `getNoteContent`, `getVisitAVS`, `getBillingHistory`, `getCareTeam`, `getReferrals`, `getInsurance`, `getInsuranceBenefits`, `getInsurancePayers`, `getDocuments`, `getGoals`, `getCareJourneys`, `getUpcomingOrders`, `getPreventiveCare`, `getEducationMaterials`, `getQuestionnaires`, `getActivityFeed`, `getLetters`, `getLetterDetails`, `getEmergencyContacts`, `getNotificationPreferences`, `getAccountSettings`, `getLinkedMyChartAccounts`, `getEhiExportTemplates` |
 | Messages | `listConversations`, `getConversationMessages`, `downloadMessageAttachment`, `getVerificationToken`, `getMessageRecipients`, `getMessageTopics`, `listMessageRecipients`, `listMessageTopics`, `sendNewMessage`, `sendReply`, `deleteMessage` |
 | Files | `downloadBillingStatement`, `downloadImagingStudyDirect` |
 | Writes | `addEmergencyContact`, `updateEmergencyContact`, `removeEmergencyContact` |
@@ -514,7 +521,7 @@ const output = await executeCapability(client.request, call.name, { ...call.args
 | --- | --- |
 | `CAPABILITIES`, `CAPABILITY_IDS` | Every capability, in registry order |
 | `AGENT_CAPABILITIES` | Everything except account-settings ones, i.e. what's safe to offer a model |
-| `PUBLIC_CAPABILITIES`, `PUBLIC_CAPABILITY_IDS` | The account-free lookups |
+| `PUBLIC_CAPABILITIES`, `PUBLIC_CAPABILITY_IDS` | The account-free lookups. Reads only |
 | `WRITE_CAPABILITY_IDS` | Capabilities that change the record. Confirm these with a human |
 | `getCapability(idOrAlias)`, `capabilitiesByGroup(list?)`, `describeCapability(c)` | Lookups and help text |
 | `executeCapability(request \| null, id, args, ctx?)` | The single dispatch path, including the active-patient check. `null` request is for public ones |
