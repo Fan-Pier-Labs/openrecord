@@ -48,6 +48,7 @@ describe('connect_google_calendar', () => {
     expect(reply.state).toBe('needs_confirmation')
     expect(reply.message_for_user).toStartWith('Want to install the OpenRecord Google Calendar Sync applet?\n\n')
     expect(reply.message_for_user).toContain('connected MyChart accounts (homer@mychart.example.org, marge@other.example.org)')
+    expect(reply.message_for_user).toContain('with all of their details including the reason for each visit')
     expect(reply.message).toContain('exactly as written')
     expect(reply.message).toContain('confirmed_with_user: true')
     expect(connects).toBe(0)

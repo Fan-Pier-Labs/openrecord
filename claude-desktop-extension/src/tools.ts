@@ -1060,6 +1060,7 @@ export function registerAllTools(rawServer: McpServer): void {
     {
       description:
         "Sync the user's upcoming MyChart appointments (every connected account) to their Google Calendar, and keep them in sync every 4 hours. macOS only. " +
+        'All appointment details will be sent to Google Calendar. ' +
         'Only call this when the user has asked for it. Call it first without confirmed_with_user: that changes nothing and returns what setup involves, ' +
         'to explain to the user. Call it again with confirmed_with_user: true only after the user has agreed.',
       inputSchema: {
@@ -1082,7 +1083,8 @@ export function registerAllTools(rawServer: McpServer): void {
             state: 'needs_confirmation',
             message_for_user:
               'Want to install the OpenRecord Google Calendar Sync applet?\n\n' +
-              `This applet copies all of your upcoming appointments from all of your connected MyChart accounts (${accounts.join(', ')}) ` +
+              'This applet copies all of your upcoming appointments, with all of their details including the reason for each visit, ' +
+              `from all of your connected MyChart accounts (${accounts.join(', ')}) ` +
               'to a new "MyChart Appointments" calendar in your Google Calendar. It only touches this new calendar. ' +
               'This applet will sit in your macOS status bar, launch at login, and sync appointments every 4 hours. ' +
               'Setup will download the 100 MB applet and trigger permission prompts (macOS and Google sign-in).',
