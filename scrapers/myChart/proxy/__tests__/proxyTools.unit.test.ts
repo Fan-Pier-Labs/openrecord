@@ -8,7 +8,7 @@ import {
   runSwitchProxyTarget,
 } from '../proxyTools'
 import type { RequestConfig } from '../../core/types'
-import { CAPABILITIES, executeCapability } from '../../../../shared/capabilities'
+import { CAPABILITIES, executeCapability, isPublicCapability } from '../../../../shared/capabilities'
 import { resetLogSink, silenceLogger } from '../../../../shared/logger'
 
 beforeAll(() => {
@@ -364,7 +364,7 @@ describe('executeCapability applies the guard to every capability', () => {
     (c) =>
       c.group !== 'Patients' &&
       c.kind !== 'account' &&
-      c.kind !== 'public' &&
+      !isPublicCapability(c) &&
       // A capability with no scraper never reaches the guard, because it never
       // reaches a chart — see the test below, which asserts exactly that.
       !c.notImplemented,

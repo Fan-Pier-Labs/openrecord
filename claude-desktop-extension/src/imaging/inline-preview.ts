@@ -18,7 +18,7 @@
  * .mcpb bundle.
  */
 import jpegJs from 'jpeg-js';
-import Pica from 'pica';
+import createPica from 'pica';
 import { grayscaleToRgba } from '../../../scrapers/myChart/clo-image-parser/exporters/to_jpg_purejs';
 import type { DecodedImage, DecodedStudy, StudyJpeg } from './download-study';
 
@@ -34,7 +34,7 @@ const PREVIEW_QUALITY = 85;
 const EDGE_LADDER = [1400, 1200, 1024, 800, 640, 512, 400];
 
 // No canvas, no workers: this runs in a stdio server process.
-const pica = new Pica({ features: ['js', 'wasm'] });
+const pica = createPica({ features: ['js', 'wasm'] });
 
 export interface InlinePreviews {
   images: StudyJpeg[];

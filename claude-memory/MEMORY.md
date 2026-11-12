@@ -66,6 +66,10 @@ scraper.
   never ran tsc hid this. Root tsconfig now: `module: "preserve"`,
   `moduleResolution: "bundler"`, `target: "es2022"`, `types: ["bun", "node"]`
   (without the explicit `types`, `bun:test` fails to resolve), full `strict`.
+- An iOS app built with the iOS 27 SDK must use the UIScene lifecycle or it is killed at
+  launch (SIGTRAP in `_UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption`). Expo SDK 58's
+  template adopts it (`ExpoAppSceneDelegate`); SDK 57's does not. iOS 26 simulators don't enforce
+  it, so it only shows on an iOS 27 device.
 - Expo SDK 57 removed top-level `splash` (now the `expo-splash-screen` plugin),
   `newArchEnabled`, and `android.edgeToEdgeEnabled` from `ExpoConfig`.
 - React Native (expo-app's version) removed `StyleSheet.absoluteFillObject` at

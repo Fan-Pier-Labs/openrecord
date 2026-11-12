@@ -613,8 +613,8 @@ It installs, refreshes `scrapers/list-all-mycharts/mychart-instances.json` from 
 directory (a few minutes' crawl), packs, boots the packed server (`smoke.mjs`), copies the live
 bundle to `openrecord-<old version>.mcpb`, builds the server payload, uploads to
 `https://openrecord.fanpierlabs.com/openrecord.mcpb` (the splash page's Claude Desktop
-button), invalidates CloudFront, checks the live file matches what was packed, uploads the payload to
-`mcpb-payload/<version>/`, then runs
+button), invalidates CloudFront, checks the live file matches what was packed, publishes it as the GitHub Release
+`mcpb-v<version>` (needs `gh` signed in), uploads the payload to `mcpb-payload/<version>/`, then runs
 `openrecord-splash/deploy.sh` to publish `mcpb_version.json`. That manifest also carries the
 `mychart-cli` version, so publish a bumped CLI to npm before running it. It refuses a version
 `mcpb_version.json` already advertises, and if the live check fails it prints the command that

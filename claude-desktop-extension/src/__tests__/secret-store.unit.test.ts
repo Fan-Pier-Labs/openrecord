@@ -323,6 +323,26 @@ describe('degrading to the file', () => {
     expect(keyring.items.size).toBe(0)
   })
 
+  it('keeps the keystore after one unreadable item, so other accounts are still found', () => {
+    const keyring = useKeystore()
+    keyring.breakIt()
+    expect(secrets.readSecret('k', slot())).toBeUndefined()
+    expect(secrets.activeBackend()).not.toBe('file')
+  })
+
+  it('still serves a plaintext copy when the keystore read fails', () => {
+    const keyring = useKeystore()
+    keyring.breakIt()
+    expect(secrets.readSecret('k', slot('from-file'))).toBe('from-file')
+  })
+
+  it('fails loudly on an unreadable item in strict os mode', () => {
+    const keyring = useKeystore()
+    process.env.OPENRECORD_SECRET_BACKEND = 'os'
+    keyring.breakIt()
+    expect(() => secrets.readSecret('k', slot())).toThrow()
+  })
+
   it('fails loudly instead of writing plaintext in strict os mode', () => {
     const keyring = useKeystore()
     process.env.OPENRECORD_SECRET_BACKEND = 'os'

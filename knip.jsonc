@@ -97,8 +97,7 @@
       // Provided by the AWS Lambda Node runtime, imported lazily.
       "ignoreDependencies": ["@aws-sdk/client-dynamodb"]
     },
-    "openrecord-splash/demo": {
-      "entry": ["src/main.tsx"]
-    }
+    // Its entry, src/main.tsx, is found through demo.html by knip's Vite plugin.
+    "openrecord-splash/demo": {}
   }
 }

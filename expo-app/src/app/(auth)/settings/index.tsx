@@ -25,7 +25,7 @@ import { deleteMemoryForAccount } from "@/lib/storage/database";
 import { getBackendSession, type BackendUser } from "@/lib/backend/session";
 import { signInWithGoogle, signOutFromGoogle } from "@/lib/backend/google-signin";
 import { backendFetch } from "@/lib/backend/client";
-import { executeAccountCapability } from "@/lib/scrapers/session-manager";
+import { disconnectAccount, executeAccountCapability } from "@/lib/scrapers/session-manager";
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -97,6 +97,7 @@ export default function SettingsScreen() {
           onPress: () => {
             void (async () => {
               await removeMyChartAccount(account.id);
+              disconnectAccount(account.id);
               await deleteMemoryForAccount(account.id);
               await loadSettings();
             })();

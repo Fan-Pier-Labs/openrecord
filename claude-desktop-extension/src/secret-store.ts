@@ -191,7 +191,11 @@ export function readSecret(key: string, slot: FileSlot): string | undefined {
       if (found !== null) return found;
     } catch (err) {
       if (mode() === 'os') throw err;
-      demote('read', err);
+      // @napi-rs/keyring 2 throws where 1 returned null: a locked keychain, or
+      // access to this one item denied. That is not a broken keystore — the
+      // other accounts' items may still be readable — so this read falls back
+      // to the file without demoting the backend for the whole process.
+      console.error(`[openrecord] could not read a secret from the OS keystore (${(err as Error).message})`);
     }
   }
 

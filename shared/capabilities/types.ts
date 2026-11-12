@@ -18,7 +18,11 @@ import type { FilePayload } from '../../scrapers/myChart/core/filePayload';
 export type CapabilityKind =
   /** Reads chart data. Safe to batch and to run without confirmation. */
   | 'read'
-  /** Mutates the patient's MyChart record (sends, deletes, submits). */
+  /**
+   * Mutates the patient's MyChart record (sends, deletes, submits) — or, with
+   * {@link Capability.accountFree}, sends something off the device that no
+   * account owns. Every client confirmation-gates a write.
+   */
   | 'write'
   /**
    * Changes the credentials or 2FA configuration of the MyChart account
@@ -38,7 +42,8 @@ export type CapabilityKind =
    * rather than by review.
    *
    * Read-shaped in every other respect: clients annotate these read-only and
-   * offer them to a model, without an `account` parameter to fill in.
+   * offer them to a model, without an `account` parameter to fill in. A write
+   * that needs no account is a `write` with {@link Capability.accountFree}.
    */
   | 'public';
 
@@ -127,6 +132,17 @@ export interface Capability {
    * assembled — so every client shows it without any client-side wiring.
    */
   notImplemented?: string;
+  /**
+   * A `write` that needs no MyChart account — it sends something to us, not to
+   * MyChart. Runs like a `public` capability (no `account`, no session, no
+   * patient; see `isPublicCapability`) but is gated like every other write.
+   */
+  accountFree?: true;
+  /**
+   * Offered only where a model talks to the user — the Claude Desktop extension
+   * and the mobile app. The CLI and the npm library leave it out.
+   */
+  modelOnly?: true;
   params: readonly CapabilityParam[];
   /**
    * True when the payload contains binary image data that each client has to
@@ -177,6 +193,7 @@ interface AccountCapabilityImpl extends Capability {
   kind: 'read' | 'write' | 'account';
   /** Discriminates this from {@link UnimplementedCapabilityImpl}: it has a `run`. */
   notImplemented?: never;
+  accountFree?: never;
   run: (request: MyChartRequest, args: CapabilityArgs, ctx?: CapabilityContext) => Promise<unknown>;
   /**
    * For read capabilities: `run` returns the scraper's {@link RawResponse}
@@ -211,6 +228,18 @@ interface PublicCapabilityImpl extends Capability {
 }
 
 /**
+ * A `write` with {@link Capability.accountFree}: like {@link PublicCapabilityImpl},
+ * `run` takes arguments and nothing else, so it cannot reach a chart.
+ */
+interface AccountFreeWriteCapabilityImpl extends Capability {
+  kind: 'write';
+  accountFree: true;
+  notImplemented?: never;
+  run: (args: CapabilityArgs) => Promise<unknown>;
+  processor?: never;
+}
+
+/**
  * A capability the registry declares and deliberately does not implement.
  *
  * `run?: never` is the enforcement: a capability whose behaviour we have never
@@ -223,8 +252,13 @@ interface PublicCapabilityImpl extends Capability {
 interface UnimplementedCapabilityImpl extends Capability {
   kind: 'read' | 'write';
   notImplemented: string;
+  accountFree?: never;
   run?: never;
   processor?: never;
 }
 
-export type CapabilityImpl = AccountCapabilityImpl | PublicCapabilityImpl | UnimplementedCapabilityImpl;
+export type CapabilityImpl =
+  | AccountCapabilityImpl
+  | PublicCapabilityImpl
+  | AccountFreeWriteCapabilityImpl
+  | UnimplementedCapabilityImpl;

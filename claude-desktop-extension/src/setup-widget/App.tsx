@@ -67,7 +67,8 @@ export function App({ host }: { host: Host }) {
   };
 
   const connectCalendar = async () => {
-    const result = await host.callTool('connect_google_calendar', {});
+    // Clicking "Sync to Google Calendar" on the offer, which explains setup, is the user's go-ahead.
+    const result = await host.callTool('connect_google_calendar', { confirmed_with_user: true });
     const next = reducer(state, { type: 'calendarResult', result });
     dispatch({ type: 'calendarResult', result });
     if (next.step.kind === 'done') finish(setupDoneMessage(state.connected, next.calendar));

@@ -126,13 +126,32 @@ export const WRITE_TOOLS: ReadonlySet<string> = new Set(Object.keys(WRITE_TOOL_M
 
 export const RESPOND_TOOL = "respond";
 
+export const SAVE_FILE_TOOL = "save_file";
+
+/**
+ * Tools this app runs itself rather than through the registry — the mobile
+ * side of the desktop extension's own `save_file`. Kept out of TOOLS, which
+ * mirrors the registry exactly.
+ */
+const LOCAL_TOOLS: ToolSpec[] = [
+  {
+    name: SAVE_FILE_TOOL,
+    description:
+      "Save text you have written as a file the user can keep — use it when the user asks to export, download or save something: a summary of their records, a CSV of lab results, a medication list, a timeline. Gather the data with the other tools first, then write the whole file content here. Any text format works (.md, .csv, .txt, .json, .html); without an extension the file is saved as Markdown. Returns { file_id } — put [file:FILE_ID] on its own line in your reply and the app shows a button that opens the share sheet (Save to Files, AirDrop, Mail).",
+    args: {
+      file_name: argHint("string", true, 'File name with extension, e.g. "lab-history.csv". No folders.'),
+      content: argHint("string", true, "The complete file content."),
+    },
+  },
+];
+
 export function isExclusiveTool(name: string): boolean {
   return name === RESPOND_TOOL || WRITE_TOOLS.has(name);
 }
 
 /** The `- name(args) — description` block that goes into the system prompt. */
 export function renderToolList(): string {
-  return TOOLS.map(
+  return [...TOOLS, ...LOCAL_TOOLS].map(
     (t) => `- ${t.name}(${Object.keys(t.args).join(", ")}) — ${t.description}`,
   ).join("\n");
 }

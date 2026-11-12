@@ -39,6 +39,8 @@ with Vite. On S3 + CloudFront, following the standard Fan Pier Labs static-site 
   immutable cache; the HTML and fixed-name assets are invalidated.
 - Splash is presentational — no auth. Waitlist form posts to the shared `fanpierlabs-forms` Lambda
   (`https://ns8remz3t7.execute-api.us-east-2.amazonaws.com`), which is not in this repo.
+  The `send_feature_request` capability (`shared/featureRequest.ts`) posts there too, as
+  `site: "openrecord-feature-request"`.
 - **The demo lives at `/demo.html`, not `/demo`** — the default root object only applies to `/`, and
   the 403/404 → `/index.html` error handling would otherwise quietly serve the splash.
 - **The splash deliberately does not link to the demo, until the demo is golden.** `/demo.html`

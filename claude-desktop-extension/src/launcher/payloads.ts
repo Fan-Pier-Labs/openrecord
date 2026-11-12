@@ -121,7 +121,7 @@ export function markBad(payload: Payload): void {
  * day ago. Bad versions stay: the marker is what stops them being fetched again.
  */
 export function pruneVersions(keep: string[], versionsDir: string = VERSIONS_DIR): void {
-  let names: string[] = [];
+  let names: string[];
   try {
     names = fs.readdirSync(versionsDir);
   } catch {
