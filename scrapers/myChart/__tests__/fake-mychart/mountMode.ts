@@ -109,11 +109,15 @@ export async function setRequireTerms(host: string, requireTerms: boolean): Prom
 /**
  * Which endpoints the fake answers with its server-error surface instead of
  * their data (`fake-mychart/src/lib/outage.ts`). Paths are below the mount;
+ * a `{ path, contains }` entry fails only the requests carrying that text;
  * `[]` restores everything. Global like the rest, so a suite that sets it
  * clears it in `afterAll` — a neighbour reading allergies afterwards would
  * otherwise be told the instance is down.
  */
-export async function setFailingEndpoints(host: string, failingEndpoints: string[]): Promise<void> {
+export async function setFailingEndpoints(
+  host: string,
+  failingEndpoints: Array<string | { path: string; contains: string }>,
+): Promise<void> {
   const res = await fetch(`http://${host}/mode`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -123,7 +127,11 @@ export async function setFailingEndpoints(host: string, failingEndpoints: string
     throw new Error(`Failed to set failingEndpoints on ${host}: ${res.status} ${await res.text()}`);
   }
   const body = await res.json();
-  const expected = failingEndpoints.map((p) => p.replace(/^\/+/, '').toLowerCase()).sort();
+  const normalize = (p: string) => p.replace(/^\/+/, '').toLowerCase();
+  const expected = [
+    ...failingEndpoints.filter((e): e is string => typeof e === 'string').map(normalize).sort(),
+    ...failingEndpoints.filter((e) => typeof e !== 'string').map((e) => ({ path: normalize(e.path), contains: e.contains })),
+  ];
   if (JSON.stringify(body.failingEndpoints) !== JSON.stringify(expected)) {
     throw new Error(`Server reported failingEndpoints ${JSON.stringify(body.failingEndpoints)} after asking for ${JSON.stringify(expected)}`);
   }
