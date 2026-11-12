@@ -92,9 +92,11 @@ export const notificationPreferencesProcessor: Processor<NotificationPreferences
         title: textOrNull(c.title),
         description: textOrNull(c.description),
         medias: conceptMedias,
+        // Concise carries only this, so a state the table doesn't know stays listed — labelled,
+        // because it isn't known to be on either — rather than reading as off.
         channelsOn: conceptMedias
-          .filter((m) => m.status !== 'Off' && m.status !== null)
-          .map((m) => m.channel ?? `type ${m.type}`),
+          .filter((m) => m.status !== 'Off')
+          .map((m) => (m.channel ?? `type ${m.type}`) + (m.status === null ? ` (toggleStatus ${m.toggleStatus})` : '')),
         requiredForPaperlessBilling: paperlessRequired.has(id),
         additionalItemSection: sectionId && sectionId in sections ? section(sections[sectionId]) : null,
       };

@@ -45,7 +45,11 @@ every request above answered 200 with `{}` on all five.
   `toggleStatus` is a number — `0` Off, `1` On, `3` LockedOn. LockedOn is on and
   cannot be turned off (account-security topics, typically). Every code seen on
   the five instances is in those tables. An unknown code keeps its raw value and
-  decodes to `null` rather than vanishing.
+  decodes to `null` rather than vanishing, and its channel stays in `channelsOn`:
+  an unknown `type` as `type 7`, an unknown `toggleStatus` as
+  `Email (toggleStatus 2)` — listed because unknown is not off, labelled because
+  it is not known to be on. `2` is not in the bundle's table: module 546 maps
+  exactly `0`, `1` and `3`, re-read on five instances (one byte-identical bundle).
 - **`userAcceptsSms` gates every Text toggle.** A topic can show Text on while
   the patient has never agreed to texts; the UI disables the toggle then.
   `smsFlagOn` is whether the org sends texts at all.
@@ -88,7 +92,7 @@ field is in or out of each of the two).
 | `groupers[].concepts[].description` | Topic description | — | ✓ | — | Detail. |
 | `groupers[].concepts[].medias[].type`, `.toggleStatus` | Raw channel and state codes | — | ✓ | — | Kept beside their decodes; detail. |
 | `groupers[].concepts[].medias[].channel`, `.status` | Decoded channel and state | ✓ | ✓ | — | Readable form of the codes. |
-| `groupers[].concepts[].channelsOn` | Channels whose status is On or LockedOn | ✓ | ✓ | ✓ | The one answer per topic a person asks for. |
+| `groupers[].concepts[].channelsOn` | Channels whose status is not Off: On, LockedOn, or an unrecognised `toggleStatus` named as `Email (toggleStatus 2)` | ✓ | ✓ | ✓ | The one answer per topic a person asks for; concise has no other field to show an unknown state in. |
 | `groupers[].concepts[].requiredForPaperlessBilling` | Topic is in `paperlessBillingRequiredConcepts` | ✓ | ✓ | — | Explains why a topic can't be turned off; detail. |
 | `groupers[].concepts[].additionalItemSection` | `sectionType`, `sectionDescription`, `options[]` (`description`, `selected`) | ✓ | ✓ | — | Sub-options, resolved from the option maps; detail. |
 | `smsFlagOn` | Org sends texts | — | ✓ | — | Detail. |
