@@ -1,6 +1,8 @@
 // Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
 
 import { scraperFetch } from '../scrapers/http';
+import { optStr, requireStr } from './capabilities/args';
+import type { CapabilityParam } from './capabilities/types';
 import { DetailedError } from './detailedError';
 
 /**
@@ -73,4 +75,50 @@ export async function sendFeatureRequest(
     );
   }
   return { sent: true, submitted };
+}
+
+/**
+ * The model-facing tool. The Claude Desktop extension and the mobile app each
+ * register it by hand, behind their own confirmation. Deliberately not a
+ * capability: the npm package exports the registry for consumers to map onto
+ * their own model's tools, and this one emails us.
+ */
+export const FEATURE_REQUEST_TOOL: {
+  name: string;
+  title: string;
+  description: string;
+  params: readonly CapabilityParam[];
+} = {
+  name: 'send_feature_request',
+  title: 'Send a feature request',
+  // Short on purpose: the mobile confirmation dialog shows this to the user.
+  // How to offer it lives in the MCPB server instructions and the mobile
+  // system prompt.
+  description:
+    "Email the OpenRecord developers what the user wanted to do that OpenRecord can't do yet, with their name, email and health system if they chose to include them.",
+  params: [
+    {
+      name: 'request',
+      type: 'string',
+      description: 'A few sentences on what the user was trying to do and what they would want OpenRecord to do.',
+      required: true,
+    },
+    { name: 'name', type: 'string', description: "The user's name. Omit to send without it." },
+    { name: 'email', type: 'string', description: "The user's email, so the developers can reply. Omit to send without it." },
+    {
+      name: 'hospital',
+      type: 'string',
+      description: 'Their health system, or its MyChart hostname. Omit to send without it.',
+    },
+  ],
+};
+
+/** Runs the tool from the untyped arguments a model emits. */
+export async function runFeatureRequestTool(args: Record<string, unknown>): Promise<FeatureRequestResult> {
+  return sendFeatureRequest({
+    request: requireStr(args, 'request'),
+    name: optStr(args, 'name'),
+    email: optStr(args, 'email'),
+    hospital: optStr(args, 'hospital'),
+  });
 }

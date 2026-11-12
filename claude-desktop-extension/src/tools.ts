@@ -103,6 +103,7 @@ import { saveFilePayload, saveTextFile } from './save-file';
 import { reportToolCall } from './tool-telemetry';
 import { withUpdateNotice } from './update-notice';
 import { detailedMessage } from '../../shared/detailedError';
+import { FEATURE_REQUEST_TOOL, runFeatureRequestTool } from '../../shared/featureRequest';
 import { calendarSyncStatus, connectGoogleCalendar, uninstallGoogleCalendar, unsupportedReason as calendarSyncUnsupported } from './google-calendar/applet';
 
 // ── Result helpers ──────────────────────────────────────────────────────────
@@ -315,7 +316,6 @@ const SWITCH_PROXY_TOOL = 'switch_proxy_target';
  * Claude Desktop uses for grouping:
  *   - 'read'             → readOnlyHint: true
  *   - 'write' | 'account'→ readOnlyHint: false, destructiveHint: true
- *     (false for an `accountFree` write, which only sends)
  *
  * `account`-kind capabilities change how the patient signs in. The MCPB's only
  * surface is tools, so they are registered — but flagged destructive, the way
@@ -352,11 +352,10 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
   if (capability.returnsFile) shape[RETURN_PARAM] = RETURN_SCHEMA;
   for (const param of capability.params) shape[param.name] = zodForParam(param);
 
-  // An account-free write sends something to us; it changes nothing that exists.
   const hints =
     capability.kind === 'read' || capability.kind === 'public' || capability.notImplemented
       ? { readOnlyHint: true, openWorldHint: true }
-      : { readOnlyHint: false, destructiveHint: !capability.accountFree, openWorldHint: true };
+      : { readOnlyHint: false, destructiveHint: true, openWorldHint: true };
 
   server.registerTool(
     capability.id,
@@ -1093,6 +1092,26 @@ export function registerAllTools(rawServer: McpServer): void {
             'The "MyChart Appointments" calendar and its events are still in Google Calendar for the user to keep or delete. ' +
             'The app stays at ~/.openrecord-mcpb/bin/openrecord-calendar (about 100 MB) so turning sync back on is fast; deleting that file removes it completely.',
         });
+      } catch (err) {
+        return caughtErrorResult(err);
+      }
+    },
+  );
+
+  // Hand-written, not a shared capability: the npm package exports the registry
+  // for consumers to offer their own model, and this one emails us. Not
+  // read-only, so Claude Desktop never groups it with the reads a user may have
+  // set to "always allow"; not destructive, because it changes nothing that exists.
+  server.registerTool(
+    FEATURE_REQUEST_TOOL.name,
+    {
+      description: FEATURE_REQUEST_TOOL.description,
+      inputSchema: Object.fromEntries(FEATURE_REQUEST_TOOL.params.map((p) => [p.name, zodForParam(p)])),
+      ...toolMeta(FEATURE_REQUEST_TOOL.title, { readOnlyHint: false, destructiveHint: false, openWorldHint: true }),
+    },
+    async (args: Record<string, unknown>) => {
+      try {
+        return jsonResult(await runFeatureRequestTool(args));
       } catch (err) {
         return caughtErrorResult(err);
       }
