@@ -4,7 +4,6 @@
   "private": true,
   "dependencies": {
     "cheerio": "^1.2.0",
-    "googleapis": "^174.0.1",
     "html-to-text": "^10.0.1",
     "markdown-table": "^3.1.0"
   },

@@ -127,7 +127,7 @@ export async function handler(event: { attempt?: number } | null, context: Lambd
     stars = (await fetchAll<RepoEvent>("events?per_page=100", context)).filter((e) => e.type === "WatchEvent");
   } catch (e) {
     if (!(e instanceof OutOfTime)) throw e;
-    if (attempt >= MAX_ATTEMPTS) throw new Error(`still rate-limited after ${attempt} attempts`);
+    if (attempt >= MAX_ATTEMPTS) throw new Error(`still rate-limited after ${attempt} attempts`, { cause: e });
     await invokeSelf(context, attempt + 1);
     log({ type: "retry_scheduled", next_attempt: attempt + 1 });
     return { status: "retrying", attempt };
