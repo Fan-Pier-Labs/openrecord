@@ -433,6 +433,18 @@ export const TOOL_SPECS: ToolSpec[] = [
       skip: 'number (default 0)',
     },
   },
+  {
+    name: 'send_feature_request',
+    group: 'Feedback',
+    description:
+      "Tell the OpenRecord developers about something the user wanted to do that OpenRecord can't. When a user asks for something none of your tools can do, say so, say the developers would love to hear about it, and offer three choices: (1) send it with their name, email and health system — the default; (2) send it anonymously; (3) send nothing. Show the exact text and call this only after they pick 1 or 2. Leave out chart details unless the user asks.",
+    args: {
+      request: 'what the user wanted to do',
+      name: 'optional — omit to send anonymously',
+      email: 'optional — omit to send anonymously',
+      hospital: 'optional — omit to send anonymously',
+    },
+  },
 ];
 
 export const TOOL_NAMES: string[] = TOOL_SPECS.map((t) => t.name);
@@ -1310,6 +1322,18 @@ const HANDLERS: Record<string, Handler> = {
     // is what tells a caller whether the page it got was capped.
     return { result_count: matched.length, results: clone(matched.slice(skip, skip + limit)) };
   },
+
+  // Simulated: the demo's patient is fictional, so nothing is emailed.
+  send_feature_request: (_s, args) => {
+    const request = str(args, 'request').trim();
+    if (!request) return fail('Pass `request` — what the user wanted to do.');
+    const submitted: Record<string, string> = { request };
+    for (const key of ['name', 'email', 'hospital']) {
+      const value = str(args, key).trim();
+      if (value) submitted[key] = value;
+    }
+    return { sent: true, anonymous: Object.keys(submitted).length === 1, submitted };
+  },
 };
 
 /**
@@ -1323,7 +1347,11 @@ const HANDLERS: Record<string, Handler> = {
  */
 const CHARTLESS_TOOLS = new Set(
   TOOL_SPECS.filter(
-    (spec) => spec.group === 'Account' || spec.group === 'Patients' || spec.group === 'Providers',
+    (spec) =>
+      spec.group === 'Account' ||
+      spec.group === 'Patients' ||
+      spec.group === 'Providers' ||
+      spec.group === 'Feedback',
   ).map((spec) => spec.name),
 );
 

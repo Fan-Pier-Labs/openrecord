@@ -609,6 +609,7 @@ describe('npm library', () => {
       lookup_npi: 'lookupNpi',
       search_npi_registry: 'searchNpiRegistry',
       search_mycharts: 'searchMyCharts',
+      send_feature_request: 'sendFeatureRequest',
     };
     expect(Object.keys(staticMethodFor).sort()).toEqual(PUBLIC_IDS);
 

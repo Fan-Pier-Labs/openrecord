@@ -99,7 +99,11 @@ async function main(): Promise<void> {
         'instance publishes about its health system to anyone — support phone lines, the bookable ' +
         'provider directory with clinic addresses, and billing entities. Use search_mycharts to find ' +
         'the hostname first. It never returns a fax number or an accepted-insurance list; MyChart ' +
-        'does not publish those.',
+        'does not publish those.' +
+        '\n\n' +
+        'Missing features: if the user asks for something no OpenRecord tool can do, say OpenRecord can\'t do ' +
+        'that yet and offer to tell the developers with send_feature_request — its description lists the three ' +
+        'choices to give the user. Never send one without their answer.',
     },
   );
 

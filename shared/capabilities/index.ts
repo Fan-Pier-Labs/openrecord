@@ -63,6 +63,7 @@ import { PATIENT_CAPABILITIES } from './registry/patients';
 import { ACCOUNT_SECURITY_CAPABILITIES } from './registry/accountSecurity';
 import { PROVIDER_CAPABILITIES } from './registry/providers';
 import { DIRECTORY_CAPABILITIES } from './registry/directory';
+import { FEEDBACK_CAPABILITIES } from './registry/feedback';
 
 export type {
   Capability,
@@ -106,6 +107,7 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
   ...ACCOUNT_SECURITY_CAPABILITIES,
   ...PROVIDER_CAPABILITIES,
   ...DIRECTORY_CAPABILITIES,
+  ...FEEDBACK_CAPABILITIES,
 ];
 
 // ── Lookup helpers ──────────────────────────────────────────────────────────

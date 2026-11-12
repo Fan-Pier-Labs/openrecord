@@ -408,7 +408,9 @@ export type ToolGroup =
   | 'Documents'
   | 'Billing'
   | 'Messaging'
-  | 'Actions';
+  | 'Actions'
+  /** `send_feature_request` — no chart, so exempt from the patient assertion like `Providers`. */
+  | 'Feedback';
 
 /**
  * Patient-facing copy for the confirmation dialog a write tool opens.

@@ -35,6 +35,7 @@ portal.
 | Build your own tool layer covering exactly what OpenRecord supports | `CAPABILITIES` + `executeCapability` |
 | Total control of the request flow | The raw scraper functions with a `MyChartRequest` |
 | Look up public data with no account | `MyChartClient.searchMyCharts` / `lookupNpi` / `searchNpiRegistry` |
+| Send the developers a feature request | `MyChartClient.sendFeatureRequest` |
 
 ## `MyChartClient`
 

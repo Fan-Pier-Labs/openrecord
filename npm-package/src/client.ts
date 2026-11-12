@@ -34,6 +34,7 @@ import {
   type MyChartDirectorySearchOptions,
   type MyChartDirectorySearchResult,
 } from '../../scrapers/list-all-mycharts/searchDirectory';
+import { sendFeatureRequest, type FeatureRequest, type FeatureRequestResult } from '../../shared/featureRequest';
 import { wireSilentReauthentication, type StoredLoginParams } from '../../scrapers/myChart/auth/loginModes';
 import { sessionStore } from '../../scrapers/myChart/core/sessionStore';
 import type { PasskeyCredential } from '../../scrapers/myChart/auth/softwareAuthenticator';
@@ -412,6 +413,11 @@ export class MyChartClient {
     options?: MyChartDirectorySearchOptions,
   ): Promise<MyChartDirectorySearchResult> {
     return searchMyChartDirectory(query, options);
+  }
+
+  /** Email the OpenRecord developers a feature request. Omit name, email and hospital to send it anonymously. */
+  static sendFeatureRequest(request: FeatureRequest): Promise<FeatureRequestResult> {
+    return sendFeatureRequest(request);
   }
 
   // ── Profile ─────────────────────────────────────────────────────────────

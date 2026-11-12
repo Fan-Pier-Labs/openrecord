@@ -234,6 +234,7 @@ describe('the set itself', () => {
       'lookup_npi',
       'search_mycharts',
       'search_npi_registry',
+      'send_feature_request',
     ]);
   });
 });
