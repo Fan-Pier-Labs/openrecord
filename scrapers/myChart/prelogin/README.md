@@ -6,7 +6,7 @@ the screening questionnaire in front of booking, and its billing entities.
 
 | | |
 | --- | --- |
-| **Client surface** | `get_hospital_info` (MCPB tool, account-free) · `--host <h> --action hospital-info` (CLI) · library exports. **Not in the capability registry** — see [Known gaps](#known-gaps) |
+| **Client surface** | `get_hospital_info` — a `public` capability in `shared/capabilities/registry/directory.ts`, so every client has it (MCPB tool, mobile agent tool, `--host <h> --action hospital-info` in the CLI) · library exports |
 | **Source** | [`networkProfile.ts`](networkProfile.ts) · [`orgProfile.ts`](orgProfile.ts) · [`providerDirectory.ts`](providerDirectory.ts) · [`schedulingContext.ts`](schedulingContext.ts) · [`openSlots.ts`](openSlots.ts) · [`schedulingQuestionnaire.ts`](schedulingQuestionnaire.ts) · [`guestEstimates.ts`](guestEstimates.ts) · [`preloginSession.ts`](preloginSession.ts) · [`types.ts`](types.ts) |
 
 **Nothing here sends a credential.** Every request is one an anonymous browser makes by

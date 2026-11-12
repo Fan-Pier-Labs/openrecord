@@ -55,6 +55,7 @@ export const CLI_ACTION_ALIASES: Readonly<Record<string, string>> = {
   'get-thread': 'get_message_thread',
   'delete-message': 'delete_message',
   'request-refill': 'request_refill',
+  'hospital-info': 'get_hospital_info',
 };
 
 /** Resolve an `--action` value to a registry capability, dashed spellings included. */

@@ -137,6 +137,19 @@ export const TOOL_SPECS: ToolSpec[] = [
     args: { query: 'part of the health system name', limit: 'number (default 10)' },
   },
   {
+    name: 'get_hospital_info',
+    group: 'Account',
+    description:
+      'What a MyChart instance publishes about its health system to anyone, with no account: support, scheduling and billing phone lines, the bookable provider directory with clinic addresses, and billing entities. Pass the hostname from search_mycharts.',
+    args: {
+      hostname: 'MyChart hostname',
+      specialties: 'optional list of specialty names',
+      max_specialties: 'optional number',
+      include_providers: 'optional boolean (default true)',
+      include_billing: 'optional boolean (default true)',
+    },
+  },
+  {
     name: 'setup_account',
     group: 'Account',
     write: {
@@ -672,6 +685,29 @@ const HANDLERS: Record<string, Handler> = {
         loginUrl: `https://${entry.hostname}/MyChart/`,
       }));
     return { query: str(args, 'query'), count: matches.length, matches };
+  },
+
+  // A fictional profile in the real shape, for whichever demo hostname is asked.
+  get_hospital_info: (_s, args) => {
+    const hostname = str(args, 'hostname').trim().toLowerCase();
+    const entry = data.directory.find((e) => e.hostname === hostname);
+    if (!entry) return fail(`No MyChart instance at "${hostname}". Call search_mycharts to find the right hostname.`);
+    const phone = (number: string) => ({ display: number, digits: number.replace(/\D/g, '') });
+    return {
+      hostname: entry.hostname,
+      mount: 'MyChart',
+      profile: {
+        organizationName: entry.name,
+        portalBrand: `My${entry.name.split(' ')[0]} Chart`,
+        mountPath: '/MyChart/',
+        phones: { helpDesk: phone('555-010-0100'), scheduling: phone('555-010-0200'), billing: phone('555-010-0300') },
+        supportEmail: null,
+      },
+      directory: null,
+      billingEntities: [{ id: '1', name: entry.name, facilities: [{ id: '10', name: `${entry.name} — ${entry.city}` }] }],
+      insurance: { status: 'gated', reason: 'MyChart does not publish its accepted-insurance list.' },
+      warnings: ['The demo has no provider directory to crawl.'],
+    };
   },
 
   /**

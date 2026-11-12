@@ -188,7 +188,7 @@ mychart-cli --action search_npi_registry --arg last_name=Smith --arg state=MA --
 ```
 
 `--host --action hospital-info` is the fourth account-free action. It describes the health system
-behind a portal; see [capabilities](capabilities.md#not-in-the-registry-yet-hospital-info).
+behind a portal; see [capabilities](capabilities.md#hospital-info).
 
 `--action list-mycharts` prints the whole directory rather than a search, as JSON, with every
 login URL checked and corrected where Epic's points somewhere other than the portal. It crawls

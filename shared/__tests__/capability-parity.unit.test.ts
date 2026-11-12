@@ -92,8 +92,8 @@ describe('Claude Desktop extension', () => {
     // have no counterpart in the shared registry — but they must survive it.
     // `search_mycharts` used to be on this list; it is a `public` capability
     // now, so it is covered by the registry check above instead.
-    // `get_hospital_info` is account-free the same way and could follow it.
-    for (const meta of ['list_accounts', 'get_hospital_info', 'setup_account', 'complete_2fa', 'disconnect_account']) {
+    // `get_hospital_info` followed it.
+    for (const meta of ['list_accounts', 'setup_account', 'complete_2fa', 'disconnect_account']) {
       expect(names).toContain(meta);
     }
     // …and it is still registered, under the same name, so a saved chat and
@@ -632,6 +632,7 @@ describe('npm library', () => {
       lookup_npi: 'lookupNpi',
       search_npi_registry: 'searchNpiRegistry',
       search_mycharts: 'searchMyCharts',
+      get_hospital_info: 'getHospitalInfo',
     };
     expect(Object.keys(staticMethodFor).sort()).toEqual(PUBLIC_IDS);
 

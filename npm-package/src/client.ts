@@ -39,6 +39,8 @@ import { sessionStore } from '../../scrapers/myChart/core/sessionStore';
 import type { PasskeyCredential } from '../../scrapers/myChart/auth/softwareAuthenticator';
 
 import { getMyChartProfile, getEmail } from '../../scrapers/myChart/chart/profile/profile';
+import { fetchHospitalNetworkProfile, type NetworkProfileOptions } from '../../scrapers/myChart/prelogin';
+import type { HospitalNetworkProfile } from '../../scrapers/myChart/prelogin/types';
 import {
   discoverProxyTargets,
   switchProxyTarget,
@@ -423,6 +425,14 @@ export class MyChartClient {
     options?: MyChartDirectorySearchOptions,
   ): Promise<MyChartDirectorySearchResult> {
     return searchMyChartDirectory(query, options);
+  }
+
+  /** What a MyChart instance publishes to anyone about its health system. */
+  static getHospitalInfo(
+    hostname: string,
+    options?: NetworkProfileOptions,
+  ): Promise<HospitalNetworkProfile> {
+    return fetchHospitalNetworkProfile(hostname, options);
   }
 
   // ── Profile ─────────────────────────────────────────────────────────────

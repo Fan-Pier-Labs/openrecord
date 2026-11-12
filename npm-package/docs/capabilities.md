@@ -246,9 +246,9 @@ description.
 | --- | --- | --- | --- |
 | `search_mycharts`<br>no account needed | Look up a MyChart hostname for setup. | `query`<br>`limit` _(optional)_ | `MyChartClient.searchMyCharts(query)` |
 
-### Not in the registry yet: hospital info
+### Hospital info
 
-The CLI has one more account-free action that isn't a registry entry:
+`get_hospital_info` is a `public` registry entry too; the CLI also takes `--host` for it:
 
 ```bash
 mychart-cli --host mychart.example.org --action hospital-info
@@ -258,5 +258,5 @@ It prints what a MyChart instance publishes to anyone about the health system be
 phone lines and email, the "Find a Doctor" provider directory with clinic addresses, billing
 entities and their customer-service lines, and the portal's feature flags.
 `--arg specialties=a,b` limits the provider crawl, which can run 0.6–2 MB of JSON per specialty.
-`--arg providers=false` or `--arg billing=false` skips a section. The library function is
-`fetchHospitalNetworkProfile(hostname, options)`.
+`--arg include_providers=false` or `--arg include_billing=false` skips a section. The library
+function is `fetchHospitalNetworkProfile(hostname, options)`.
