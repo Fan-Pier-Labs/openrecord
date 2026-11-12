@@ -107,6 +107,8 @@ import {
 } from '../../scrapers/myChart/chart/emergencyContacts/emergencyContacts';
 
 import { getLinkedMyChartAccounts } from '../../scrapers/myChart/chart/otherMyCharts/otherMyCharts';
+import { getNotificationPreferences } from '../../scrapers/myChart/chart/notificationPreferences/notificationPreferences';
+import { getAccountSettings } from '../../scrapers/myChart/chart/accountSettings/accountSettings';
 import { getEhiExportTemplates } from '../../scrapers/myChart/chart/ehiExport/ehiExport';
 
 import { getVisitNotes, getNoteContent, getVisitAVS } from '../../scrapers/myChart/chart/notes/notes';
@@ -518,6 +520,10 @@ export class MyChartClient {
   addEmergencyContact(input: EmergencyContactInput)   { return addEmergencyContact(this.req(), input); }
   updateEmergencyContact(input: EmergencyContactUpdateInput) { return updateEmergencyContact(this.req(), input); }
   removeEmergencyContact(id: string)                  { return removeEmergencyContact(this.req(), id); }
+
+  // ── Account settings ───────────────────────────────────────────────────
+  getNotificationPreferences() { return getNotificationPreferences(this.req()); }
+  getAccountSettings()         { return getAccountSettings(this.req()); }
 
   // ── Linked accounts / EHI export ───────────────────────────────────────
   getLinkedMyChartAccounts() { return getLinkedMyChartAccounts(this.req()); }

@@ -60,6 +60,7 @@ import { CARE_CAPABILITIES } from './registry/care';
 import { EMERGENCY_CONTACT_CAPABILITIES } from './registry/emergencyContacts';
 import { PRESCRIPTION_CAPABILITIES } from './registry/prescriptions';
 import { PATIENT_CAPABILITIES } from './registry/patients';
+import { ACCOUNT_SETTINGS_CAPABILITIES } from './registry/accountSettings';
 import { ACCOUNT_SECURITY_CAPABILITIES } from './registry/accountSecurity';
 import { PROVIDER_CAPABILITIES } from './registry/providers';
 import { DIRECTORY_CAPABILITIES } from './registry/directory';
@@ -103,6 +104,7 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
   ...EMERGENCY_CONTACT_CAPABILITIES,
   ...PRESCRIPTION_CAPABILITIES,
   ...PATIENT_CAPABILITIES,
+  ...ACCOUNT_SETTINGS_CAPABILITIES,
   ...ACCOUNT_SECURITY_CAPABILITIES,
   ...PROVIDER_CAPABILITIES,
   ...DIRECTORY_CAPABILITIES,
