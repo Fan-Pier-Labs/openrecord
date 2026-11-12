@@ -28,7 +28,7 @@ import {
 } from "../../../../shared/capabilities";
 import { Image } from "react-native";
 import { convertCloToJpgPureJs } from "../../../../scrapers/myChart/clo-image-parser/exporters/to_jpg_purejs";
-import { putFile } from "@/lib/files/file-store";
+import { CAN_SHARE_FILES, deleteAllFiles, putFile } from "@/lib/files/file-store";
 import { putImageAttachment } from "@/lib/imaging/attachment-store";
 
 import {
@@ -228,6 +228,9 @@ export function disconnectAccount(accountId: string) {
   const entry = sessions.get(accountId);
   if (entry) sessionStore.unregister(entry.request);
   sessions.delete(accountId);
+  // The store is not per account, so a disconnect clears every copied
+  // document rather than leaving a removed account's PDFs in the cache.
+  deleteAllFiles();
 }
 
 /**
@@ -455,7 +458,10 @@ async function downloadFileForChat(
   }
   if (!CHAT_IMAGE_TYPES.has(file.mimeType)) {
     const { bytes, fileName, mimeType, ...rest } = file;
-    const fileId = putFile(bytes, fileName, mimeType);
+    if (!CAN_SHARE_FILES) {
+      return { error: `${fileName} is a ${mimeType} file, which the app cannot show on this device yet.` };
+    }
+    const fileId = putFile(bytes, fileName);
     return { ...rest, file_id: fileId, file_name: fileName, mime_type: mimeType, size_bytes: bytes.byteLength };
   }
   const dataUri = `data:${file.mimeType};base64,${Buffer.from(file.bytes).toString("base64")}`;

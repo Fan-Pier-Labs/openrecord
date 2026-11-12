@@ -43,7 +43,11 @@ prompted to emit JSON objects, `{ "tool": "<name>", "args": { … } }`, so any c
 - Any other file — a PDF document, billing statement or message attachment, or an export the model
   writes with the app's own `save_file` tool (the desktop extension's tool of the same name) — is
   written to the cache directory and comes back as a `file_id`; the model writes `[file:ID]` and the
-  bubble shows a button that opens the iOS share sheet (`src/lib/files/file-store.ts`).
+  bubble shows a button that opens the iOS share sheet (`src/lib/files/file-store.ts`). The file
+  stays in the cache under its id, so a saved chat keeps the button; removing an account deletes
+  them all. On Android, where React Native's share sheet cannot carry a file, the tools say so.
+- A tool result over 200,000 characters is replaced with an error asking the model to narrow the
+  call (`src/lib/ai/result-size.ts`) — every result is resent through the AI on each turn.
 
 ### One tool per capability
 

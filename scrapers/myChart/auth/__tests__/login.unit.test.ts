@@ -1,7 +1,7 @@
 // Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
 
 import { describe, it, expect, mock } from 'bun:test'
-import { areCookiesValid, parse2faDeliveryMethods, parseFirstPathPartFromLocation, parseFirstPathPartFromHtml, parseMetaRefreshTarget, parseFirstPathPartFromInput, extractMountsFromLinks, parseScriptRedirectTarget, determineFirstPathPart, parseLoginPageFields, usernameFieldFromControllerJs, detectUsernameField, probeFirstPathPartByTryingCommonLoginPaths, landsOnMyChartRoute } from '../login'
+import { areCookiesValid, parse2faDeliveryMethods, parseFirstPathPartFromLocation, parseFirstPathPartFromHtml, parseMetaRefreshTarget, parseFirstPathPartFromInput, extractMountsFromLinks, parseScriptRedirectTarget, determineFirstPathPart, parseLoginPageFields, usernameFieldFromControllerJs, detectUsernameField, probeFirstPathPartByTryingCommonLoginPaths, landsOnMyChartRoute, defaultProtocolFor } from '../login'
 import { MyChartRequest } from '../../core/myChartRequest'
 
 /**
@@ -914,3 +914,21 @@ describe('probeFirstPathPartByTryingCommonLoginPaths', () => {
     expect(result).toBe(null)
   })
 })
+
+describe('defaultProtocolFor', () => {
+  it('uses http for localhost and dotless Docker service names', () => {
+    expect(defaultProtocolFor('localhost')).toBe('http');
+    expect(defaultProtocolFor('localhost:4000')).toBe('http');
+    expect(defaultProtocolFor('fake-mychart:3000')).toBe('http');
+  });
+
+  it('uses https for every real hostname', () => {
+    expect(defaultProtocolFor('mychart.example.org')).toBe('https');
+    expect(defaultProtocolFor('mychart.example.org:443')).toBe('https');
+  });
+
+  it('reads the host out of a full login URL rather than its scheme', () => {
+    expect(defaultProtocolFor('https://mychart.example.org/MyChart/Authentication/Login')).toBe('https');
+    expect(defaultProtocolFor('http://localhost:4000/MyChart/')).toBe('http');
+  });
+});

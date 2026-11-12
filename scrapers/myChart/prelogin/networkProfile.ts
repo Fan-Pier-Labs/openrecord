@@ -20,7 +20,7 @@
  * makes by opening the portal.
  */
 
-import { determineFirstPathPart } from '../auth/login';
+import { defaultProtocolFor, determineFirstPathPart } from '../auth/login';
 import { MyChartRequest } from '../core/myChartRequest';
 import { logger } from '../../../shared/logger';
 import { fetchBillingEntities } from './guestEstimates';
@@ -39,7 +39,7 @@ export const INSURANCE_GATE_REASON =
   'patient on the instance.';
 
 export type NetworkProfileOptions = ProviderDirectoryOptions & {
-  /** `http` for a local fake-mychart; defaults to https. */
+  /** Defaults to `defaultProtocolFor(hostname)`: http for localhost and dotless hosts. */
   protocol?: string;
   /** Skip the provider/clinic crawl (the largest part by far). Default true. */
   includeProviders?: boolean;
@@ -59,7 +59,7 @@ export async function fetchHospitalNetworkProfile(
   hostname: string,
   options: NetworkProfileOptions = {},
 ): Promise<HospitalNetworkProfile> {
-  const request = new MyChartRequest(hostname, options.protocol ? { protocol: options.protocol } : undefined);
+  const request = new MyChartRequest(hostname, { protocol: options.protocol ?? defaultProtocolFor(hostname) });
   await determineFirstPathPart(request);
 
   const login = await openPreloginPage(request, LOGIN_PAGE_PATH);

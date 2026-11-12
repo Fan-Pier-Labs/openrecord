@@ -94,12 +94,10 @@ export const DIRECTORY_CAPABILITIES: readonly CapabilityImpl[] = [
       const hostname = requireStr(args, 'hostname');
       const specialties = strList(args, 'specialties');
       return fetchHospitalNetworkProfile(hostname, {
-        // A local fake-mychart serves plain http; no real MyChart is on loopback.
-        ...(/^(localhost|127\.0\.0\.1)(:|$)/.test(hostname) ? { protocol: 'http' } : {}),
         ...(specialties.length > 0 ? { specialties } : {}),
         ...(args.max_specialties !== undefined ? { maxSpecialties: num(args, 'max_specialties', 0) } : {}),
-        ...(args.include_providers !== undefined ? { includeProviders: args.include_providers !== false && args.include_providers !== 'false' } : {}),
-        ...(args.include_billing !== undefined ? { includeBilling: args.include_billing !== false && args.include_billing !== 'false' } : {}),
+        ...(args.include_providers !== undefined ? { includeProviders: args.include_providers !== false } : {}),
+        ...(args.include_billing !== undefined ? { includeBilling: args.include_billing !== false } : {}),
       });
     },
   },

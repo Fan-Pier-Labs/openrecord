@@ -3,45 +3,53 @@
 /**
  * Files a tool produced for the user to keep — a PDF from MyChart, an export
  * the model wrote — the mobile counterpart of the desktop extension saving to
- * Downloads. The bytes go to the app's cache directory; the model only sees a
- * `file_id` and writes `[file:ID]`, which the chat bubble turns into a button
- * that opens the iOS share sheet (Save to Files, AirDrop, Mail…).
+ * Downloads. The model only sees a `file_id` and writes `[file:ID]`, which the
+ * chat bubble turns into a button that opens the iOS share sheet.
+ *
+ * Each file lives alone in `<cache>/openrecord-files/<id>/`, so the id is
+ * enough to find it again after a restart and a saved chat keeps its button.
+ * Everything is deleted when an account is disconnected.
  */
-import { Share } from "react-native";
+import { Platform, Share } from "react-native";
 import { Directory, File, Paths } from "expo-file-system";
+import { safeFileName } from "./file-tokens";
 
-type StoredFile = { uri: string; fileName: string; mimeType: string };
+/**
+ * `Share.share({ url })` attaches a file only on iOS; on Android it opens an
+ * empty sheet, so there the tools say the file cannot be shown.
+ */
+export const CAN_SHARE_FILES = Platform.OS === "ios";
 
-const store = new Map<string, StoredFile>();
+const ID_PATTERN = /^[a-zA-Z0-9_-]+$/;
 
-/** The extension's rule: a bare name is saved as Markdown. No folders. */
-function safeFileName(name: string): string {
-  const base = name.replace(/[/\\:\0]/g, "_").replace(/^\.+/, "").trim() || "openrecord-export";
-  return /\.[A-Za-z0-9]{1,8}$/.test(base) ? base : `${base}.md`;
+function root(): Directory {
+  return new Directory(Paths.cache, "openrecord-files");
 }
 
-export function putFile(bytes: Uint8Array | string, fileName: string, mimeType: string): string {
+export function putFile(bytes: Uint8Array | string, fileName: string): string {
   const id = `file_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-  // One directory per file, so two files with the same name never collide.
-  const dir = new Directory(Paths.cache, "openrecord-files", id);
+  const dir = new Directory(root(), id);
   dir.create({ intermediates: true });
   const file = new File(dir, safeFileName(fileName));
   file.create();
   file.write(bytes);
-  store.set(id, { uri: file.uri, fileName: file.name, mimeType });
   return id;
 }
 
-export function getFile(id: string): StoredFile | undefined {
-  return store.get(id);
+export function getFile(id: string): { uri: string; fileName: string } | undefined {
+  if (!ID_PATTERN.test(id)) return undefined;
+  const dir = new Directory(root(), id);
+  if (!dir.exists) return undefined;
+  const file = dir.list().find((entry): entry is File => entry instanceof File);
+  return file ? { uri: file.uri, fileName: file.name } : undefined;
 }
 
 export async function shareFile(id: string): Promise<void> {
-  const file = store.get(id);
+  const file = getFile(id);
   if (file) await Share.share({ url: file.uri, title: file.fileName });
 }
 
-/** `[file:...]` refs in an assistant answer, in order. */
-export function extractFileIds(text: string): string[] {
-  return [...text.matchAll(/\[file:([a-zA-Z0-9_-]+)\]/g)].map((m) => m[1]!);
+export function deleteAllFiles(): void {
+  const dir = root();
+  if (dir.exists) dir.delete();
 }

@@ -88,8 +88,7 @@ describe('hospital network profile over HTTP', () => {
   });
 
   it('is what the get_hospital_info capability returns, with no session', async () => {
-    // Loopback hosts are read over http by the capability itself, which is
-    // the only way a client without a protocol option reaches the fake.
+    // No protocol option: localhost is read over http by the same rule login uses.
     const profile = (await executeCapability(null, 'get_hospital_info', {
       hostname: HOST,
       specialties: ['Cardiology'],

@@ -3,7 +3,8 @@
 import { View, Text, StyleSheet, Image, Pressable } from "react-native";
 import Markdown from "react-native-markdown-display";
 import { getImageAttachment, extractImageIds } from "@/lib/imaging/attachment-store";
-import { extractFileIds, getFile, shareFile } from "@/lib/files/file-store";
+import { getFile, shareFile } from "@/lib/files/file-store";
+import { extractFileIds } from "@/lib/files/file-tokens";
 
 type Props = {
   role: "user" | "assistant" | "system";

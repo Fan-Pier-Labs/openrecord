@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased — `hospital-info` is a registry capability (breaking for its CLI flags)
+
+`get_hospital_info` is now a `public` capability, so `--action get_hospital_info` works like any
+other and the library has `MyChartClient.getHospitalInfo(hostname, options)`. `--host <h> --action
+hospital-info` still works.
+
+| Removed | What to do |
+| --- | --- |
+| `--arg providers=false` | `--arg include_providers=false` |
+| `--arg billing=false` | `--arg include_billing=false` |
+| `--local` for `hospital-info` | Nothing: localhost and dotless hosts are read over http, as at login. |
+
 ## Unreleased — `silentLogin` split into `machineLogin` and `humanLogin` (breaking)
 
 | Removed | What to do |
