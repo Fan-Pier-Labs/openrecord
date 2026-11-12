@@ -308,9 +308,9 @@ Everything on the reading side is best-effort: unreachable, 404, not JSON, malfo
 either side that isn't semver are all `null`, meaning "couldn't tell", and a client shows nothing for
 `null`. "We could not reach the site" and "you are up to date" are different facts.
 
-The CLI prints the notice once per run. The MCPB checks at startup and daily, and appends the notice
-to every tool result while it is behind (`claude-desktop-extension/src/update-notice.ts`) — a tool
-result is the only place it can reach the user.
+The CLI prints the notice once per run. The MCPB doesn't show a notice: its launcher downloads the
+advertised version itself, and only when that fails does every tool result tell the user to
+reinstall — see "Self-update" in `claude-desktop-extension/README.md`.
 
 ## Per-host rate limiting (`shared/hostConcurrency.ts`)
 

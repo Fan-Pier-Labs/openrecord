@@ -10,7 +10,9 @@
 #      uploads the new one to the splash site's bucket and invalidates CloudFront
 #   5. checks the live download is byte-for-byte what was packed
 #   5b. publishes the bundle as GitHub Release mcpb-v<version>
-#   6. deploys the splash site, which regenerates mcpb_version.json — the file
+#   6. uploads the server payload to mcpb-payload/<version>/, where
+#      installed launchers download it from (README "Self-update")
+#   7. deploys the splash site, which regenerates mcpb_version.json — the file
 #      installed copies poll to learn a new version exists
 #
 # Unsigned on purpose. `mcpb sign` appends its signature after the zip's end
@@ -84,6 +86,12 @@ SHA="$(shasum "$EXT_DIR/openrecord.mcpb" | cut -d' ' -f1)"
 # `bun run smoke`, which would rebuild what is about to ship.
 echo "==> Smoke-testing the packed server"
 ( cd "$EXT_DIR" && node smoke.mjs )
+
+# Built now from what was just smoke-tested; uploaded just before the version is published.
+echo "==> Building the server payload"
+PAYLOAD_DIR="$(mktemp -d)"
+trap 'rm -rf "$PAYLOAD_DIR"' EXIT
+( cd "$EXT_DIR" && bun scripts/build-payload.ts "$PAYLOAD_DIR" )
 
 # The calendar binaries are too big to ship inside the bundle (~100 MB each),
 # so they go beside it under content-addressed names: immutable, never
@@ -160,6 +168,15 @@ Download \`openrecord.mcpb\` below and open it with Claude Desktop (macOS or Win
 
 SHA-256: \`$SHA256\`"
 fi
+
+# Before the splash deploy: the moment mcpb_version.json names this version,
+# every installed launcher asks for this payload, and one that 404s tells its
+# user to reinstall.
+echo "==> Uploading the server payload"
+"${AWS[@]}" s3 cp "$PAYLOAD_DIR" "s3://$BUCKET/mcpb-payload/$VERSION/" --recursive \
+  --content-type application/octet-stream \
+  --cache-control "public, max-age=31536000, immutable" \
+  --only-show-errors
 
 echo "==> Deploying the splash site (publishes mcpb_version.json)"
 AWS_PROFILE="$PROFILE" "$REPO_DIR/openrecord-splash/deploy.sh"

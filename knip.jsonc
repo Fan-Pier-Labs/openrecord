@@ -34,7 +34,6 @@
       "entry": ["dev/*.mjs", "scripts/*.mjs", "src/setup-widget/main.tsx", "src/google-calendar/worker.ts"],
       "ignoreDependencies": [
         "cheerio",
-        "compare-versions",
         "fetch-cookie",
         "html-to-text",
         "@types/html-to-text",

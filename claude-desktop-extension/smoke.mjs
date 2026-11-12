@@ -2,8 +2,9 @@
 // Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
 
 /**
- * Startup smoke test for the packed extension: does `dist/server.cjs` actually
- * come up as an MCP stdio server under plain `node`, and answer?
+ * Startup smoke test for the packed extension: does `dist/launcher.cjs` (what
+ * Claude Desktop runs) bring up `dist/server.cjs` as an MCP stdio server under
+ * plain `node`, and answer through it?
  *
  * This is the one check that runs the BUNDLE the way Claude Desktop runs it —
  * a separate `node` process, no bundler, no test runner, no Bun. Everything
@@ -18,8 +19,8 @@
  * would be MODULE_NOT_FOUND on a patient's machine. Staging is what makes this
  * test able to fail.
  *
- * The staged tree mirrors `.mcpbignore` exactly: dist/server.cjs and the
- * manifest, plus node_modules/@napi-rs — the one dependency that is NOT bundled
+ * The staged tree mirrors `.mcpbignore` exactly: dist/launcher.cjs,
+ * dist/server.cjs and the manifest, plus node_modules/@napi-rs — the one dependency that is NOT bundled
  * into the CJS file, because a .node binary cannot be. Keep the two in sync;
  * staging more than ships would hide a MODULE_NOT_FOUND, staging less would
  * invent one.
@@ -53,6 +54,7 @@ import path from 'node:path';
 
 const HERE = import.meta.dirname;
 const SERVER = path.join(HERE, 'dist', 'server.cjs');
+const LAUNCHER = path.join(HERE, 'dist', 'launcher.cjs');
 const MANIFEST = path.join(HERE, 'manifest.json');
 
 /** MCP revision this server declares (see the header of src/index.ts). */
@@ -197,8 +199,8 @@ class StdioClient {
 // ── the run ────────────────────────────────────────────────────────────────
 
 async function main() {
-  if (!fs.existsSync(SERVER)) {
-    fatal(`no bundle at ${SERVER} — run \`bun run build\` first`);
+  for (const bundle of [SERVER, LAUNCHER]) {
+    if (!fs.existsSync(bundle)) fatal(`no bundle at ${bundle} — run \`bun run build\` first`);
   }
 
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'openrecord-smoke-'));
@@ -210,6 +212,7 @@ async function main() {
   const staged = path.join(tmp, 'extension');
   fs.mkdirSync(path.join(staged, 'dist'), { recursive: true });
   fs.copyFileSync(SERVER, path.join(staged, 'dist', 'server.cjs'));
+  fs.copyFileSync(LAUNCHER, path.join(staged, 'dist', 'launcher.cjs'));
   fs.copyFileSync(MANIFEST, path.join(staged, 'manifest.json'));
 
   // @napi-rs/keyring and whichever platform binaries are installed, mirroring
@@ -234,9 +237,9 @@ async function main() {
   const home = path.join(tmp, 'home');
   fs.mkdirSync(home);
 
-  process.stdout.write(`\nSmoke: node dist/server.cjs, staged in ${staged}\n\n`);
+  process.stdout.write(`\nSmoke: node dist/launcher.cjs, staged in ${staged}\n\n`);
 
-  const child = spawn(process.execPath, [path.join(staged, 'dist', 'server.cjs')], {
+  const child = spawn(process.execPath, [path.join(staged, 'dist', 'launcher.cjs')], {
     cwd: staged,
     stdio: ['pipe', 'pipe', 'pipe'],
     // NODE_PATH is cleared deliberately: it is a back door around the staging

@@ -24,10 +24,10 @@
   },
   "server": {
     "type": "node",
-    "entry_point": "dist/server.cjs",
+    "entry_point": "dist/launcher.cjs",
     "mcp_config": {
       "command": "node",
-      "args": ["${__dirname}/dist/server.cjs"]
+      "args": ["${__dirname}/dist/launcher.cjs"]
     }
   },
   "tools": [
