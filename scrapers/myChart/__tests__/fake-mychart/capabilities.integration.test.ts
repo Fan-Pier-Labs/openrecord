@@ -687,7 +687,7 @@ describe('capability registry against fake-mychart', () => {
     const suites = [
       'scrapers/npi/__tests__/npiRegistry.integration.test.ts',
       'scrapers/list-all-mycharts/__tests__/directory.integration.test.ts',
-      'scrapers/myChart/prelogin/__tests__/networkProfile.integration.test.ts',
+      'shared/__tests__/hospitalInfo.integration.test.ts',
       'shared/__tests__/featureRequest.integration.test.ts',
     ]
     const sources = await Promise.all(

@@ -25,17 +25,6 @@ const MYCHART_LOGIN_ROUTE = '/authentication/';
  * `my.wellspan.org/mywellspan` — the hostname a user hands us is often a
  * vanity alias for a deployment that lives somewhere else entirely.
  */
-
-/**
- * http for localhost and for hostnames without a dot (Docker service names
- * like "fake-mychart:3000"), https for everything else. Accepts a bare host or
- * a full URL.
- */
-export function defaultProtocolFor(hostOrUrl: string): 'http' | 'https' {
-  const host = hostOrUrl.replace(/^[a-z][a-z0-9+.-]*:\/\//i, '').split(/[:/]/)[0]!; // split() always yields a first element
-  return host === 'localhost' || !host.includes('.') ? 'http' : 'https';
-}
-
 export type MountLocation = { hostname: string; firstPathPart: string | null };
 
 /** How many hops to follow before deciding a redirect chain is a loop. */
@@ -644,7 +633,9 @@ export async function myChartUserPassLogin ({hostname, user, pass, skipSendCode,
   }
 
 
-  const effectiveProtocol = protocol ?? defaultProtocolFor(hostname);
+  // Use HTTP for localhost and hostnames without a dot (e.g. Docker service names like "fake-mychart:3000")
+  const hostnameWithoutPort = hostname.split(':')[0]!; // split() always yields a first element
+  const effectiveProtocol = protocol ?? (hostnameWithoutPort === 'localhost' || !hostnameWithoutPort.includes('.') ? 'http' : 'https');
   const mychartRequest = new MyChartRequest(hostname, { protocol: effectiveProtocol });
   const firstPathPartFromInput = parseFirstPathPartFromInput(hostname);
   if (firstPathPartFromInput) {
@@ -1005,7 +996,8 @@ export async function myChartPasskeyLogin({hostname, credential, protocol}: {
     throw new Error(`${hostname} is not supported.`);
   }
 
-  const effectiveProtocol = protocol ?? defaultProtocolFor(hostname);
+  const hostnameWithoutPort = hostname.split(':')[0]!; // split() always yields a first element
+  const effectiveProtocol = protocol ?? (hostnameWithoutPort === 'localhost' || !hostnameWithoutPort.includes('.') ? 'http' : 'https');
   const mychartRequest = new MyChartRequest(hostname, { protocol: effectiveProtocol });
   const firstPathPartFromInput = parseFirstPathPartFromInput(hostname);
   if (firstPathPartFromInput) {

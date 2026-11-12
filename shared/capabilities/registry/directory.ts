@@ -93,7 +93,11 @@ export const DIRECTORY_CAPABILITIES: readonly CapabilityImpl[] = [
     run: (args) => {
       const hostname = requireStr(args, 'hostname');
       const specialties = strList(args, 'specialties');
+      // Login's rule: http for localhost and dotless Docker service names
+      // (a local fake-mychart), https for every real portal.
+      const host = hostname.replace(/^[a-z]+:\/\//i, '').split(/[:/]/)[0]!;
       return fetchHospitalNetworkProfile(hostname, {
+        protocol: host === 'localhost' || !host.includes('.') ? 'http' : 'https',
         ...(specialties.length > 0 ? { specialties } : {}),
         ...(args.max_specialties !== undefined ? { maxSpecialties: num(args, 'max_specialties', 0) } : {}),
         ...(args.include_providers !== undefined ? { includeProviders: args.include_providers !== false } : {}),

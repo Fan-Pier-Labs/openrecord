@@ -18,7 +18,6 @@ import { MyChartRequest } from '../../core/myChartRequest';
 import { resetFakeMyChart, setMountMode } from '../../__tests__/fake-mychart/mountMode';
 import { fetchHospitalNetworkProfile } from '../networkProfile';
 import { fetchSchedulingWorkflow } from '../providerDirectory';
-import { executeCapability } from '../../../../shared/capabilities';
 
 const HOST = process.env.FAKE_MYCHART_HOST ?? 'localhost:4000';
 
@@ -85,18 +84,6 @@ describe('hospital network profile over HTTP', () => {
     ]);
     expect(profile.insurance.status).toBe('gated');
     expect(profile.warnings).toEqual([]);
-  });
-
-  it('is what the get_hospital_info capability returns, with no session', async () => {
-    // No protocol option: localhost is read over http by the same rule login uses.
-    const profile = (await executeCapability(null, 'get_hospital_info', {
-      hostname: HOST,
-      specialties: ['Cardiology'],
-      include_billing: false,
-    })) as Awaited<ReturnType<typeof fetchHospitalNetworkProfile>>;
-    expect(profile.profile.organizationName).toBe('Springfield General Hospital');
-    expect(profile.directory!.providers.map((p) => p.name).sort()).toEqual(['Cardio Carlson, MD', 'Julius Hibbert, MD']);
-    expect(profile.billingEntities).toBeNull();
   });
 
   it('works the same on a root-mounted instance', async () => {
