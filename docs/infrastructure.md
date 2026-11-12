@@ -39,6 +39,8 @@ with Vite. On S3 + CloudFront, following the standard Fan Pier Labs static-site 
   immutable cache; the HTML and fixed-name assets are invalidated.
 - Splash is presentational — no auth. Waitlist form posts to the shared `fanpierlabs-forms` Lambda
   (`https://ns8remz3t7.execute-api.us-east-2.amazonaws.com`), which is not in this repo.
+  The `send_feature_request` capability (`shared/featureRequest.ts`) posts there too, as
+  `site: "openrecord-feature-request"`.
 - **The demo lives at `/demo.html`, not `/demo`** — the default root object only applies to `/`, and
   the 403/404 → `/index.html` error handling would otherwise quietly serve the splash.
 - **The splash deliberately does not link to the demo, until the demo is golden.** `/demo.html`
@@ -134,6 +136,12 @@ the app's agent loops stay identical.
   on `/aws/lambda/openrecord-demo-ai` (`authed: true|false` per call).
 - **Any proxy failure surfaces an honest error in the chat** and flips the header badge to "Model
   unreachable". The demo has no offline path by design.
+
+## GitHub stats Lambda (`github-stats-lambda/`)
+
+Weekly (Mondays 14:00 UTC) snapshot of the repo's issues, PRs, forks and recent stars, written to
+`/aws/lambda/openrecord-github-stats` (log retention: never expire). Unauthenticated, so no secrets.
+Deploy: `cd github-stats-lambda && AWS_PROFILE=fanpierlabs ./deploy.sh`. Details in its README.
 
 ## S3 buckets (us-east-2)
 

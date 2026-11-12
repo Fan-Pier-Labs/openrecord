@@ -38,6 +38,8 @@ import { getPreventiveCare } from '../../chart/preventiveCare/preventiveCare'
 import { getLetters } from '../../chart/letters/letters'
 import { getEmergencyContacts, addEmergencyContact, updateEmergencyContact, removeEmergencyContact } from '../../chart/emergencyContacts/emergencyContacts'
 import { getGoals } from '../../chart/goals/goals'
+import { getNotificationPreferences } from '../../chart/notificationPreferences/notificationPreferences'
+import { getAccountSettings } from '../../chart/accountSettings/accountSettings'
 import { getDocuments } from '../../chart/documents/documents'
 import { getUpcomingOrders } from '../../chart/upcomingOrders/upcomingOrders'
 import { getQuestionnaires } from '../../chart/questionnaires/questionnaires'
@@ -370,6 +372,37 @@ for (const mode of MOUNT_MODES) {
       expect(result.patientGoals).toHaveLength(1)
       expect(result.patientGoals[0]!.text).toBeTruthy()
     }, 10_000)
+
+    it('getNotificationPreferences resolves the normalised wire shape into topics and channels', async () => {
+      const result = await getNotificationPreferences(session)
+      expect(result.contactInformationUnavailable).toBeUndefined()
+      expect(result.groupers.map(g => g.title)).toEqual(['Appointments', 'Messages', 'Health', 'Billing', 'Account Management', 'Care Companion'])
+      const topics = result.groupers.flatMap(g => g.concepts)
+      // Every code the fixture uses decodes; none falls through as null.
+      expect(topics.flatMap(c => c.medias).filter(m => m.channel === null || m.status === null)).toEqual([])
+      const testResult = topics.find(c => c.title === 'Test Result')!
+      expect(testResult.channelsOn).toEqual(['Email', 'Push'])
+      expect(topics.find(c => c.title === 'Password Changed')!.medias[0]!.status).toBe('LockedOn')
+      expect(topics.find(c => c.title === 'Statement')!.requiredForPaperlessBilling).toBe(true)
+      expect(topics.find(c => c.title === 'Status Updates')!.additionalItemSection!.options.map(o => o.description))
+        .toEqual(['Scheduled', 'Changed', 'Canceled', 'Missed'])
+      // Homer never agreed to texts, and the contact read says where email goes.
+      expect(result.userAcceptsSms).toBe(false)
+      expect(topics.flatMap(c => c.channelsOn)).not.toContain('Text')
+      expect(result.contactInformation!.email).toBe('homer.simpson@springfieldnuclear.example.com')
+    }, 10_000)
+
+    it('getAccountSettings reads every section', async () => {
+      const result = await getAccountSettings(session)
+      expect(result.unavailable).toEqual([])
+      expect(result.paperless!.billingInfo.statusName).toBe('SignedUp')
+      expect(result.paperless!.eobInfo.statusName).toBe('NotEligible')
+      expect(result.resultsRelease!.options).toHaveLength(2)
+      expect(result.resultsRelease!.chosenRRPreferenceTitle).toBeNull()
+      expect(result.security!.twoFactorTOTPOn).toBe(false)
+      expect(result.textMessaging!.consentData.shortCodesConsent).toEqual({})
+      expect(result.careEverywhere!.isPatientOptedIn).toBe(true)
+    }, 15_000)
 
     // The exact count, not `> 0`: the fixture is 27 documents and MyChart
     // serves 25 per page, so a scraper that asked for the initial load and

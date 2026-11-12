@@ -10,7 +10,7 @@
  */
 import { describe, it, expect, beforeEach, afterEach, setSystemTime } from 'bun:test'
 import type { MyChartRequest } from '../../../scrapers/myChart/core/myChartRequest'
-import { addPending, takePending, discardPending } from '../pending-logins'
+import { addPending, takePending, discardPending, findPendingFor } from '../pending-logins'
 
 const TTL_MS = 10 * 60_000
 
@@ -143,5 +143,20 @@ describe('discardPending', () => {
     discardPending(a)
 
     expect(takePending(b)?.username).toBe('b')
+  })
+})
+
+describe('findPendingFor', () => {
+  it('finds a pending login however the account is spelled', () => {
+    // setup_account and a data tool can spell one account differently; a miss
+    // would make the data tool sign in again and send a second code.
+    const id = addPending({ ...entry(), hostname: 'HTTPS://MyChart.Example.ORG/MyChart/' })
+    expect(findPendingFor('mychart.example.org', ' Homer ')?.id).toBe(id)
+  })
+
+  it('finds nothing once the login has expired', () => {
+    addPending(entry())
+    advance(TTL_MS + 1)
+    expect(findPendingFor('mychart.example.org', 'homer')).toBeNull()
   })
 })

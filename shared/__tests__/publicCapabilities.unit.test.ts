@@ -228,9 +228,61 @@ describe('search_mycharts', () => {
   });
 });
 
+describe('get_hospital_info', () => {
+  const LOGIN_PAGE = `<html><body class="isPrelogin">
+<input name="__RequestVerificationToken" type="hidden" value="tok" />
+<script>$$WP.Strings.addMnemonic("@MYCHART@ORGNAME@",HTMLUnencode("Springfield General Hospital"), false, "Global");</script>
+</body></html>`;
+
+  function servePortal() {
+    setTestTransport((url) => {
+      requested.push(url);
+      const { pathname } = new URL(url);
+      if (pathname === '/') {
+        return Promise.resolve(new Response(null, { status: 302, headers: { Location: '/MyChart/Authentication/Login' } }));
+      }
+      if (pathname === '/MyChart/Authentication/Login') {
+        return Promise.resolve(new Response(LOGIN_PAGE, { status: 200, headers: { 'Content-Type': 'text/html' } }));
+      }
+      return Promise.resolve(new Response('not found', { status: 404 }));
+    });
+  }
+
+  it('skips the sections it is told to, so a quick look costs one page', async () => {
+    servePortal();
+    const profile = (await executeCapability(null, 'get_hospital_info', {
+      hostname: 'mychart.example.org',
+      include_providers: false,
+      include_billing: false,
+    })) as { profile: { organizationName: string | null }; directory: unknown; billingEntities: unknown };
+    expect(profile.profile.organizationName).toBe('Springfield General Hospital');
+    expect(profile.directory).toBeNull();
+    expect(profile.billingEntities).toBeNull();
+    expect(requested.every((u) => u.startsWith('https://mychart.example.org'))).toBe(true);
+    expect(requested.some((u) => u.includes('OpenScheduling') || u.includes('GuestEstimates'))).toBe(false);
+  });
+
+  it('reads a local fake-mychart over plain http', async () => {
+    servePortal();
+    await executeCapability(null, 'get_hospital_info', {
+      hostname: 'localhost:4000',
+      include_providers: false,
+      include_billing: false,
+    });
+    expect(requested[0]).toStartWith('http://localhost:4000');
+  });
+
+  it('requires a hostname', async () => {
+    servePortal();
+    await expect(executeCapability(null, 'get_hospital_info', {})).rejects.toThrow('hostname');
+    expect(requested).toEqual([]);
+  });
+});
+
 describe('the set itself', () => {
   it('is what this file covers, so a new one cannot arrive untested', () => {
     expect([...PUBLIC_CAPABILITY_IDS].sort()).toEqual([
+      'get_hospital_info',
       'lookup_npi',
       'search_mycharts',
       'search_npi_registry',

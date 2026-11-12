@@ -137,6 +137,19 @@ export const TOOL_SPECS: ToolSpec[] = [
     args: { query: 'part of the health system name', limit: 'number (default 10)' },
   },
   {
+    name: 'get_hospital_info',
+    group: 'Account',
+    description:
+      'What a MyChart instance publishes about its health system to anyone, with no account: support, scheduling and billing phone lines, the bookable provider directory with clinic addresses, and billing entities. Pass the hostname from search_mycharts.',
+    args: {
+      hostname: 'MyChart hostname',
+      specialties: 'optional list of specialty names',
+      max_specialties: 'optional number',
+      include_providers: 'optional boolean (default true)',
+      include_billing: 'optional boolean (default true)',
+    },
+  },
+  {
     name: 'setup_account',
     group: 'Account',
     write: {
@@ -262,6 +275,18 @@ export const TOOL_SPECS: ToolSpec[] = [
   { name: 'get_activity_feed', group: 'Documents', description: 'Recent portal activity feed', args: { instance: 'optional' } },
   { name: 'get_ehi_export', group: 'Documents', description: 'Electronic Health Information export formats (Cures Act)', args: { instance: 'optional' } },
   { name: 'get_linked_accounts', group: 'Documents', description: 'Linked MyChart accounts at other health systems', args: { instance: 'optional' } },
+  {
+    name: 'get_notification_preferences',
+    group: 'Account',
+    description: 'Which notifications this MyChart sends and on which channels (email, text, push, phone, mail), topic by topic, including the ones locked on',
+    args: { instance: 'optional' },
+  },
+  {
+    name: 'get_account_settings',
+    group: 'Account',
+    description: 'Paperless enrollment, when new test results are released, two-step verification, text-message consent, and Care Everywhere sharing',
+    args: { instance: 'optional' },
+  },
 
   // ── Money ──
   {
@@ -662,6 +687,29 @@ const HANDLERS: Record<string, Handler> = {
     return { query: str(args, 'query'), count: matches.length, matches };
   },
 
+  // A fictional profile in the real shape, for whichever demo hostname is asked.
+  get_hospital_info: (_s, args) => {
+    const hostname = str(args, 'hostname').trim().toLowerCase();
+    const entry = data.directory.find((e) => e.hostname === hostname);
+    if (!entry) return fail(`No MyChart instance at "${hostname}". Call search_mycharts to find the right hostname.`);
+    const phone = (number: string) => ({ display: number, digits: number.replace(/\D/g, '') });
+    return {
+      hostname: entry.hostname,
+      mount: 'MyChart',
+      profile: {
+        organizationName: entry.name,
+        portalBrand: `My${entry.name.split(' ')[0]} Chart`,
+        mountPath: '/MyChart/',
+        phones: { helpDesk: phone('555-010-0100'), scheduling: phone('555-010-0200'), billing: phone('555-010-0300') },
+        supportEmail: null,
+      },
+      directory: null,
+      billingEntities: [{ id: '1', name: entry.name, facilities: [{ id: '10', name: `${entry.name} — ${entry.city}` }] }],
+      insurance: { status: 'gated', reason: 'MyChart does not publish its accepted-insurance list.' },
+      warnings: ['The demo has no provider directory to crawl.'],
+    };
+  },
+
   /**
    * The real setup flow: hostname + credentials in, one of three states out.
    * The demo picks the state off the username the way fake-mychart does —
@@ -970,6 +1018,8 @@ const HANDLERS: Record<string, Handler> = {
   get_activity_feed: (s) => clone(record(s).activityFeed),
   get_ehi_export: (s) => clone(record(s).ehiExport),
   get_linked_accounts: (s) => clone(record(s).linkedAccounts),
+  get_notification_preferences: () => clone(data.notificationPreferences),
+  get_account_settings: () => clone(data.accountSettings),
 
   // ── Money ──
   get_billing: (s, args) => {

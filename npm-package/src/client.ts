@@ -34,11 +34,13 @@ import {
   type MyChartDirectorySearchOptions,
   type MyChartDirectorySearchResult,
 } from '../../scrapers/list-all-mycharts/searchDirectory';
-import { wireSilentReauthentication, type SilentLoginParams } from '../../scrapers/myChart/auth/silentLogin';
+import { wireSilentReauthentication, type StoredLoginParams } from '../../scrapers/myChart/auth/loginModes';
 import { sessionStore } from '../../scrapers/myChart/core/sessionStore';
 import type { PasskeyCredential } from '../../scrapers/myChart/auth/softwareAuthenticator';
 
 import { getMyChartProfile, getEmail } from '../../scrapers/myChart/chart/profile/profile';
+import { fetchHospitalNetworkProfile, type NetworkProfileOptions } from '../../scrapers/myChart/prelogin';
+import type { HospitalNetworkProfile } from '../../scrapers/myChart/prelogin/types';
 import {
   discoverProxyTargets,
   switchProxyTarget,
@@ -107,6 +109,8 @@ import {
 } from '../../scrapers/myChart/chart/emergencyContacts/emergencyContacts';
 
 import { getLinkedMyChartAccounts } from '../../scrapers/myChart/chart/otherMyCharts/otherMyCharts';
+import { getNotificationPreferences } from '../../scrapers/myChart/chart/notificationPreferences/notificationPreferences';
+import { getAccountSettings } from '../../scrapers/myChart/chart/accountSettings/accountSettings';
 import { getEhiExportTemplates } from '../../scrapers/myChart/chart/ehiExport/ehiExport';
 
 import { getVisitNotes, getNoteContent, getVisitAVS } from '../../scrapers/myChart/chart/notes/notes';
@@ -115,10 +119,19 @@ import { setupTotp, disableTotp } from '../../scrapers/myChart/auth/setupTotp';
 import {
   CAPABILITIES,
   executeCapability,
+  getCapability,
   type Capability,
   type CapabilityArgs,
   type CapabilityContext,
 } from '../../shared/capabilities';
+
+const LIBRARY_CAPABILITIES = CAPABILITIES.filter((c) => !c.modelOnly);
+
+/** A `modelOnly` capability is not part of the library, so it is unknown here. */
+function libraryCapabilityId(id: string): string {
+  if (getCapability(id)?.modelOnly) throw new Error(`Unknown capability "${id}".`);
+  return id;
+}
 
 /** Options accepted by every `MyChartClient.connect*` factory. */
 export interface MyChartClientOptions {
@@ -257,7 +270,7 @@ export class MyChartClient {
   private static wrapLoginResult(
     result: LoginResult,
     opts: MyChartClientOptions,
-    renewParams?: () => SilentLoginParams,
+    renewParams?: () => StoredLoginParams,
   ): ConnectResult {
     const wireRenewal = (client: MyChartClient) => {
       if (opts.autoRenew === false || !renewParams) return;
@@ -350,7 +363,7 @@ export class MyChartClient {
    * a tool layer of your own without re-deriving what exists.
    */
   static capabilities(): readonly Capability[] {
-    return CAPABILITIES;
+    return LIBRARY_CAPABILITIES;
   }
 
   /**
@@ -364,7 +377,7 @@ export class MyChartClient {
    * the account password and somewhere to persist a new secret.
    */
   runCapability(id: string, args: CapabilityArgs = {}, ctx?: CapabilityContext): Promise<unknown> {
-    return executeCapability(this.req(), id, args, ctx);
+    return executeCapability(this.req(), libraryCapabilityId(id), args, ctx);
   }
 
   // ── Public lookups ──────────────────────────────────────────────────────
@@ -383,7 +396,7 @@ export class MyChartClient {
    * rather than silently doing something with no session.
    */
   static runPublicCapability(id: string, args: CapabilityArgs = {}): Promise<unknown> {
-    return executeCapability(null, id, args);
+    return executeCapability(null, libraryCapabilityId(id), args);
   }
 
   /**
@@ -412,6 +425,14 @@ export class MyChartClient {
     options?: MyChartDirectorySearchOptions,
   ): Promise<MyChartDirectorySearchResult> {
     return searchMyChartDirectory(query, options);
+  }
+
+  /** What a MyChart instance publishes to anyone about its health system. */
+  static getHospitalInfo(
+    hostname: string,
+    options?: NetworkProfileOptions,
+  ): Promise<HospitalNetworkProfile> {
+    return fetchHospitalNetworkProfile(hostname, options);
   }
 
   // ── Profile ─────────────────────────────────────────────────────────────
@@ -518,6 +539,10 @@ export class MyChartClient {
   addEmergencyContact(input: EmergencyContactInput)   { return addEmergencyContact(this.req(), input); }
   updateEmergencyContact(input: EmergencyContactUpdateInput) { return updateEmergencyContact(this.req(), input); }
   removeEmergencyContact(id: string)                  { return removeEmergencyContact(this.req(), id); }
+
+  // ── Account settings ───────────────────────────────────────────────────
+  getNotificationPreferences() { return getNotificationPreferences(this.req()); }
+  getAccountSettings()         { return getAccountSettings(this.req()); }
 
   // ── Linked accounts / EHI export ───────────────────────────────────────
   getLinkedMyChartAccounts() { return getLinkedMyChartAccounts(this.req()); }

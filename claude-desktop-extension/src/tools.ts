@@ -4,18 +4,16 @@
  * Tool registry for the OpenRecord MCPB stdio MCP server.
  *
  * Two groups of tools:
- *   1. Meta tools — list_accounts, get_setup_widget, get_hospital_info,
- *                   setup_account, import_browser_passwords,
+ *   1. Meta tools — list_accounts, get_setup_widget, setup_account, import_browser_passwords,
  *                   connect_imported_account, complete_2fa,
  *                   disconnect_account, check_pending_call. These are
  *                   MCPB-specific: most manage the credentials stored on this
  *                   machine, get_setup_widget returns a Claude Desktop UI
  *                   resource, and check_pending_call collects a result that
  *                   outran Claude Desktop's request timeout (pending-call.ts).
- *                   `search_mycharts` used to be one of them and is now
- *                   a `public` capability in the shared registry, so every
- *                   client has it; `get_hospital_info` is account-free in the
- *                   same way and is the obvious next one to move.
+ *                   `search_mycharts` and `get_hospital_info` used to be
+ *                   meta tools and are now `public` capabilities in the
+ *                   shared registry, so every client has them.
  *   2. Capability tools — one per entry in `shared/capabilities/`, which is
  *                   the single source of truth for what OpenRecord can do with
  *                   a MyChart account. Nothing in this file decides what the
@@ -70,19 +68,21 @@ import {
 } from '../../shared/capabilities';
 import { readLocalFile } from '../../shared/readLocalFile';
 
-import { fetchHospitalNetworkProfile } from '../../scrapers/myChart/prelogin';
 import { BACKEND_DESCRIPTION } from './secret-store';
 import {
   resolveSession,
   isConnected,
   clearSession,
   adoptSession,
+  NeedsTwoFactorError,
 } from './session-manager';
+import { SessionExpiredError } from '../../scrapers/myChart/core/makeAuthenticatedRequest';
 import {
   accountId,
   lookupAccount,
   lookupIdentity,
   readAccounts,
+  readAccountIdentities,
   secretBackend,
   readAccountPasskey,
   removeAccount,
@@ -103,6 +103,7 @@ import { saveFilePayload, saveTextFile } from './save-file';
 import { reportToolCall } from './tool-telemetry';
 import { withUpdateNotice } from './update-notice';
 import { detailedMessage } from '../../shared/detailedError';
+import { calendarSyncStatus, connectGoogleCalendar, uninstallGoogleCalendar, unsupportedReason as calendarSyncUnsupported } from './google-calendar/applet';
 
 // ── Result helpers ──────────────────────────────────────────────────────────
 
@@ -314,6 +315,7 @@ const SWITCH_PROXY_TOOL = 'switch_proxy_target';
  * Claude Desktop uses for grouping:
  *   - 'read'             → readOnlyHint: true
  *   - 'write' | 'account'→ readOnlyHint: false, destructiveHint: true
+ *     (false for an `accountFree` write, which only sends)
  *
  * `account`-kind capabilities change how the patient signs in. The MCPB's only
  * surface is tools, so they are registered — but flagged destructive, the way
@@ -350,10 +352,11 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
   if (capability.returnsFile) shape[RETURN_PARAM] = RETURN_SCHEMA;
   for (const param of capability.params) shape[param.name] = zodForParam(param);
 
+  // An account-free write sends something to us; it changes nothing that exists.
   const hints =
     capability.kind === 'read' || capability.kind === 'public' || capability.notImplemented
       ? { readOnlyHint: true, openWorldHint: true }
-      : { readOnlyHint: false, destructiveHint: true, openWorldHint: true };
+      : { readOnlyHint: false, destructiveHint: !capability.accountFree, openWorldHint: true };
 
   server.registerTool(
     capability.id,
@@ -405,10 +408,35 @@ function registerCapabilityTool(server: McpServer, capability: Capability): void
         // data modes go out as JSON.
         return typeof payload === 'string' ? textResult(payload) : jsonResult(payload);
       } catch (err) {
+        if (err instanceof NeedsTwoFactorError) return needTwoFactorResult(err, capability.id);
+        if (err instanceof SessionExpiredError && !isPublicCapability(capability)) {
+          // The mid-request renewal is machine mode and never sends a code, so
+          // keeping this session would fail every later call the same way.
+          // Dropping it makes the next call sign in fresh, as a human.
+          clearSession(readAccountArg(args) ?? '');
+          const result = errorResult(
+            `${err.message} Call ${capability.id} again to sign in. If MyChart asks for a verification code, ` +
+              'that call sends one and returns a pending_id for complete_2fa.',
+          );
+          caughtErrors.set(result, err);
+          return result;
+        }
         return caughtErrorResult(err);
       }
     },
   );
+}
+
+function needTwoFactorResult(err: NeedsTwoFactorError, toolId: string): ToolResult {
+  return jsonResult({
+    state: 'need_2fa',
+    pending_id: err.pendingId,
+    account: err.account,
+    delivery: err.delivery ?? null,
+    message:
+      `To sign in, MyChart sent the user a verification code. Ask the user for it, call complete_2fa with this ` +
+      `pending_id and the code, then call ${toolId} again.`,
+  });
 }
 
 /** Image types Claude Desktop renders from an `image` content block. */
@@ -743,7 +771,7 @@ export function registerAllTools(rawServer: McpServer): void {
             // otherwise a locked keychain downgrades storage silently and
             // nobody ever finds out.
             text: JSON.stringify(
-              { count: accounts.length, secretStorage: secretBackend(), accounts: accountList },
+              { count: accounts.length, secretStorage: secretBackend(), calendarSync: calendarSyncStatus(), accounts: accountList },
               null,
               2,
             ),
@@ -787,42 +815,6 @@ export function registerAllTools(rawServer: McpServer): void {
         },
       ],
     }),
-  );
-
-  server.registerTool(
-    'get_hospital_info',
-    {
-      description:
-        'What a MyChart instance publishes about its health system to anyone, with no account: the ' +
-        "organization's support, scheduling and billing phone lines and support email; the \"Find a Doctor\" " +
-        'directory of bookable providers (name, credentials, specialties, languages, photo) with every clinic ' +
-        'they work at (street address, phone, coordinates, hours); billing entities and their facilities; and ' +
-        'which portal features are switched on. Pass the `hostname` from search_mycharts. Slow on large ' +
-        'systems — one specialty is 0.6–2 MB and some list twenty — so narrow with `specialties` or skip the ' +
-        'crawl with `include_providers: false`. Never returns a fax number or an accepted-insurance list: ' +
-        'MyChart publishes neither (the payer list sits behind a reCAPTCHA-protected disclaimer).',
-      inputSchema: {
-        hostname: z.string().min(1).describe('The MyChart hostname, e.g. mychart.example.org. A full login URL also works.'),
-        specialties: z.array(z.string()).optional().describe('Only crawl these "Find a Doctor" specialties (by name). Default: all of them.'),
-        max_specialties: z.number().int().min(0).optional().describe('Stop after this many specialties.'),
-        include_providers: z.boolean().optional().describe('Crawl the provider and clinic directory (default true).'),
-        include_billing: z.boolean().optional().describe('Read the billing entities (default true).'),
-      } satisfies ZodRawShape,
-      ...toolMeta('Public profile of a health system', { readOnlyHint: true, openWorldHint: true }),
-    },
-    async ({ hostname, specialties, max_specialties, include_providers, include_billing }) => {
-      try {
-        const profile = await fetchHospitalNetworkProfile(hostname, {
-          ...(specialties ? { specialties } : {}),
-          ...(max_specialties !== undefined ? { maxSpecialties: max_specialties } : {}),
-          ...(include_providers !== undefined ? { includeProviders: include_providers } : {}),
-          ...(include_billing !== undefined ? { includeBilling: include_billing } : {}),
-        });
-        return jsonResult(profile);
-      } catch (err) {
-        return caughtErrorResult(err);
-      }
-    },
   );
 
   server.registerTool(
@@ -922,9 +914,9 @@ export function registerAllTools(rawServer: McpServer): void {
   server.registerTool(
     'complete_2fa',
     {
-      description: 'Finish a setup_account flow that returned `need_2fa`. Pass the `pending_id` from that response and the 6-digit code the user gave you. On success the account is saved and immediately usable. Like setup_account it changes no sign-in settings; on `logged_in`, treat `passkey_saved` and `message` exactly as you would from setup_account.',
+      description: 'Finish a sign-in that returned `need_2fa` — from setup_account, connect_imported_account, or a data tool that had to sign in. Pass the `pending_id` from that response and the 6-digit code the user gave you. After a data tool\'s `need_2fa`, call that data tool again once this succeeds. On success the account is saved and immediately usable. Like setup_account it changes no sign-in settings; on `logged_in`, treat `passkey_saved` and `message` exactly as you would from setup_account.',
       inputSchema: {
-        pending_id: z.string().describe('The pending_id returned by setup_account when state was need_2fa.'),
+        pending_id: z.string().describe('The pending_id from the response whose state was need_2fa.'),
         code: z.string().describe('6-digit code the user read from email/SMS/authenticator.'),
       } satisfies ZodRawShape,
       ...toolMeta('Finish 2FA (step 2)', { readOnlyHint: false, destructiveHint: false, openWorldHint: true }),
@@ -1018,6 +1010,89 @@ export function registerAllTools(rawServer: McpServer): void {
       try {
         const savedTo = saveTextFile(file_name, content);
         return jsonResult({ saved_to: savedTo, size_bytes: Buffer.byteLength(content) });
+      } catch (err) {
+        return caughtErrorResult(err);
+      }
+    },
+  );
+
+  // Mac-only and machine-local (it installs a menu-bar app), like the account
+  // tools above — so it is hand-written here, not a shared capability.
+  server.registerTool(
+    'connect_google_calendar',
+    {
+      description:
+        "Sync the user's upcoming MyChart appointments (every connected account) to their Google Calendar, and keep them in sync every 4 hours. macOS only. " +
+        'Only call this when the user has asked for it. Call it first without confirmed_with_user: that changes nothing and returns what setup involves, ' +
+        'to explain to the user. Call it again with confirmed_with_user: true only after the user has agreed.',
+      inputSchema: {
+        confirmed_with_user: z.boolean().optional().describe(
+          'true only once the user has read what setup involves (returned by a call without this) and agreed to go ahead.',
+        ),
+      } satisfies ZodRawShape,
+      ...toolMeta('Sync appointments to Google Calendar', { readOnlyHint: false, destructiveHint: false, openWorldHint: true }),
+    },
+    async ({ confirmed_with_user }) => {
+      try {
+        const unsupported = calendarSyncUnsupported();
+        if (unsupported) throw new Error(unsupported);
+        if (confirmed_with_user !== true) {
+          const accounts = readAccountIdentities().map(accountId);
+          if (accounts.length === 0) {
+            return jsonResult({ state: 'no_accounts', message: 'No MyChart account is connected yet, so there is nothing to sync. Help the user connect one first.' });
+          }
+          return jsonResult({
+            state: 'needs_confirmation',
+            message_for_user:
+              'Want to install the OpenRecord Google Calendar Sync applet?\n\n' +
+              `This applet copies all of your upcoming appointments from all of your connected MyChart accounts (${accounts.join(', ')}) ` +
+              'to a new "MyChart Appointments" calendar in your Google Calendar. It only touches this new calendar. ' +
+              'This applet will sit in your macOS status bar, launch at login, and sync appointments every 4 hours. ' +
+              'Setup will download the 100 MB applet and trigger permission prompts (macOS and Google sign-in).',
+            message:
+              'Nothing has been set up yet. Show the user message_for_user exactly as written, and wait for their answer. ' +
+              'Only if they agree, call connect_google_calendar again with confirmed_with_user: true.',
+          });
+        }
+        const { sync } = await connectGoogleCalendar();
+        const failed = (sync.accounts ?? []).filter((a) => a.error);
+        return jsonResult({
+          state: 'connected',
+          synced: sync.synced ?? 0,
+          accounts: sync.accounts ?? [],
+          message:
+            `Google Calendar is connected. ${sync.synced ?? 0} upcoming appointment(s) are on the "MyChart Appointments" calendar. ` +
+            'A medical-cross icon is now in the menu bar; it starts at login and syncs every 4 hours, and its menu has "Turn Off Calendar Sync". ' +
+            'Tell the user that macOS may later ask whether openrecord-calendar may use OpenRecord\'s saved MyChart sign-in from the keychain, and to choose "Always Allow" so background syncs can sign in.' +
+            (failed.length ? ` These accounts could not be synced yet: ${failed.map((a) => `${a.account} (${a.error})`).join('; ')}.` : '') +
+            (!sync.ok && !sync.accounts ? ` The first sync did not finish: ${sync.error ?? 'unknown error'}. The app will retry.` : ''),
+        });
+      } catch (err) {
+        return caughtErrorResult(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    'disconnect_google_calendar',
+    {
+      description:
+        'Turn off Google Calendar sync: revokes OpenRecord\'s access to the user\'s Google account, ' +
+        'quits the menu-bar app and stops it starting at login. The app itself stays on disk at ~/.openrecord-mcpb/bin/openrecord-calendar (about 100 MB) so turning sync back on needs no download. ' +
+        'The "MyChart Appointments" calendar and its events stay in Google Calendar, and connecting again later reuses that calendar. Only call this when the user has asked for it.',
+      inputSchema: {} satisfies ZodRawShape,
+      ...toolMeta('Turn off Google Calendar sync', { readOnlyHint: false, destructiveHint: true, openWorldHint: true }),
+    },
+    async () => {
+      try {
+        await uninstallGoogleCalendar();
+        return jsonResult({
+          state: 'disconnected',
+          message:
+            'Google Calendar sync is off: OpenRecord no longer has access to the Google account, and its menu-bar app has quit and no longer starts at login. ' +
+            'The "MyChart Appointments" calendar and its events are still in Google Calendar for the user to keep or delete. ' +
+            'The app stays at ~/.openrecord-mcpb/bin/openrecord-calendar (about 100 MB) so turning sync back on is fast; deleting that file removes it completely.',
+        });
       } catch (err) {
         return caughtErrorResult(err);
       }

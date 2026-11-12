@@ -4846,3 +4846,190 @@ export const getBenefitsSummary = {
   "moop": benefitsLimitShape,
   "insuranceLimit": benefitsLimitShape
 } as const;
+
+// /api/communicationpreferences/getpreferences
+export const getPreferences = {
+  "groupers": {
+    "*": {
+      "hstId": "",
+      "title": "",
+      "description": "",
+      "conceptIds": [
+        ""
+      ],
+      "otherPreferencesLinkPath": "",
+      "otherPreferencesLinkText": ""
+    }
+  },
+  "concepts": {
+    "*": {
+      "hstId": "",
+      "title": "",
+      "description": "",
+      "mediaIds": [
+        ""
+      ],
+      "additionalItemSectionId": ""
+    }
+  },
+  "medias": {
+    "*": {
+      "mediaId": "",
+      "type": "",
+      "toggleStatus": 0
+    }
+  },
+  "additionalItemSections": {
+    "*": {
+      "sectionType": "",
+      "optionDescriptionMap": {
+        "*": ""
+      },
+      "optionSelectionMap": {
+        "*": false
+      },
+      "optionIds": [
+        ""
+      ],
+      "sectionDescription": "",
+      "sectionId": "",
+      "dropDownAdditionalItemId": ""
+    }
+  },
+  "grouperOrder": [
+    ""
+  ],
+  "paperlessBillingRequiredConcepts": [
+    ""
+  ],
+  "canApplyToAll": false,
+  "smsFlagOn": false,
+  "userAcceptsSms": false,
+  "showContactInformation": false,
+  "grouperIdToExpandOnLoad": ""
+} as const;
+
+// /api/communicationpreferences/getcontactinformation
+export const getCommunicationPreferencesContactInformation = {
+  "email": "",
+  "mobilePhone": "",
+  "emailPending": false,
+  "mobilePending": false,
+  "showLinkToContactInfo": false,
+  "mediaTypesMissingContactMethod": [],
+  "proxyContextName": "",
+  "mobileIsVerified": false
+} as const;
+
+// /api/paperless-settings/getcombinedpaperless
+export const getCombinedPaperless = {
+  "billingInfo": {
+    "isLTCEnabled": false,
+    "hasAnAuthUser": false,
+    "status": 0,
+    "allowSignup": false,
+    "showNoNotifsPopup": false,
+    "allowCancel": false
+  },
+  "eobInfo": {
+    "status": 0,
+    "allowSignup": false,
+    "showNoNotifsPopup": false,
+    "allowCancel": false
+  },
+  "invoiceInfo": {
+    "status": 0,
+    "allowSignup": false,
+    "showNoNotifsPopup": false,
+    "allowCancel": false
+  },
+  "avsInfo": {
+    "status": 0,
+    "allowSignup": false,
+    "showNoNotifsPopup": false,
+    "allowCancel": false
+  },
+  "showContactInfo": false,
+  "expandID": ""
+} as const;
+
+// /api/test-results/getresultsreleasepreferences
+export const getResultsReleasePreferences = {
+  "options": [
+    {
+      "value": "",
+      "titleUtf8": ""
+    }
+  ],
+  "chosenRRPreference": ""
+} as const;
+
+// /api/security-settings/getinitialsettings
+export const getSecurityInitialSettings = {
+  "passwordLastUpdated": "",
+  "twoFactorEmailSmsOn": false,
+  "twoFactorTOTPOn": false,
+  "twoFactorRequired": false,
+  "rememberWebDevices": false,
+  "rememberWebDevicesAllowed": false,
+  "isUserOptedIntoPreviewFeatures": false,
+  "arePreviewFeaturesEnabled": false,
+  "nativeLoginAllowed": false,
+  "passwordChangeAvailable": false,
+  "commPrefAvailable": false,
+  "passkeyLoginAvailable": false,
+  "systemMethodsList": [
+    0
+  ],
+  "allowEmailSmsToggle": false,
+  "allowTotpToggle": false,
+  "isMyChartCentral": false,
+  "isUserDoubleActivated": false,
+  "deactivateAccountAllowed": false,
+  "hasPersonalInformationSecurity": false
+} as const;
+
+// /api/textoptin/getconsentdata
+export const getTextOptInConsentData = {
+  "consentData": {
+    "phone": "",
+    "shortCodesConsent": {
+      "*": false
+    }
+  },
+  "primarySender": {
+    "callToAction": "",
+    "termsAndConditionsURL": "",
+    "privacyPolicyURL": "",
+    "shortCode": "",
+    "displayName": "",
+    "hasRcsSender": false
+  },
+  "secondarySenders": []
+} as const;
+
+// /api/care-everywhere-opt-out/getceconfiguration
+export const getCeConfiguration = {
+  "dxtId": 0,
+  "isPatientOptedIn": false,
+  "doesPatientReqConsent": false,
+  "authorizationRequirements": 0,
+  "canSignAllOrgAuthorizations": false,
+  "hasNonStandardProspectiveAuth": false,
+  "hasAuthsOnFile": false,
+  "authNotReqReason": 0,
+  "authReqReason": 0,
+  "canAuthOverride": false,
+  "mcesAccessLevel": 0,
+  "hideMCESEduVideo": false,
+  "isThresholdMet": false,
+  "userLocale": "",
+  "canChangeCeStatus": false,
+  "hasPatientRequiredAuth": false,
+  "isPayerOnly": false,
+  "orgLogo": "",
+  "orgAuthPreferences": false,
+  "needsAuthorization": false,
+  "authorizationMnemonic": false,
+  "allowToggleDXT234": false
+} as const;

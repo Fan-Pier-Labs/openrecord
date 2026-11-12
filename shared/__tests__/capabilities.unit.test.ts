@@ -96,7 +96,7 @@ describe('the registry itself', () => {
     // If `run` ever returns to the exported type this stops compiling, which
     // is the point — it replaced a regex that only caught one spelling.
     // @ts-expect-error — Property 'run' does not exist on type 'Capability'.
-    void CAPABILITIES[0].run;
+    type _Run = (typeof CAPABILITIES)[number]['run'];
     expect(Object.keys(CAPABILITIES[0]!)).toContain('id');
   });
 

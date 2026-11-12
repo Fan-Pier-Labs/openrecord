@@ -205,6 +205,11 @@ function hydrate(row: AccountRow): AccountConfig {
 /** Which login an account is, without its secrets. */
 export type AccountIdentity = Pick<AccountConfig, 'hostname' | 'username'>;
 
+/** Every saved login, without reading a single secret from the keystore. */
+export function readAccountIdentities(): AccountIdentity[] {
+  return readRows().map((r) => ({ hostname: r.hostname, username: r.username }));
+}
+
 function findRow(hostname: string, username: string): AccountRow | undefined {
   const rows = readRows();
   return rows[rowIndex(rows, hostname, username)];

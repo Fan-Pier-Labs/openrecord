@@ -1,5 +1,29 @@
 # Changelog
 
+## Unreleased — `hospital-info` is a registry capability (breaking for its CLI flags)
+
+`get_hospital_info` is now a `public` capability, so `--action get_hospital_info` works like any
+other and the library has `MyChartClient.getHospitalInfo(hostname, options)`. `--host <h> --action
+hospital-info` still works.
+
+| Removed | What to do |
+| --- | --- |
+| `--arg providers=false` | `--arg include_providers=false` |
+| `--arg billing=false` | `--arg include_billing=false` |
+| `--local` for `hospital-info` | Nothing: localhost and dotless hosts are read over http, as at login. |
+
+## Unreleased — `silentLogin` split into `machineLogin` and `humanLogin` (breaking)
+
+| Removed | What to do |
+| --- | --- |
+| `silentLogin` | `machineLogin`: same ladder, never makes MyChart send a 2FA code. A 2FA wall it can't answer is now `{ state: 'needs_human' }`, not `failed`. |
+| `SilentLoginParams`, `SilentLoginOutcome` | `StoredLoginParams`, `MachineLoginOutcome` |
+
+Added: `humanLogin` (may send a code; on `need_2fa` it returns the pending `mychartRequest` to
+finish with `complete2faFlow`) and `HumanLoginOutcome`. `wireSilentReauthentication` now runs
+`machineLogin`. Before this change a renewal on an account with no TOTP secret sent a code that
+nothing could use.
+
 ## 2.2.0 — search reads a refreshed list instead of fetching (breaking)
 
 `searchMyChartDirectory` no longer fetches Epic's directory. It searches the result of the

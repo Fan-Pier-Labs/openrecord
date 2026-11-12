@@ -103,7 +103,7 @@
     <header>
       <a class="back" href="/">← OpenRecord</a>
       <h1>Privacy Policy</h1>
-      <p class="updated">Last updated 24 October 2026</p>
+      <p class="updated">Last updated 12 November 2026</p>
     </header>
 
     <main>
@@ -111,9 +111,10 @@
         OpenRecord is software you run yourself. It signs in to your Epic MyChart patient portal from
         your own device and reads your records there. Fan Pier Labs does not operate a server that
         holds your medical records, and there is no OpenRecord account containing a copy of them.
-        Two things do leave your device: the question you send to an AI model, and — on the desktop
-        tools only — usage data, which from the Claude Desktop extension includes who you are. Both
-        are described in full below.
+        Two things leave your device on their own: the question you send to an AI model, and — on the
+        desktop tools only — usage data, which from the Claude Desktop extension includes who you are.
+        A third, a feature request, leaves only when you choose to send one. All three are described
+        in full below.
       </p>
 
       <h2>Who this covers</h2>
@@ -291,6 +292,25 @@
         Naming the health system you are a patient of is more than we would want a tool to send about
         us without saying so, which is why it is written out here. To send none of it, set
         <code>MYCHART_CLI_TELEMETRY_DISABLED=1</code> in the environment the tool runs in.
+      </p>
+
+      <h2>Feature requests</h2>
+      <p>
+        When you ask for something OpenRecord cannot do, the AI may offer to tell us about it. Nothing
+        is sent unless you say so, and you choose what goes with it:
+      </p>
+      <ul>
+        <li><strong>With your details:</strong> your description, plus the name, email address and
+          health system you give it, so we can reply.</li>
+        <li><strong>Without them:</strong> your description only.</li>
+        <li><strong>Nothing:</strong> nothing is sent.</li>
+      </ul>
+      <p>
+        A request is emailed to us through <strong>Resend</strong>, an email delivery service, and
+        logged on our AWS account together with <strong>the IP address it came from</strong>. Sending
+        it without your details leaves out your name, email and health system, but the IP address is
+        still recorded, and from the Claude Desktop extension the usage event for the same call can
+        be matched to it.
       </p>
 
       <h2>The update check</h2>

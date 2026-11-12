@@ -18,7 +18,7 @@ import { setupTotp } from '../../scrapers/myChart/auth/setupTotp';
 import { saveTotpSecret, loadTotpSecret } from './totpStore';
 import { savePasskeyCredential, loadPasskeyCredential } from './passkeyStore';
 import { passkeyLoginWithCounterRetry } from '../../scrapers/myChart/auth/passkeyLoginRetry';
-import { wireSilentReauthentication } from '../../scrapers/myChart/auth/silentLogin';
+import { wireSilentReauthentication } from '../../scrapers/myChart/auth/loginModes';
 import type { PasskeyCredential } from '../../scrapers/myChart/auth/softwareAuthenticator';
 import { sendTelemetryEvent, setTelemetryApp } from '../../shared/telemetry';
 import { checkVersion, formatUpdateNotice } from '../../scrapers/metadata/version';
@@ -39,7 +39,6 @@ import {
   runPublicCapabilityAction,
 } from './capabilityActions';
 import { renderCliHelp } from './help';
-import { fetchHospitalNetworkProfile } from '../../scrapers/myChart/prelogin';
 import { fetchResolvedMyChartDirectory } from '../../scrapers/list-all-mycharts/refreshDirectory';
 import { detailedMessage } from '../../shared/detailedError';
 
@@ -730,38 +729,14 @@ async function main() {
   if (cliArgs.action) {
     const publicCapability = resolveCliAction(cliArgs.action);
     if (publicCapability && isPublicCapability(publicCapability)) {
-      const ok = await runPublicCapabilityAction(publicCapability, cliArgs.capabilityArgs ?? {});
+      // `--host` names the portal for get_hospital_info, as it does everywhere else.
+      const args = { ...cliArgs.capabilityArgs };
+      if (cliArgs.host && !args.hostname && publicCapability.params.some((p) => p.name === 'hostname')) {
+        args.hostname = cliArgs.host;
+      }
+      const ok = await runPublicCapabilityAction(publicCapability, args);
       closeRL();
       process.exit(ok ? 0 : 1);
-    }
-  }
-
-  // What the instance tells anyone about the health system behind it. Same
-  // idea, still hand-written: `get_hospital_info` is not a registry entry yet,
-  // so it gets its own branch here rather than the `public` dispatch above.
-  if (cliArgs.action === 'hospital-info' || cliArgs.action === 'get_hospital_info') {
-    if (!cliArgs.host) {
-      console.error('  --action hospital-info needs --host <hostname>.');
-      closeRL();
-      process.exit(1);
-    }
-    const args = cliArgs.capabilityArgs ?? {};
-    const specialties = args.specialties?.split(',').map((s) => s.trim()).filter(Boolean);
-    try {
-      const profile = await fetchHospitalNetworkProfile(cliArgs.host, {
-        ...(cliArgs.local ? { protocol: 'http' } : {}),
-        ...(specialties && specialties.length > 0 ? { specialties } : {}),
-        ...(args.max_specialties ? { maxSpecialties: Number(args.max_specialties) } : {}),
-        includeProviders: args.providers !== 'false',
-        includeBilling: args.billing !== 'false',
-      });
-      console.log(JSON.stringify(profile, null, 2));
-      closeRL();
-      process.exit(0);
-    } catch (err) {
-      console.error(`  ${detailedMessage(err)}`);
-      closeRL();
-      process.exit(1);
     }
   }
 

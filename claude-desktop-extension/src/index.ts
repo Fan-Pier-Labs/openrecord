@@ -35,6 +35,7 @@ import { startDirectoryRefresh } from './directory-refresh';
 import { startUpdateCheck } from './update-notice';
 import { setTelemetryApp } from '../../shared/telemetry';
 import { version as MCPB_VERSION } from '../manifest.json';
+import { updateInstalledBinary } from './google-calendar/applet';
 
 async function main(): Promise<void> {
   setTelemetryApp('mcpb', MCPB_VERSION);
@@ -66,7 +67,11 @@ async function main(): Promise<void> {
         'will silently re-authenticate using the saved passkey or password — no user interaction ' +
         'required. The `sessionActive: false` flag means "no live in-memory session"; it does NOT ' +
         'mean the account needs to be reconfigured. Only run the setup flow below if list_accounts ' +
-        'returns `count: 0` or if a data tool fails with "invalid_login" or "no passkey/TOTP saved".' +
+        'returns `count: 0` or if a data tool says the saved password was rejected.' +
+        '\n\n' +
+        'If a data tool returns `state: "need_2fa"`, signing in made MyChart text or email the user a ' +
+        'verification code. Ask the user for it, call complete_2fa(pending_id, code), then repeat the ' +
+        'data tool call. Do not call setup_account for this — the account is already saved.' +
         '\n\n' +
         'Interactive Setup (Recommended for first-time setup):' +
         '\n  If the user has no configured account, call get_setup_widget() to display the ' +
@@ -94,7 +99,17 @@ async function main(): Promise<void> {
         'instance publishes about its health system to anyone — support phone lines, the bookable ' +
         'provider directory with clinic addresses, and billing entities. Use search_mycharts to find ' +
         'the hostname first. It never returns a fax number or an accepted-insurance list; MyChart ' +
-        'does not publish those.',
+        'does not publish those.' +
+        '\n\n' +
+        'Missing features: if the user asks for something about their health records or MyChart that no ' +
+        'OpenRecord tool can do, say OpenRecord can\'t do that yet, say the developers would love to hear ' +
+        'what they\'re trying to do, and offer to send them a short description with send_feature_request. ' +
+        'Give three choices: (1) send it with their name, email and health system so the developers can ' +
+        'reply, the default; (2) send it without their name, email or health system; (3) send nothing. For ' +
+        'choice 1, ask the user for their name and email rather than reading them from MyChart, and use the ' +
+        'health system of the account they are using; for choice 2, pass only `request`. Describe the ' +
+        'feature, not their chart: leave out diagnoses, medications, results and dates of care unless the ' +
+        'user asks to include them. Never send one without their answer.',
     },
   );
 
@@ -128,6 +143,9 @@ async function main(): Promise<void> {
   await server.connect(transport);
   startDirectoryRefresh();
   void startUpdateCheck();
+  updateInstalledBinary().catch((err: unknown) => {
+    console.error('[openrecord] calendar sync app update failed:', err instanceof Error ? err.message : err);
+  });
 
   // Clean up keepalive timers when the parent (Claude Desktop) closes stdio.
   const shutdown = () => {

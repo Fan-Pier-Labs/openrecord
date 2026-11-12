@@ -44,11 +44,13 @@ export {
 export { MyChartResponseError } from '../../scrapers/myChart/core/rawResponse';
 export { DetailedError, detailedMessage } from '../../shared/detailedError';
 export {
-  silentLogin,
+  machineLogin,
+  humanLogin,
   wireSilentReauthentication,
-  type SilentLoginParams,
-  type SilentLoginOutcome,
-} from '../../scrapers/myChart/auth/silentLogin';
+  type StoredLoginParams,
+  type MachineLoginOutcome,
+  type HumanLoginOutcome,
+} from '../../scrapers/myChart/auth/loginModes';
 
 export { generateTotpCode, parseTotpUri } from '../../scrapers/myChart/auth/totp';
 export {
@@ -452,6 +454,33 @@ export {
   type EmergencyContactResult,
   type PhoneNumberStandard,
 } from '../../scrapers/myChart/chart/emergencyContacts/emergencyContacts';
+
+// ─── Settings ────────────────────────────────────────────────────────────
+export {
+  getNotificationPreferences,
+  fetchNotificationPreferencesRaw,
+  notificationPreferencesProcessor,
+  type NotificationPreferencesStandard,
+  type NotificationGrouperStandard,
+  type NotificationConceptStandard,
+  type NotificationMediaStandard,
+  type NotificationOptionStandard,
+  type AdditionalItemSectionStandard,
+  type NotificationContactInformationStandard,
+} from '../../scrapers/myChart/chart/notificationPreferences/notificationPreferences';
+export {
+  getAccountSettings,
+  fetchAccountSettingsRaw,
+  accountSettingsProcessor,
+  type AccountSettingsStandard,
+  type PaperlessStandard,
+  type PaperlessFeatureStandard,
+  type ResultsReleaseStandard,
+  type SecurityStandard,
+  type TextMessagingStandard,
+  type TextSenderStandard,
+  type CareEverywhereStandard,
+} from '../../scrapers/myChart/chart/accountSettings/accountSettings';
 
 // ─── Linked accounts / EHI export ────────────────────────────────────────
 export {

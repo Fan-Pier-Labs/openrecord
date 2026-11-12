@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "openrecord",
   "display_name": "OpenRecord — MyChart for Claude",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "Read and manage your MyChart health data through Claude.",
   "long_description": "Connects Claude Desktop to Epic MyChart patient portals. Ask Claude to fetch your medications, lab results, imaging, messages, billing, and more — or to send a message to your care team, request a refill, or update emergency contacts. Auth is conversational: tell Claude to set up your account and a guided flow walks you through picking your MyChart, signing in, completing 2FA, and registering a passkey for future zero-prompt logins.",
   "author": {
@@ -39,11 +39,13 @@
     { "name": "setup_account", "description": "Attempt to log into MyChart with hostname + username + password. May return need_2fa." },
     { "name": "import_browser_passwords", "description": "Find MyChart logins already saved in this machine's browsers (Chrome, Arc, Brave, Edge, Firefox). Read-only; returns no passwords." },
     { "name": "connect_imported_account", "description": "Connect an account found by import_browser_passwords, using the password already saved in the browser." },
-    { "name": "complete_2fa", "description": "Finish a setup_account flow that returned need_2fa." },
+    { "name": "complete_2fa", "description": "Finish a sign-in (setup_account or a data tool) that returned need_2fa." },
     { "name": "register_passkey", "description": "Register a passkey on an already-connected account so future logins skip the password and 2FA." },
     { "name": "disconnect_account", "description": "Forget a saved MyChart account (deletes local credentials, passkey, and session)." },
     { "name": "list_proxy_targets", "description": "List every patient record an account can access (self plus family members via proxy access) and which is active." },
     { "name": "switch_proxy_target", "description": "Switch which patient's record MyChart is showing (verified against the profile page). Data tools read the active record." },
+    { "name": "connect_google_calendar", "description": "Sync upcoming MyChart appointments to a dedicated Google Calendar, kept up to date every 4 hours by a menu-bar app (macOS)." },
+    { "name": "disconnect_google_calendar", "description": "Turn off Google Calendar sync: revoke OpenRecord's Google access and stop the menu-bar app. The calendar's events stay." },
     { "name": "save_file", "description": "Save text Claude has written from your records — a summary, a CSV of labs, a timeline — to a file in Downloads." },
     { "name": "lookup_npi", "description": "Look up a US healthcare provider by National Provider Identifier. Public data; no MyChart account needed." },
     { "name": "search_npi_registry", "description": "Find US healthcare providers by name, specialty and/or place in CMS's public NPI Registry. No MyChart account needed." }
