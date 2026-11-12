@@ -1,6 +1,6 @@
 // Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { View, TextInput, Pressable, Text, StyleSheet } from "react-native";
 
 type Props = {
@@ -10,7 +10,6 @@ type Props = {
 
 export function ChatInput({ onSend, disabled }: Props) {
   const [text, setText] = useState("");
-  const inputRef = useRef<TextInput>(null);
 
   function handleSend() {
     const trimmed = text.trim();
@@ -22,7 +21,6 @@ export function ChatInput({ onSend, disabled }: Props) {
   return (
     <View style={styles.container}>
       <TextInput
-        ref={inputRef}
         testID="chat-input"
         accessibilityLabel="Message input"
         style={styles.input}

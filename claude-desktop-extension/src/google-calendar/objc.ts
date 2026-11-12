@@ -25,7 +25,9 @@ const runtime = dlopen('/usr/lib/libobjc.A.dylib', {
 // Loading AppKit registers its classes with the runtime; any one symbol will do.
 dlopen('/System/Library/Frameworks/AppKit.framework/AppKit', { NSApplicationLoad: { args: [], returns: FFIType.bool } });
 
-export type Id = Pointer | null;
+// What bun:ffi hands back for a `ptr` return: a number, or a bigint above 2^53.
+type Ptr = Pointer | bigint;
+export type Id = Ptr | null;
 
 // bun:ffi sets `.ptr` on every symbol at runtime; its declared types leave it off.
 const MSG_SEND = (runtime.objc_msgSend as unknown as { ptr: Pointer }).ptr;
@@ -33,8 +35,8 @@ type FfiType = (typeof FFIType)[keyof typeof FFIType];
 
 const cstr = (s: string) => Buffer.from(`${s}\0`);
 
-const selectors = new Map<string, Pointer>();
-export function sel(name: string): Pointer {
+const selectors = new Map<string, Ptr>();
+export function sel(name: string): Ptr {
   let s = selectors.get(name);
   if (!s) {
     const buf = cstr(name);
@@ -44,7 +46,7 @@ export function sel(name: string): Pointer {
   return s;
 }
 
-export function cls(name: string): Pointer {
+export function cls(name: string): Ptr {
   const buf = cstr(name);
   const c = runtime.objc_getClass(ptr(buf));
   if (!c) throw new Error(`Objective-C class ${name} not found`);
