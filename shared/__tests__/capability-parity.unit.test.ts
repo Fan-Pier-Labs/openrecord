@@ -36,6 +36,10 @@ import {
 const ALL = [...CAPABILITY_IDS].sort();
 const AGENT_IDS = AGENT_CAPABILITIES.map((c) => c.id).sort();
 const PUBLIC_IDS = PUBLIC_CAPABILITIES.map((c) => c.id).sort();
+/** What the CLI and npm library offer: everything but the `modelOnly` entries. */
+const PACKAGE_CAPABILITIES = CAPABILITIES.filter((c) => !c.modelOnly);
+const PACKAGE_IDS = PACKAGE_CAPABILITIES.map((c) => c.id).sort();
+const MODEL_ONLY_IDS = CAPABILITIES.filter((c) => c.modelOnly).map((c) => c.id);
 
 // ── 1. Claude Desktop extension (MCPB) ─────────────────────────────────────
 
@@ -390,15 +394,25 @@ describe('CLI', () => {
   it('lists every capability under --list-capabilities --show-all', async () => {
     const { renderCapabilityList } = await import('../../npm-package/cli/capabilityActions');
     const listing = renderCapabilityList({ showAll: true });
-    for (const id of ALL) {
+    for (const id of PACKAGE_IDS) {
       expect(listing).toContain(id);
+    }
+  });
+
+  it('neither lists nor runs the model-only capabilities', async () => {
+    const { renderCapabilityList, resolveCliAction } = await import('../../npm-package/cli/capabilityActions');
+    expect(MODEL_ONLY_IDS.length).toBeGreaterThan(0);
+    const listing = renderCapabilityList({ showAll: true });
+    for (const id of MODEL_ONLY_IDS) {
+      expect(listing).not.toContain(id);
+      expect(resolveCliAction(id)).toBeUndefined();
     }
   });
 
   it('documents every argument each capability accepts', async () => {
     const { renderCapabilityList } = await import('../../npm-package/cli/capabilityActions');
     const listing = renderCapabilityList({ showAll: true });
-    for (const capability of CAPABILITIES) {
+    for (const capability of PACKAGE_CAPABILITIES) {
       for (const param of capability.params) {
         expect(listing).toContain(`--arg ${param.name}=<${param.type}>`);
       }
@@ -525,8 +539,15 @@ describe('CLI', () => {
 describe('npm library', () => {
   it('exposes the registry and a dynamic runner on the client', async () => {
     const { MyChartClient } = await import('../../npm-package/src/client');
-    expect(MyChartClient.capabilities().map((c) => c.id).sort()).toEqual(ALL);
+    expect(MyChartClient.capabilities().map((c) => c.id).sort()).toEqual(PACKAGE_IDS);
     expect(typeof MyChartClient.prototype.runCapability).toBe('function');
+  });
+
+  it('refuses to run the model-only capabilities', async () => {
+    const { MyChartClient } = await import('../../npm-package/src/client');
+    for (const id of MODEL_ONLY_IDS) {
+      expect(() => MyChartClient.runPublicCapability(id, { request: 'x' })).toThrow(/Unknown capability/);
+    }
   });
 
   it('re-exports the registry from the package entry point', async () => {
@@ -609,9 +630,8 @@ describe('npm library', () => {
       lookup_npi: 'lookupNpi',
       search_npi_registry: 'searchNpiRegistry',
       search_mycharts: 'searchMyCharts',
-      send_feature_request: 'sendFeatureRequest',
     };
-    expect(Object.keys(staticMethodFor).sort()).toEqual(PUBLIC_IDS);
+    expect(Object.keys(staticMethodFor).sort()).toEqual(PUBLIC_IDS.filter((id) => !MODEL_ONLY_IDS.includes(id)));
 
     // Every *implemented* capability maps to a library method. The
     // deliberately-unimplemented ones (`Capability.notImplemented`) map to
@@ -620,7 +640,7 @@ describe('npm library', () => {
     // registry withdrew. `runCapability(id)` still reaches them and returns the
     // notice, like every other client.
     const unimplemented = new Set(CAPABILITIES.filter((c) => c.notImplemented).map((c) => c.id));
-    const unmapped = ALL.filter((id) => !methodFor[id] && !staticMethodFor[id]);
+    const unmapped = PACKAGE_IDS.filter((id) => !methodFor[id] && !staticMethodFor[id]);
     expect(unmapped).toEqual([...unimplemented]);
     for (const id of unimplemented) {
       expect(methodFor[id]).toBeUndefined();
@@ -645,11 +665,16 @@ describe('the browser demo', () => {
   // what a visitor judges the product by, so a capability missing here reads as
   // a capability the product does not have. Seven of them had gone missing
   // before this test existed.
+  //
+  // The one deliberate exception: a feature request from a demo visitor about
+  // a fictional chart is not one worth offering.
+  const NOT_IN_DEMO = new Set(['send_feature_request']);
+  const DEMO_CAPABILITIES = AGENT_CAPABILITIES.filter((c) => !NOT_IN_DEMO.has(c.id));
 
   it('offers a tool for every read and write capability', async () => {
     const { TOOL_SPECS, resolveToolName } = await import('../../openrecord-splash/demo/src/tools');
     const offered = new Set(TOOL_SPECS.map((t) => resolveToolName(t.name)));
-    const missing = AGENT_IDS.filter((id) => !offered.has(id));
+    const missing = DEMO_CAPABILITIES.map((c) => c.id).filter((id) => !offered.has(id));
     expect(missing).toEqual([]);
   });
 
@@ -665,7 +690,7 @@ describe('the browser demo', () => {
 
   it('flags the same tools as writes', async () => {
     const { TOOL_SPECS, resolveToolName } = await import('../../openrecord-splash/demo/src/tools');
-    const registryWrites = CAPABILITIES.filter((c) => c.kind === 'write').map((c) => c.id);
+    const registryWrites = DEMO_CAPABILITIES.filter((c) => c.kind === 'write').map((c) => c.id);
     for (const id of registryWrites) {
       const spec = TOOL_SPECS.find((t) => resolveToolName(t.name) === id)!;
       // A write the demo treats as a read would run without the confirmation
@@ -681,7 +706,7 @@ describe('the browser demo', () => {
 
   it('names every required parameter each capability declares', async () => {
     const { TOOL_SPECS, resolveToolName } = await import('../../openrecord-splash/demo/src/tools');
-    for (const capability of AGENT_CAPABILITIES) {
+    for (const capability of DEMO_CAPABILITIES) {
       const spec = TOOL_SPECS.find((t) => resolveToolName(t.name) === capability.id)!;
       for (const param of capability.params.filter((p) => p.required)) {
         expect(Object.keys(spec.args)).toContain(param.name);

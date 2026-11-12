@@ -239,12 +239,6 @@ description.
 | --- | --- | --- | --- |
 | `search_mycharts`<br>no account needed | Look up a MyChart hostname for setup. | `query`<br>`limit` _(optional)_ | `MyChartClient.searchMyCharts(query)` |
 
-### Feedback
-
-| Capability | What it does | Arguments | `MyChartClient` method |
-| --- | --- | --- | --- |
-| `send_feature_request`<br>**writes** · no account needed · _less used_ | Email the OpenRecord developers what a user wanted that OpenRecord can't do yet. Omit `name`, `email` and `hospital` to send it without them. Confirmation-gated like every write. | `request`<br>`name` _(optional)_<br>`email` _(optional)_<br>`hospital` _(optional)_ | `MyChartClient.sendFeatureRequest(request)` |
-
 ### Not in the registry yet: hospital info
 
 The CLI has one more account-free action that isn't a registry entry:

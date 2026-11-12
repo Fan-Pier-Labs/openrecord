@@ -138,6 +138,11 @@ export interface Capability {
    * patient; see `isPublicCapability`) but is gated like every other write.
    */
   accountFree?: true;
+  /**
+   * Offered only where a model talks to the user — the Claude Desktop extension
+   * and the mobile app. The CLI and the npm library leave it out.
+   */
+  modelOnly?: true;
   params: readonly CapabilityParam[];
   /**
    * True when the payload contains binary image data that each client has to

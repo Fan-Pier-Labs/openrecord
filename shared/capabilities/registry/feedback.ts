@@ -30,6 +30,7 @@ export const FEEDBACK_CAPABILITIES: readonly CapabilityImpl[] = [
       'Describe the feature, not their chart: leave out diagnoses, medications, results and dates of care unless the user asks to include them.',
     kind: 'write',
     accountFree: true,
+    modelOnly: true,
     group: 'Feedback',
     lessFrequentlyUsed: true,
     params: [

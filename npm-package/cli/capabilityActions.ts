@@ -59,8 +59,12 @@ export const CLI_ACTION_ALIASES: Readonly<Record<string, string>> = {
 
 /** Resolve an `--action` value to a registry capability, dashed spellings included. */
 export function resolveCliAction(action: string): Capability | undefined {
-  return getCapability(CLI_ACTION_ALIASES[action] ?? action);
+  const capability = getCapability(CLI_ACTION_ALIASES[action] ?? action);
+  return capability?.modelOnly ? undefined : capability;
 }
+
+const CLI_COMMON_CAPABILITIES = COMMON_CAPABILITIES.filter((c) => !c.modelOnly);
+const CLI_LESS_FREQUENTLY_USED_CAPABILITIES = LESS_FREQUENTLY_USED_CAPABILITIES.filter((c) => !c.modelOnly);
 
 /**
  * What a bare `mychart-cli --host <hostname>` scrapes: every chart-reading
@@ -134,7 +138,7 @@ export function renderCapabilityList(options: CapabilityListOptions = {}): strin
     '  Run one with:  mychart-cli --host <hostname> --action <id> [--arg name=value ...]',
     '  The Providers and Directory lookups are public — no --host and no credentials:',
     '                 mychart-cli --action lookup_npi --arg npi=1234567893',
-    ...renderCapabilityGroups(COMMON_CAPABILITIES),
+    ...renderCapabilityGroups(CLI_COMMON_CAPABILITIES),
   ];
 
   if (options.showAll) {
@@ -146,7 +150,7 @@ export function renderCapabilityList(options: CapabilityListOptions = {}): strin
       '',
       '  Supported, and rarely what you want: endpoints most charts leave empty,',
       "  and settings for the account's own sign-in. Run them the same way.",
-      ...renderCapabilityGroups(LESS_FREQUENTLY_USED_CAPABILITIES),
+      ...renderCapabilityGroups(CLI_LESS_FREQUENTLY_USED_CAPABILITIES),
     );
   }
 
@@ -157,7 +161,7 @@ export function renderCapabilityList(options: CapabilityListOptions = {}): strin
   );
   if (!options.showAll) {
     lines.push(
-      `  ${LESS_FREQUENTLY_USED_CAPABILITIES.length} less-frequently-used capabilities are hidden. Show them with:`,
+      `  ${CLI_LESS_FREQUENTLY_USED_CAPABILITIES.length} less-frequently-used capabilities are hidden. Show them with:`,
       '      mychart-cli --list-capabilities --show-all',
     );
   }
