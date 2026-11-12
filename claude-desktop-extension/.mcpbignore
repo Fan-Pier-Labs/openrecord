@@ -43,6 +43,10 @@ node_modules/@napi-rs/*
 !node_modules/@napi-rs/keyring-win32-arm64-msvc
 !node_modules/@napi-rs/keyring-win32-arm64-msvc/**
 
+# The calendar binaries are ~100 MB each, so they are downloaded on demand from
+# beside the .mcpb (deploy.sh uploads them); only their hashes ship.
+applet/openrecord-calendar-*
+
 # Leading slash matters: an unanchored `package.json` matches at every depth and
 # would strip the shipped native package's own manifest, which is what Node
 # reads to find its entry point and its platform binary.

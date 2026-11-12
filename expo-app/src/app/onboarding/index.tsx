@@ -10,13 +10,13 @@ import {
 } from "@/lib/storage/secure-store";
 import { getBackendSession } from "@/lib/backend/session";
 import type { MyChartInstance } from "@/lib/mychart-instances";
-import { WelcomeStep } from "./steps/welcome-step";
-import { GoogleStep } from "./steps/google-step";
-import { AiStep } from "./steps/ai-step";
-import { PickerStep } from "./steps/picker-step";
-import { MyChartStep } from "./steps/mychart-step";
-import { TwoFaStep } from "./steps/twofa-step";
-import { PasskeyStep } from "./steps/passkey-step";
+import { WelcomeStep } from "@/components/onboarding/steps/welcome-step";
+import { GoogleStep } from "@/components/onboarding/steps/google-step";
+import { AiStep } from "@/components/onboarding/steps/ai-step";
+import { PickerStep } from "@/components/onboarding/steps/picker-step";
+import { MyChartStep } from "@/components/onboarding/steps/mychart-step";
+import { TwoFaStep } from "@/components/onboarding/steps/twofa-step";
+import { PasskeyStep } from "@/components/onboarding/steps/passkey-step";
 import { isStanfordHealthCare } from "../../../../scrapers/myChart/auth/stanford";
 
 type Step = "welcome" | "google" | "ai" | "picker" | "mychart" | "twofa" | "passkey";

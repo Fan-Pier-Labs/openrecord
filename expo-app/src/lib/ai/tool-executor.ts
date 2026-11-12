@@ -10,7 +10,9 @@
  */
 import { Alert } from "react-native";
 import { executeScraperTool as sessionExecute } from "@/lib/scrapers/session-manager";
-import { WRITE_TOOL_META } from "./tool-catalog";
+import { SAVE_FILE_TOOL, WRITE_TOOL_META } from "./tool-catalog";
+import { CAN_SHARE_FILES, putFile } from "@/lib/files/file-store";
+import { capToolResult } from "./result-size";
 import {
   ACCOUNT_PARAM_NAMES,
   MODE_PARAM,
@@ -67,6 +69,14 @@ export async function executeLocalTool(
         });
       }
     }
+    if (toolName === SAVE_FILE_TOOL) {
+      const fileName = typeof input.file_name === "string" ? input.file_name : "";
+      const content = typeof input.content === "string" ? input.content : "";
+      if (!fileName.trim()) throw new Error('Missing required argument "file_name".');
+      if (!CAN_SHARE_FILES) throw new Error("Saving files is not available on this device yet.");
+      const fileId = putFile(content, fileName);
+      return JSON.stringify({ file_id: fileId, size_bytes: new TextEncoder().encode(content).byteLength });
+    }
     // This executor feeds a model, so a read the model did not ask a mode for
     // gets the concise projection. The alerts generator and anything else
     // programmatic calls the session manager directly and gets JSON.
@@ -77,7 +87,7 @@ export async function executeLocalTool(
         : input;
     const result = await sessionExecute(toolName, withMode);
     // The markdown modes are already text; the data modes are serialized.
-    return typeof result === "string" ? result : JSON.stringify(result, null, 2);
+    return capToolResult(toolName, typeof result === "string" ? result : JSON.stringify(result, null, 2));
   } catch (err) {
     return JSON.stringify({
       error: `Failed to execute ${toolName}: ${detailedMessage(err)}`,

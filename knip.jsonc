@@ -29,8 +29,9 @@
       "ignoreDependencies": ["expo"]
     },
     "claude-desktop-extension": {
-      // The setup widget's entry is bundled by path (scripts/bundle-setup-widget.ts), never imported.
-      "entry": ["dev/*.mjs", "scripts/*.mjs", "src/setup-widget/main.tsx"],
+      // The setup widget's entry is bundled by path (scripts/bundle-setup-widget.ts), never imported;
+      // so is the calendar binary's (scripts/build-calendar-applet.ts, `bun build --compile`).
+      "entry": ["dev/*.mjs", "scripts/*.mjs", "src/setup-widget/main.tsx", "src/google-calendar/worker.ts"],
       "ignoreDependencies": [
         "cheerio",
         "compare-versions",

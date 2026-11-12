@@ -1,8 +1,10 @@
 // Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
 
-import { View, Text, StyleSheet, Image } from "react-native";
+import { View, Text, StyleSheet, Image, Pressable } from "react-native";
 import Markdown from "react-native-markdown-display";
 import { getImageAttachment, extractImageIds } from "@/lib/imaging/attachment-store";
+import { getFile, shareFile } from "@/lib/files/file-store";
+import { extractFileIds } from "@/lib/files/file-tokens";
 
 type Props = {
   role: "user" | "assistant" | "system";
@@ -13,9 +15,10 @@ type Props = {
 export function ChatBubble({ role, content, isStreaming }: Props) {
   const isUser = role === "user";
   const imageIds = !isUser ? extractImageIds(content) : [];
-  const displayContent = imageIds.length
-    ? content.replace(/\[image:[a-zA-Z0-9_-]+\]\s*/g, "").trim()
-    : content;
+  const fileIds = !isUser ? extractFileIds(content) : [];
+  const displayContent = isUser
+    ? content
+    : content.replace(/\[(image|file):[a-zA-Z0-9_-]+\]\s*/g, "").trim();
 
   return (
     <View style={[styles.container, isUser ? styles.userContainer : styles.assistantContainer]}>
@@ -54,6 +57,23 @@ export function ChatBubble({ role, content, isStreaming }: Props) {
               />
               {att.caption ? <Text style={styles.attachmentCaption}>{att.caption}</Text> : null}
             </View>
+          );
+        })}
+        {fileIds.map((id) => {
+          const file = getFile(id);
+          if (!file) return null;
+          return (
+            <Pressable
+              key={id}
+              testID={`file-share-${id}`}
+              accessibilityRole="button"
+              accessibilityLabel={`Share ${file.fileName}`}
+              onPress={() => void shareFile(id)}
+              style={styles.fileButton}
+            >
+              <Text style={styles.fileName} numberOfLines={1}>{file.fileName}</Text>
+              <Text style={styles.fileAction}>Share</Text>
+            </Pressable>
           );
         })}
         {isStreaming && content ? <View style={styles.cursor} /> : null}
@@ -123,6 +143,28 @@ const styles = StyleSheet.create({
     color: "#ccc",
     padding: 6,
     backgroundColor: "#000",
+  },
+  fileButton: {
+    marginTop: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#ddd",
+  },
+  fileName: {
+    flex: 1,
+    fontSize: 14,
+    color: "#1a1a1a",
+  },
+  fileAction: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#007aff",
   },
   toolCallContainer: {
     paddingHorizontal: 16,

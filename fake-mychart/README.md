@@ -426,6 +426,8 @@ All fake data is shaped to exactly match the JSON/HTML structures that the scrap
 | **Care Team** | `careTeam.ts` | Dr. Julius Hibbert (PCP), Dr. Nick Riviera (Surgery), the health plan itself as a `Payer` entry and a provider whose `Relation` is `null` — both cases real instances send — plus Dr. Marvin Monroe as an outside provider from `LoadExternal`. `providerBios` answers `/api/Providers/GetProviderBioPrivate` for the three clinicians (NPI in plain digits, as the one captured instance serves it); any other id is that instance's 500 |
 | **Insurance** | `insurance.ts` | Springfield Nuclear Power Plant Employee Health Plan |
 | **Emergency Contacts** | `emergencyContacts.ts` | Marge Simpson (Spouse), Barney Gumble (Friend) |
+| **Notification Preferences** | `notificationPreferences.ts` | Six groups, email and push only (Homer never agreed to texts), one LockedOn topic, sub-options on two topics. The fixture is a readable tree; the handler normalises it into the id-keyed maps real `GetPreferences` sends, and a unit test holds that output to the captured skeleton |
+| **Account Settings** | `accountSettings.ts` | Paperless billing signed up, results-release never chosen, no text consent, Care Everywhere opted in. `twoFactorTOTPOn` reads the session user's live TOTP state |
 | **Medical History** | `medicalHistory.ts` | Diagnoses, surgeries (triple bypass, crayon removal), family history |
 | **Lab Results** | `labResults.ts` | CMP, Lipid Panel, CBC — cholesterol and triglycerides high |
 | **Visits** | `visits.ts` | Upcoming: annual physical. Past: ER donut incident, radiation screening |
@@ -712,6 +714,13 @@ Both shapes come from the same live capture as
 exactly like `realShapes.ts` — they live beside the fake data rather than in that file because it is
 generated from captures of real *MyChart* instances, and regenerating it must not have to know about
 CMS.
+
+## The forms Lambda
+
+`POST /fanpierlabs-forms` stands in for the shared `fanpierlabs-forms` Lambda that
+`send_feature_request` posts to (`shared/featureRequest.ts`, `endpoint` option). Copied from that
+Lambda's handler: a non-JSON body or a missing/malformed `email` answers 400 with `{ error }`;
+anything else answers `200 {"ok":true}`. It emails nothing and stores nothing.
 
 ## The Pre-Login Surface
 
