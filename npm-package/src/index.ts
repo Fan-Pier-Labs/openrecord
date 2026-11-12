@@ -103,6 +103,8 @@ export {
   fetchVitalsRaw,
   vitalsProcessor,
   type VitalsStandard,
+  type UnloadedFlowsheetStandard,
+  type TruncatedFlowsheetStandard,
   type FlowsheetStandard,
   type VitalReadingStandard,
   type FlowsheetRowStandard,

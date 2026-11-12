@@ -46,6 +46,24 @@ export interface FlowsheetStandard {
   readings: VitalReadingStandard[];
 }
 
+/** A flowsheet whose readings never loaded; left out of `flowsheets`. */
+export interface UnloadedFlowsheetStandard {
+  name: string | null;
+}
+
+/** A flowsheet in `flowsheets` whose history stops early because an older page failed. */
+export interface TruncatedFlowsheetStandard {
+  name: string | null;
+  /** The oldest reading that did load. */
+  oldestLoadedIso: string | null;
+}
+
 export interface VitalsStandard {
+  /** Derived: sentences for the reader when any flowsheet did not fully load; null otherwise. */
+  notice: string | null;
   flowsheets: FlowsheetStandard[];
+  /** Derived. */
+  unloadedFlowsheets: UnloadedFlowsheetStandard[];
+  /** Derived. */
+  truncatedFlowsheets: TruncatedFlowsheetStandard[];
 }
