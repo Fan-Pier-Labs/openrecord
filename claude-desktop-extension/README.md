@@ -421,10 +421,15 @@ The short version, for what this extension does:
   - `passkey:<hostname>:<username>` — a raw P-256 private key that logs in with
     neither password nor 2FA
 
-  If the keystore is unavailable the store falls back to the 0600 files below
-  and says so in `list_accounts`'s `secretStorage` field, so a downgrade to
-  plaintext is visible rather than silent. `OPENRECORD_SECRET_BACKEND` overrides
-  the choice: `file` to opt out, `os` to fail rather than fall back.
+  If the keystore is unavailable — the binding does not load, or a write to it
+  fails — the store falls back to the 0600 files below for the rest of the
+  process and says so in `list_accounts`'s `secretStorage` field, so a downgrade
+  to plaintext is visible rather than silent. One item that cannot be read or
+  deleted (a locked keychain, a denied prompt) is not that: the other accounts
+  keep using the keystore. The failed read falls back to the file for that item;
+  the failed delete leaves the item in the keystore, and `disconnect_account`
+  says so. `OPENRECORD_SECRET_BACKEND` overrides the choice: `file` to opt out,
+  `os` to fail rather than fall back.
 
   **Migration happens on read.** The first read after upgrading moves a secret
   out of its old file location into the keystore and deletes the plaintext copy,

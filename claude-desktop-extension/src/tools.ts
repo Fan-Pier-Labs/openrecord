@@ -982,7 +982,14 @@ export function registerAllTools(rawServer: McpServer): void {
       if (!match) return textResult(`No saved account for ${account}.`);
       const id = accountId(match);
       clearSession(id);
-      removeAccount(match.hostname, match.username);
+      if (removeAccount(match.hostname, match.username) === 'keystore_copy_left') {
+        return textResult(
+          `Forgot ${id} and deleted its session cache, but the OS keystore would not delete at least one of its ` +
+            'saved secrets (password, TOTP secret or passkey) — it may be locked, or access was denied. Tell the ' +
+            'user those items are still in the keystore under the service name "openrecord-mcpb" and can be ' +
+            'deleted there by hand.',
+        );
+      }
       return textResult(`Forgot ${id}. Credentials, passkey, and session cache have been deleted from disk.`);
     },
   );

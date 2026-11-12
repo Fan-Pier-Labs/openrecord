@@ -343,6 +343,31 @@ describe('degrading to the file', () => {
     expect(() => secrets.readSecret('k', slot())).toThrow()
   })
 
+  it('keeps the keystore after one undeletable item, and says its copy is still there', () => {
+    const keyring = useKeystore()
+    const s = slot()
+    secrets.writeSecret('k', 'value', s)
+    keyring.breakIt()
+    expect(secrets.clearSecret('k', s)).toBe(false)
+    expect(secrets.activeBackend()).not.toBe('file')
+    expect(keyring.items.size).toBe(1)
+  })
+
+  it('still clears the plaintext copy when the keystore delete fails', () => {
+    const keyring = useKeystore()
+    keyring.breakIt()
+    const s = slot('from-file')
+    secrets.clearSecret('k', s)
+    expect(s.state.value).toBeUndefined()
+  })
+
+  it('fails loudly on an undeletable item in strict os mode', () => {
+    const keyring = useKeystore()
+    process.env.OPENRECORD_SECRET_BACKEND = 'os'
+    keyring.breakIt()
+    expect(() => secrets.clearSecret('k', slot())).toThrow()
+  })
+
   it('fails loudly instead of writing plaintext in strict os mode', () => {
     const keyring = useKeystore()
     process.env.OPENRECORD_SECRET_BACKEND = 'os'
@@ -394,9 +419,20 @@ describe('credential-store passkeys through the keystore', () => {
     const keyring = useKeystore()
     store.upsertAccount({ hostname: 'mychart.example.org', username: 'homer', password: 'p' })
     store.saveAccountPasskey('mychart.example.org', 'homer', '{"cred":"abc"}')
-    expect(store.removeAccount('mychart.example.org', 'homer')).toBe(true)
+    expect(store.removeAccount('mychart.example.org', 'homer')).toBe('removed')
     expect(keyring.items.size).toBe(0)
     expect(store.readAccountPasskey('mychart.example.org', 'homer')).toBeUndefined()
+  })
+
+  it('says so when the keystore would not give up a disconnected account secret', () => {
+    const keyring = useKeystore()
+    store.upsertAccount({ hostname: 'mychart.example.org', username: 'homer', password: 'p' })
+    store.upsertAccount({ hostname: 'mychart.example.org', username: 'marge', password: 'q' })
+    keyring.breakIt()
+    expect(store.removeAccount('mychart.example.org', 'homer')).toBe('keystore_copy_left')
+    // The other login must still be looked for in the keystore, not the file.
+    expect(store.secretBackend()).not.toBe('file')
+    expect(store.readAccounts().map(a => a.username)).toEqual(['marge'])
   })
 
   it('reports the backend it is actually using', () => {
@@ -494,7 +530,7 @@ describe('credential-store account secrets through the keystore', () => {
     store.saveAccountPasskey('mychart.example.org', 'homer', '{"cred":"abc"}')
     expect(keyring.items.size).toBe(3)
 
-    expect(store.removeAccount('mychart.example.org', 'homer')).toBe(true)
+    expect(store.removeAccount('mychart.example.org', 'homer')).toBe('removed')
     expect(keyring.items.size).toBe(0)
     expect(store.readAccounts()).toEqual([])
   })

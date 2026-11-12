@@ -150,10 +150,15 @@ function keyring(): KeyringModule | null {
 }
 
 /**
- * Take the keystore out of play for the rest of the process. Called after an
- * operation fails in `auto` mode: a locked keychain or an absent Secret Service
- * will still be locked or absent on the next call, and retrying it on every
- * passkey read just pays the same error twice.
+ * Take the keystore out of play for the rest of the process. Called only after
+ * a keystore write fails in `auto` mode: the secret has gone to the file, so
+ * reads have to follow it there or they would prefer whatever older copy the
+ * keystore still holds, and a locked keychain or an absent Secret Service will
+ * still be locked or absent on the next write.
+ *
+ * A failed read or delete does not come here. It can be one denied item, and
+ * demoting over it would hide every other account's keystore secrets until the
+ * process restarts.
  */
 function demote(op: string, err: unknown): void {
   cached = null;
@@ -237,20 +242,28 @@ export function writeSecret(key: string, secret: string, slot: FileSlot): void {
   slot.write(secret);
 }
 
-/** Clear both copies — a stale plaintext file would resurrect a deleted secret. */
-export function clearSecret(key: string, slot: FileSlot): void {
+/**
+ * Clear both copies — a stale plaintext file would resurrect a deleted secret.
+ * Returns false when the keystore still holds its copy because the delete failed.
+ */
+export function clearSecret(key: string, slot: FileSlot): boolean {
+  let keystoreCleared = true;
   const mod = keyring();
   if (mod) {
     try {
       entryFor(key, mod).deleteCredential();
     } catch (err) {
-      // Deleting something that was never there is not a failure worth
-      // reporting, but a locked keystore is.
       if (mode() === 'os') throw err;
-      demote('clear', err);
+      // @napi-rs/keyring 2 returns false for an item that was never there and
+      // throws only for one that exists and could not be deleted — a locked
+      // keychain, or access to it denied. As with a failed read, that says
+      // nothing about the other accounts' items, so the backend is not demoted.
+      console.error(`[openrecord] could not delete a secret from the OS keystore (${(err as Error).message})`);
+      keystoreCleared = false;
     }
   }
   slot.clear();
+  return keystoreCleared;
 }
 
 // ── Diagnostics / tests ─────────────────────────────────────────────────────
