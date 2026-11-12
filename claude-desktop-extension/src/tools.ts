@@ -85,6 +85,7 @@ import {
   lookupAccount,
   lookupIdentity,
   readAccounts,
+  readAccountIdentities,
   secretBackend,
   readAccountPasskey,
   removeAccount,
@@ -1073,16 +1074,21 @@ export function registerAllTools(rawServer: McpServer): void {
         const unsupported = calendarSyncUnsupported();
         if (unsupported) throw new Error(unsupported);
         if (confirmed_with_user !== true) {
+          const accounts = readAccountIdentities().map(accountId);
+          if (accounts.length === 0) {
+            return jsonResult({ state: 'no_accounts', message: 'No MyChart account is connected yet, so there is nothing to sync. Help the user connect one first.' });
+          }
           return jsonResult({
             state: 'needs_confirmation',
+            message_for_user:
+              'Want to install the OpenRecord Google Calendar Sync applet?\n\n' +
+              `This applet copies all of your upcoming appointments from all of your connected MyChart accounts (${accounts.join(', ')}) ` +
+              'to a new "MyChart Appointments" calendar in your Google Calendar. It only touches this new calendar. ' +
+              'This applet will sit in your macOS status bar, launch at login, and sync appointments every 4 hours. ' +
+              'Setup will download the 100 MB applet and trigger permission prompts (macOS and Google sign-in).',
             message:
-              'Nothing has been set up yet. Explain this to the user in your own words and ask whether to go ahead: ' +
-              '(1) Every connected MyChart account\'s upcoming appointments go onto a new Google calendar, "MyChart Appointments", with all appointment details, and stay in sync every 4 hours. ' +
-              'OpenRecord can see and change only that calendar, never their others. ' +
-              '(2) A menu-bar app (a medical-cross icon) runs the sync and starts at login; the first time, it downloads about 100 MB. ' +
-              '(3) Accounts are still added and removed by asking you, Claude; the sync picks up whatever accounts are connected. ' +
-              '(4) Setup opens Google sign-in in their browser, and macOS will show prompts: a notice that a background item was added, and later a keychain prompt asking whether openrecord-calendar may use OpenRecord\'s saved MyChart sign-in, where they should choose "Always Allow". ' +
-              'Once the user agrees, call connect_google_calendar again with confirmed_with_user: true.',
+              'Nothing has been set up yet. Show the user message_for_user exactly as written, and wait for their answer. ' +
+              'Only if they agree, call connect_google_calendar again with confirmed_with_user: true.',
           });
         }
         const { sync } = await connectGoogleCalendar();

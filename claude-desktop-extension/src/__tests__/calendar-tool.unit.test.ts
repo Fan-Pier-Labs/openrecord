@@ -7,7 +7,7 @@
  */
 import { beforeEach, describe, expect, it, mock } from 'bun:test'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import './memfs'
+import * as memfs from './memfs'
 
 let connects = 0
 let unsupported: string | null = null
@@ -21,6 +21,7 @@ void mock.module('../google-calendar/applet', () => ({
   },
 }))
 
+const store = await import('../credential-store')
 const { registerAllTools } = await import('../tools')
 
 type Handler = (args: Record<string, unknown>) => Promise<{ content: Array<{ text: string }>; isError?: boolean }>
@@ -34,17 +35,27 @@ registerAllTools({
 const text = async (args: Record<string, unknown>) => (await connect(args)).content[0]!.text
 
 beforeEach(() => {
+  memfs.reset()
+  store.upsertAccount({ hostname: 'mychart.example.org', username: 'homer', password: 'x' })
+  store.upsertAccount({ hostname: 'other.example.org', username: 'marge', password: 'y' })
   connects = 0
   unsupported = null
 })
 
 describe('connect_google_calendar', () => {
-  it('explains what setup involves and sets nothing up until the user confirms', async () => {
-    const reply = JSON.parse(await text({})) as { state: string; message: string }
+  it('gives Claude the exact question to ask, naming every account, and sets nothing up', async () => {
+    const reply = JSON.parse(await text({})) as { state: string; message_for_user: string; message: string }
     expect(reply.state).toBe('needs_confirmation')
-    for (const point of ['every 4 hours', 'menu-bar app', 'asking you, Claude', 'Google sign-in', 'Always Allow', 'confirmed_with_user: true']) {
-      expect(reply.message).toContain(point)
-    }
+    expect(reply.message_for_user).toStartWith('Want to install the OpenRecord Google Calendar Sync applet?\n\n')
+    expect(reply.message_for_user).toContain('connected MyChart accounts (homer@mychart.example.org, marge@other.example.org)')
+    expect(reply.message).toContain('exactly as written')
+    expect(reply.message).toContain('confirmed_with_user: true')
+    expect(connects).toBe(0)
+  })
+
+  it('asks for a MyChart account first when none is connected', async () => {
+    memfs.reset()
+    expect(JSON.parse(await text({}))).toMatchObject({ state: 'no_accounts' })
     expect(connects).toBe(0)
   })
 
