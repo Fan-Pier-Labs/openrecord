@@ -32,7 +32,7 @@ export function putFile(bytes: Uint8Array | string, fileName: string): string {
   dir.create({ intermediates: true });
   const file = new File(dir, safeFileName(fileName));
   file.create();
-  file.write(bytes);
+  file.writeSync(bytes);
   return id;
 }
 
