@@ -9,7 +9,7 @@ import {
   type PasskeyCredential,
 } from './softwareAuthenticator';
 import { logger } from '../../../shared/logger';
-import { isStanfordHealthCare, stanfordSignInUnsupported } from './stanford';
+import { supportsPasskeyAndTotp, passkeyAndTotpUnsupported } from './customPortals';
 
 // Deliberately status-only: the headers carry Set-Cookie and the bodies of
 // these endpoints carry WebAuthn challenges, so neither is safe to log.
@@ -30,9 +30,7 @@ function logUnexpectedResponse(label: string, resp: Response) {
  * Returns the PasskeyCredential for local storage, or null if setup fails.
  */
 export async function setupPasskey(mychartRequest: MyChartRequest): Promise<PasskeyCredential | null> {
-  // Stanford logs in through its own portal, so a MyChart passkey or authenticator would be
-  // registered and then never usable — the next login would quietly ask for a code again.
-  if (isStanfordHealthCare(mychartRequest.hostname)) throw stanfordSignInUnsupported();
+  if (!supportsPasskeyAndTotp(mychartRequest.hostname)) throw passkeyAndTotpUnsupported();
 
   // Get CSRF token for API requests
   const csrfToken = await fetchSessionCsrfToken(mychartRequest);

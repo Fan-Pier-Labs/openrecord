@@ -2,7 +2,7 @@
 
 /**
  * Where an expired session's request ends up: the login page, or — on instances that log in
- * through an outside portal (Stanford's myhealth_sso) — the 200 `custom/referringpage.asp`
+ * through an outside portal (see auth/customPortals.ts) — the 200 `custom/referringpage.asp`
  * error page that /Authentication/Login redirects to there.
  */
 export const SIGNED_OUT_URL_RE = /\/authentication\/login|[?&]errorNamespace=AuthError(&|$)/i;

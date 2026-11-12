@@ -157,7 +157,7 @@ export interface ConnectArgs extends MyChartClientOptions {
   /** TOTP secret used to auto-complete 2FA during a silent re-login. */
   totpSecret?: string;
   /**
-   * Stanford Health Care only: the `client.request.trustedDeviceId` a previous login left.
+   * Instances with their own login portal only: the `client.request.trustedDeviceId` a previous login left.
    * Save it (it skips 2FA, so treat it as a secret) and pass it back to skip the code.
    */
   trustedDeviceId?: string;

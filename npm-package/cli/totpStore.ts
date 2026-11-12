@@ -29,7 +29,7 @@ export async function loadTotpSecret(hostname: string): Promise<string | null> {
   }
 }
 
-// Stanford's "remember this device" id (MyChartRequest.trustedDeviceId) skips 2FA like a TOTP
+// A custom login portal's "remember this device" id (MyChartRequest.trustedDeviceId) skips 2FA like a TOTP
 // secret does, so it is kept beside them.
 function getDeviceIdPath(hostname: string): string {
   return path.join(TOTP_DIR, `${hostname}.device-id.txt`);

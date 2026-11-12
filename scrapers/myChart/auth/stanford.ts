@@ -1,7 +1,8 @@
 // Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
 
 /**
- * Stanford Health Care ("MyHealth") login — see the Stanford section of README.md.
+ * Stanford Health Care ("MyHealth") login, one of the custom login portals in customPortals.ts —
+ * see the Stanford section of README.md.
  *
  * Stanford's MyChart has no usable /Authentication/Login: it fronts it with its own portal,
  * whose JSON login API (plus its own 2FA) is followed by an SSO hop into the stock Epic
@@ -11,29 +12,17 @@
 import { randomUUID } from 'crypto';
 import { MyChartRequest } from '../core/myChartRequest';
 import type { LoginResult, TwoFaResult, TwoFaDeliveryInfo } from './login';
+import type { CustomPortal } from './customPortals';
 import { MASKED_EMAIL_RE, MASKED_PHONE_RE } from './maskedContact';
 import { looksLikeSignedOutPage, SIGNED_OUT_URL_RE } from '../core/signedOutPage';
 import { logger } from '../../../shared/logger';
-import { DetailedError } from '../../../shared/detailedError';
 
 const LOGIN_API = 'https://myhealth.stanfordhealthcare.org/Private/Ajax/V1/MyHealthLogin';
 const MYCHART_HOST = 'mychart.stanfordhealthcare.org';
 const MYCHART_PREFIX = 'myhealth_sso';
-/** The host the directory lists and users type; clients save Stanford accounts under it. */
-export const STANFORD_PORTAL_HOST = 'myhealth.stanfordhealthcare.org';
-const STANFORD_HOSTS = new Set([STANFORD_PORTAL_HOST, MYCHART_HOST]);
 
 /** Login state carried from the password step to the 2FA step. */
 const pendingStanford = new WeakMap<MyChartRequest, { userName: string; deviceId: string }>();
-
-const UNSUPPORTED_TEXT = 'Stanford Health Care signs in through its own MyHealth login, so a MyChart passkey or authenticator app would never be used. OpenRecord remembers this device after the first verification code instead.';
-export function stanfordSignInUnsupported(): DetailedError {
-  return new DetailedError(UNSUPPORTED_TEXT, UNSUPPORTED_TEXT);
-}
-
-export function isStanfordHealthCare(hostname: string): boolean {
-  return STANFORD_HOSTS.has(hostname.toLowerCase().trim().replace(/^https?:\/\//, '').split('/')[0]!);
-}
 
 interface PortalResponse {
   action?: string;
@@ -84,12 +73,9 @@ function pickDelivery(r: PortalResponse): { sendType: 'EMAIL' | 'SMS'; delivery:
   return { sendType: 'SMS', delivery: { method: 'sms', contact: phone } };
 }
 
-/**
- * `trustedDeviceId` is the id a previous login left on `mychartRequest.trustedDeviceId` and the
- * client saved. The portal stops asking for 2FA once an id has passed it (the web app keeps one
- * in localStorage), so without one every login needs a code.
- */
-export async function stanfordLogin(user: string, pass: string, skipSendCode?: boolean, trustedDeviceId?: string): Promise<LoginResult> {
+// The portal stops asking for 2FA once a deviceId has passed it (the web app keeps one in
+// localStorage), so without a saved one every login needs a code.
+async function stanfordLogin(user: string, pass: string, skipSendCode: boolean, trustedDeviceId: string | undefined): Promise<LoginResult> {
   const req = new MyChartRequest(MYCHART_HOST);
   req.setFirstPathPart(MYCHART_PREFIX);
   const deviceId = trustedDeviceId || randomUUID();
@@ -127,8 +113,7 @@ export async function stanfordLogin(user: string, pass: string, skipSendCode?: b
   return { state: 'error', error: `Unexpected Stanford MyHealth login response: ${shape(r)}`, mychartRequest: req };
 }
 
-/** Returns null when `mychartRequest` isn't midway through a Stanford login. */
-export async function stanfordComplete2fa(mychartRequest: MyChartRequest, code: string): Promise<TwoFaResult | null> {
+async function stanfordComplete2fa(mychartRequest: MyChartRequest, code: string): Promise<TwoFaResult | null> {
   const pending = pendingStanford.get(mychartRequest);
   if (!pending) return null;
 
@@ -141,3 +126,10 @@ export async function stanfordComplete2fa(mychartRequest: MyChartRequest, code: 
   pendingStanford.delete(mychartRequest);
   return { state: (await enterMyChart(mychartRequest)) ? 'logged_in' : 'error', mychartRequest };
 }
+
+export const STANFORD: CustomPortal = {
+  // The directory lists the portal host, so accounts are filed under it.
+  hosts: ['myhealth.stanfordhealthcare.org', MYCHART_HOST],
+  login: stanfordLogin,
+  complete2fa: stanfordComplete2fa,
+};

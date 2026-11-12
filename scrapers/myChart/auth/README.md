@@ -7,7 +7,7 @@ enrolling the credentials that make the next login silent.
 | | |
 | --- | --- |
 | **Capabilities** | `register_passkey` · `list_passkeys` · `delete_passkey` · `setup_totp` · `disable_totp` (account-security writes) |
-| **Source** | [`login.ts`](login.ts) · [`loginModes.ts`](loginModes.ts) · [`softwareAuthenticator.ts`](softwareAuthenticator.ts) · [`setupPasskey.ts`](setupPasskey.ts) · [`setupTotp.ts`](setupTotp.ts) · [`totp.ts`](totp.ts) · [`passkeyLoginRetry.ts`](passkeyLoginRetry.ts) · [`termsAndConditions.ts`](termsAndConditions.ts) · [`blockedInstances.ts`](blockedInstances.ts) · [`stanford.ts`](stanford.ts) |
+| **Source** | [`login.ts`](login.ts) · [`loginModes.ts`](loginModes.ts) · [`softwareAuthenticator.ts`](softwareAuthenticator.ts) · [`setupPasskey.ts`](setupPasskey.ts) · [`setupTotp.ts`](setupTotp.ts) · [`totp.ts`](totp.ts) · [`passkeyLoginRetry.ts`](passkeyLoginRetry.ts) · [`termsAndConditions.ts`](termsAndConditions.ts) · [`blockedInstances.ts`](blockedInstances.ts) · [`customPortals.ts`](customPortals.ts) · [`stanford.ts`](stanford.ts) |
 
 Everything here runs through the **raw** `MyChartRequest.makeRequest`, not
 `makeAuthenticatedRequest` — this is the pre-login world, and it is what makes the session
@@ -177,11 +177,31 @@ no MRN or PCP (see [`../chart/profile/`](../chart/profile/)).
   [`termsAndConditions.ts`](termsAndConditions.ts) detects the page during login and posts
   the form back with every hidden field intact.
 
+## Custom login portals
+
+Some health systems put their own login portal in front of MyChart and SSO into it.
+[`customPortals.ts`](customPortals.ts) lists them, one file each, and is the only place the rest
+of the code asks about them:
+
+- `myChartUserPassLogin` and `complete2faFlow` hand a portal's hosts to its `login` and
+  `complete2fa`.
+- `supportsPasskeyAndTotp` is false for them. A MyChart passkey or authenticator registered
+  behind the portal would never be used, so `setupPasskey` and `setupTotp` refuse and the
+  clients don't offer them.
+- `canonicalHostname` files every host of one portal under its first, so the MCPB doesn't turn
+  one login into two accounts.
+- A portal that remembers a device leaves the id on `mychartRequest.trustedDeviceId`. Each
+  client saves it with the account's other secrets (the MCPB's keystore, the CLI's
+  `.totp-secrets/`, the app's secure store) and passes it back as `trustedDeviceId` to
+  `myChartUserPassLogin`, `machineLogin` and `humanLogin`.
+
+To add one: write its file exporting a `CustomPortal`, and add it to `PORTALS`.
+
 ## Stanford Health Care
 
-Stanford ([`stanford.ts`](stanford.ts)) fronts its MyChart with its own portal, so
-`myChartUserPassLogin` and `complete2faFlow` hand off to it for
-`myhealth.stanfordhealthcare.org` or `mychart.stanfordhealthcare.org`. After the SSO hop the
+Stanford ([`stanford.ts`](stanford.ts)) is a custom login portal for
+`myhealth.stanfordhealthcare.org` (the host the directory lists, and the one accounts are filed
+under) and `mychart.stanfordhealthcare.org`. After the SSO hop the
 session is a stock Epic MyChart at `/myhealth_sso`, and every other scraper works unchanged.
 Contributed in a community fork (`thehesiod-forks/openrecord`) and tested there on one
 account. Here only the unauthenticated behaviour below was probed.
@@ -194,16 +214,8 @@ account. Here only the unauthenticated behaviour below was probed.
   with nothing login-like in the body. So the SSO hop is judged by `/Home`, and
   `SIGNED_OUT_URL_RE` (`../core/signedOutPage.ts`) counts that page as an expired session.
 - **`deviceId` is what skips 2FA.** The web app keeps a random one in localStorage, and the
-  portal stops asking once it has passed 2FA. A login leaves the id it used on
-  `mychartRequest.trustedDeviceId`; each client saves it with the account's other secrets
-  (the MCPB's keystore, the CLI's `.totp-secrets/`, the app's secure store) and passes it
-  back as `trustedDeviceId` to `myChartUserPassLogin`, `machineLogin` and `humanLogin`.
-  Without a saved one, the login mints a new id and needs a code.
-- **No passkey or authenticator app.** Both would register on Stanford's MyChart and never be
-  used, since login goes through the portal. `setupPasskey` and `setupTotp` refuse, and the
-  clients don't offer them.
-- **Two hosts, one account.** The MCPB files `mychart.stanfordhealthcare.org` under
-  `myhealth.stanfordhealthcare.org`, the host the directory lists.
+  portal stops asking once it has passed 2FA. It is the `trustedDeviceId` above; without a
+  saved one, the login mints a new id and needs a code.
 - **The masked contact for 2FA delivery is read out of the login JSON** with the same
   regexes as the MyChart 2FA page ([`maskedContact.ts`](maskedContact.ts)). Email is
   preferred, and SMS is used only when no email is found.

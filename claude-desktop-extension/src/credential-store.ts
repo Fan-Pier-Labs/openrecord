@@ -10,7 +10,7 @@
  *   password:<hostname>:<username>
  *   totp:<hostname>:<username>
  *   passkey:<hostname>:<username>
- *   device:<hostname>:<username>   — Stanford Health Care's trusted device id only
+ *   device:<hostname>:<username>   — custom login portals only: the remembered device id
  *
  * What stays on disk under ~/.openrecord-mcpb/:
  *   accounts.json                          — the index: { accounts: [{ hostname, username }] }.
@@ -43,7 +43,7 @@ import * as os from 'os';
 import * as path from 'path';
 
 import { clearSecret, readSecret, writeSecret, activeBackend, type BackendName, type FileSlot } from './secret-store';
-import { isStanfordHealthCare, STANFORD_PORTAL_HOST } from '../../scrapers/myChart/auth/stanford';
+import { canonicalHostname } from '../../scrapers/myChart/auth/customPortals';
 
 const ROOT = path.join(os.homedir(), '.openrecord-mcpb');
 const ACCOUNTS_PATH = path.join(ROOT, 'accounts.json');
@@ -57,7 +57,7 @@ export interface AccountConfig {
   // Hydrated from the keystore, which returns undefined for "nothing saved".
   // `AccountRow` is the persisted shape; this one is in-memory only.
   totpSecret?: string | undefined;
-  /** Stanford's "remember this device" id (`MyChartRequest.trustedDeviceId`) — it skips 2FA, so it is a secret. */
+  /** A custom login portal's "remember this device" id (`MyChartRequest.trustedDeviceId`) — it skips 2FA, so it is a secret. */
   trustedDeviceId?: string | undefined;
 }
 
@@ -66,9 +66,8 @@ export function normalizeHostname(hostname: string): string {
   try {
     // Strips protocol and path, keeps host:port
     const parsed = new URL(trimmed.includes('://') ? trimmed : `https://${trimmed}`);
-    // Stanford answers on two hosts; one login must not become two accounts.
-    if (isStanfordHealthCare(parsed.host)) return STANFORD_PORTAL_HOST;
-    return parsed.host;
+    // A portal that answers on several hosts must not turn one login into several accounts.
+    return canonicalHostname(parsed.host);
   } catch {
     return trimmed;
   }

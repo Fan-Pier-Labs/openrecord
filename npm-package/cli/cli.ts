@@ -16,7 +16,7 @@ import { sessionStore } from '../../scrapers/myChart/core/sessionStore';
 import { generateTotpCode } from '../../scrapers/myChart/auth/totp';
 import { setupTotp } from '../../scrapers/myChart/auth/setupTotp';
 import { saveTotpSecret, loadTotpSecret, saveTrustedDeviceId, loadTrustedDeviceId } from './totpStore';
-import { isStanfordHealthCare } from '../../scrapers/myChart/auth/stanford';
+import { supportsPasskeyAndTotp } from '../../scrapers/myChart/auth/customPortals';
 import { savePasskeyCredential, loadPasskeyCredential } from './passkeyStore';
 import { passkeyLoginWithCounterRetry } from '../../scrapers/myChart/auth/passkeyLoginRetry';
 import { wireSilentReauthentication } from '../../scrapers/myChart/auth/loginModes';
@@ -480,9 +480,9 @@ async function login(creds: LoginCredentials): Promise<MyChartRequest | null> {
 
       mychartRequest = twoFaResult.mychartRequest;
 
-      // After successful email-based 2FA, offer TOTP auto-setup. Stanford can't use it: it
-      // remembers the device instead (saved below).
-      if (!useTotpSecret && !cliArgs.setupTotp && !isStanfordHealthCare(creds.hostname)) {
+      // After successful email-based 2FA, offer TOTP auto-setup — unless the instance has its own
+      // login portal, which remembers the device instead (saved below).
+      if (!useTotpSecret && !cliArgs.setupTotp && supportsPasskeyAndTotp(creds.hostname)) {
         const existingSecret = await loadTotpSecret(creds.hostname);
         if (!existingSecret) {
           console.log('\n  To let the CLI sign in automatically in the future, we can set up');

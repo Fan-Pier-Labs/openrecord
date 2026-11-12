@@ -49,7 +49,7 @@ export type StoredLoginParams = {
    * native-cookie fetch on device, jar-driven fetch on Node/Bun — on its own.)
    */
   passkey?: PasskeyCredential | null | undefined;
-  /** Saved `mychartRequest.trustedDeviceId` — lets a Stanford Health Care login skip 2FA. */
+  /** Saved `mychartRequest.trustedDeviceId` — lets a custom login portal (customPortals.ts) skip 2FA. */
   trustedDeviceId?: string | null | undefined;
   /** 'http' for local fake-mychart; defaults to https. */
   protocol?: string | undefined;

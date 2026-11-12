@@ -418,7 +418,7 @@ The short version, for what this extension does:
   up to four items per identity:
   - `password:<hostname>:<username>`
   - `totp:<hostname>:<username>`
-  - `device:<hostname>:<username>` (Stanford Health Care accounts only — the id that lets a login skip 2FA)
+  - `device:<hostname>:<username>` (health systems with their own login portal only — the remembered device id that lets a login skip 2FA)
   - `passkey:<hostname>:<username>` — a raw P-256 private key that logs in with
     neither password nor 2FA
 

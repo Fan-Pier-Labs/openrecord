@@ -17,7 +17,7 @@ import { PickerStep } from "@/components/onboarding/steps/picker-step";
 import { MyChartStep } from "@/components/onboarding/steps/mychart-step";
 import { TwoFaStep } from "@/components/onboarding/steps/twofa-step";
 import { PasskeyStep } from "@/components/onboarding/steps/passkey-step";
-import { isStanfordHealthCare } from "../../../../scrapers/myChart/auth/stanford";
+import { supportsPasskeyAndTotp } from "../../../../scrapers/myChart/auth/customPortals";
 
 type Step = "welcome" | "google" | "ai" | "picker" | "mychart" | "twofa" | "passkey";
 
@@ -56,9 +56,9 @@ export default function OnboardingScreen() {
     })(), "onboarding:devShortcut");
   }, [setSetupComplete]);
 
-  // Stanford can't use a MyChart passkey (it logs in through its own portal), so skip the offer.
+  // An instance with its own login portal can't use a MyChart passkey, so skip the offer.
   function afterLogin(acc: StoredMyChartAccount | null) {
-    if (acc && isStanfordHealthCare(acc.hostname)) fireAndForget(finishSetup(), "onboarding:finishSetup");
+    if (acc && !supportsPasskeyAndTotp(acc.hostname)) fireAndForget(finishSetup(), "onboarding:finishSetup");
     else setStep("passkey");
   }
 

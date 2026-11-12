@@ -53,8 +53,8 @@ export class MyChartRequest {
   firstPathPart: string | null = null;
 
   /**
-   * Set by a Stanford Health Care login (auth/stanford.ts): the deviceId its portal remembers
-   * once it has passed 2FA. The client saves it with the account's other secrets and passes
+   * Set by a custom login portal (auth/customPortals.ts): the device id it remembers once it
+   * has passed 2FA. The client saves it with the account's other secrets and passes
    * it back to the next login, which then skips 2FA. null everywhere else.
    */
   trustedDeviceId: string | null = null;

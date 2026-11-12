@@ -2,7 +2,8 @@
 
 import { describe, it, expect, beforeAll, afterAll, afterEach } from 'bun:test'
 import { myChartUserPassLogin, complete2faFlow } from '../login'
-import { isStanfordHealthCare } from '../stanford'
+import { STANFORD } from '../stanford'
+import { customPortalFor, canonicalHostname, supportsPasskeyAndTotp } from '../customPortals'
 import { machineLogin } from '../loginModes'
 import { setupPasskey } from '../setupPasskey'
 import { setupTotp } from '../setupTotp'
@@ -66,16 +67,23 @@ afterAll(() => {
   else process.env.MYCHART_CLI_TELEMETRY_DISABLED = previousTelemetrySetting
 })
 
-describe('isStanfordHealthCare', () => {
-  it('matches the portal and MyChart hosts however they are typed', () => {
-    expect(isStanfordHealthCare('myhealth.stanfordhealthcare.org')).toBe(true)
-    expect(isStanfordHealthCare('https://MyHealth.StanfordHealthCare.org/')).toBe(true)
-    expect(isStanfordHealthCare('mychart.stanfordhealthcare.org/myhealth_sso')).toBe(true)
+describe('Stanford as a custom login portal', () => {
+  it('is found for the portal and MyChart hosts however they are typed', () => {
+    expect(customPortalFor('myhealth.stanfordhealthcare.org')).toBe(STANFORD)
+    expect(customPortalFor('https://MyHealth.StanfordHealthCare.org/')).toBe(STANFORD)
+    expect(customPortalFor('mychart.stanfordhealthcare.org/myhealth_sso')).toBe(STANFORD)
   })
 
-  it('does not match other Stanford-named instances', () => {
-    expect(isStanfordHealthCare('mychart.stanfordchildrens.org')).toBe(false)
-    expect(isStanfordHealthCare('evil-stanfordhealthcare.org')).toBe(false)
+  it('is not found for other Stanford-named instances', () => {
+    expect(customPortalFor('mychart.stanfordchildrens.org')).toBeUndefined()
+    expect(customPortalFor('evil-stanfordhealthcare.org')).toBeUndefined()
+  })
+
+  it('files both hosts under the portal host, and turns off passkeys and TOTP', () => {
+    expect(canonicalHostname('mychart.stanfordhealthcare.org')).toBe('myhealth.stanfordhealthcare.org')
+    expect(canonicalHostname('mychart.example.org')).toBe('mychart.example.org')
+    expect(supportsPasskeyAndTotp('mychart.stanfordhealthcare.org')).toBe(false)
+    expect(supportsPasskeyAndTotp('mychart.example.org')).toBe(true)
   })
 })
 
@@ -143,8 +151,8 @@ describe('Stanford MyHealth login', () => {
 
   it('refuses to register a passkey or an authenticator, which Stanford logins would never use', async () => {
     const req = new MyChartRequest('mychart.stanfordhealthcare.org')
-    await expect(setupPasskey(req)).rejects.toThrow('own MyHealth login')
-    await expect(setupTotp(req, 'pw')).rejects.toThrow('own MyHealth login')
+    await expect(setupPasskey(req)).rejects.toThrow('own login portal')
+    await expect(setupTotp(req, 'pw')).rejects.toThrow('own login portal')
   })
 
   it('never asks the portal to send a code when skipSendCode is set', async () => {

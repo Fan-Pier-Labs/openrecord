@@ -9,7 +9,7 @@ import { sendTelemetryEvent } from "../../../shared/telemetry";
 import { acceptTermsAndConditions } from "./termsAndConditions";
 import { isBlockedInstance } from "./blockedInstances";
 import { MASKED_EMAIL_RE, MASKED_PHONE_RE } from "./maskedContact";
-import { isStanfordHealthCare, stanfordLogin, stanfordComplete2fa } from "./stanford";
+import { customPortalFor, completeCustomPortal2fa } from "./customPortals";
 import { createAssertion, type PasskeyCredential } from "./softwareAuthenticator";
 import { logger } from '../../../shared/logger';
 
@@ -620,10 +620,8 @@ export async function myChartUserPassLogin ({hostname, user, pass, skipSendCode,
     throw new Error(`${hostname} is not supported. central.mychart.org is a portal aggregator and cannot be scraped directly. Please use the individual hospital MyChart instance instead.`);
   }
 
-  // Stanford's MyChart has no /Authentication/Login; its own portal logs in instead.
-  if (isStanfordHealthCare(hostname)) {
-    return stanfordLogin(user, pass, skipSendCode, trustedDeviceId ?? undefined);
-  }
+  const portal = customPortalFor(hostname);
+  if (portal) return portal.login(user, pass, !!skipSendCode, trustedDeviceId ?? undefined);
 
   // Use HTTP for localhost and hostnames without a dot (e.g. Docker service names like "fake-mychart:3000")
   const hostnameWithoutPort = hostname.split(':')[0]!; // split() always yields a first element
@@ -869,8 +867,8 @@ export async function complete2faFlow({mychartRequest, code, twofaCodeArray, isT
   // in-place sort would reorder their array as a side effect of completing 2FA.
   const sortedCodes = [...codeArray].sort((a, b) => b.score - a.score);
 
-  const stanford = sortedCodes[0] && await stanfordComplete2fa(mychartRequest, sortedCodes[0].code);
-  if (stanford) return stanford;
+  const portalResult = sortedCodes[0] && await completeCustomPortal2fa(mychartRequest, sortedCodes[0].code);
+  if (portalResult) return portalResult;
 
   // // To make sure we don't grab an old code from the user's email, we only look for emails that arrived after the above API request was made. 
   // // Also, look up to 5 seconds before the request was made.

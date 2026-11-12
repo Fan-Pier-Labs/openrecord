@@ -46,7 +46,7 @@ import { z, type ZodRawShape } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
 import { myChartUserPassLogin, complete2faFlow } from '../../scrapers/myChart/auth/login';
-import { isStanfordHealthCare } from '../../scrapers/myChart/auth/stanford';
+import { supportsPasskeyAndTotp } from '../../scrapers/myChart/auth/customPortals';
 
 import {
   ACCOUNT_PARAM,
@@ -203,11 +203,11 @@ function recommendPasskeyMessage(id: string): string {
 function loggedInResult(hostname: string, username: string): ToolResult {
   const id = accountId({ hostname, username });
   // No passkey_saved field: that is what the setup widget and the model offer a passkey on.
-  if (isStanfordHealthCare(hostname)) {
+  if (!supportsPasskeyAndTotp(hostname)) {
     return jsonResult({
       state: 'logged_in',
       account: id,
-      message: 'Account connected — nothing further is required to read this chart. Stanford signs in through its own portal, so passkeys are not available; this device is remembered instead, and later sign-ins should not need a code.',
+      message: 'Account connected — nothing further is required to read this chart. This health system signs in through its own portal, so passkeys are not available; this device is remembered instead, and later sign-ins should not need a code.',
     });
   }
   // Per (hostname, username): another user's passkey on the same hostname says
@@ -619,7 +619,7 @@ async function connectWithPassword(hostname: string, username: string, passwords
     // password moves on to the next: 2FA or any other outcome means MyChart
     // has accepted it or something else is wrong, and either way we stop.
     let password = passwords[0]!;
-    // A device id saved by an earlier setup lets Stanford skip the code this time.
+    // A remembered device saved by an earlier setup can skip the code this time.
     const trustedDeviceId = readAccountTrustedDeviceId(hostname, username);
     let result = await myChartUserPassLogin({ hostname, user: username, pass: password, trustedDeviceId });
     for (const next of passwords.slice(1)) {
