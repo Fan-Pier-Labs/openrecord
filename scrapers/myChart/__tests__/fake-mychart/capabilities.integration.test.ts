@@ -27,14 +27,17 @@ import { getVerificationToken } from '../../chart/messages/communicationCenterTo
 import {
   CAPABILITIES,
   CAPABILITY_IDS,
-  PUBLIC_CAPABILITY_IDS,
   executeCapability,
+  isPublicCapability,
   getCapability,
   type FilePayload,
   type StudyImagePayload,
   type MessageAttachmentFile,
   type DocumentFile,
 } from '../../../../shared/capabilities'
+
+/** Everything that runs with no account: the `public` lookups and the `accountFree` writes. */
+const NO_ACCOUNT_IDS = CAPABILITIES.filter(isPublicCapability).map((c) => c.id)
 
 const HOST = process.env.FAKE_MYCHART_HOST ?? 'localhost:4000'
 
@@ -672,7 +675,7 @@ describe('capability registry against fake-mychart', () => {
     // NPI Registry, Epic's instance directory and our forms Lambda, none of
     // which this server is. They have their own integration suites, named below.
     const untested = CAPABILITY_IDS.filter(
-      (id) => !exercised.has(id) && !PUBLIC_CAPABILITY_IDS.includes(id),
+      (id) => !exercised.has(id) && !NO_ACCOUNT_IDS.includes(id),
     )
     expect(untested).toEqual([])
   })
@@ -690,7 +693,7 @@ describe('capability registry against fake-mychart', () => {
       suites.map((path) => Bun.file(new URL(`../../../../${path}`, import.meta.url)).text()),
     )
     const joined = sources.join('\n')
-    for (const id of PUBLIC_CAPABILITY_IDS) expect(joined).toContain(id)
+    for (const id of NO_ACCOUNT_IDS) expect(joined).toContain(id)
   })
 
   // send_reply / delete_message / delete_passkey need a thread and a passkey

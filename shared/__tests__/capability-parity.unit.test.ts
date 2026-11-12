@@ -631,7 +631,7 @@ describe('npm library', () => {
       search_npi_registry: 'searchNpiRegistry',
       search_mycharts: 'searchMyCharts',
     };
-    expect(Object.keys(staticMethodFor).sort()).toEqual(PUBLIC_IDS.filter((id) => !MODEL_ONLY_IDS.includes(id)));
+    expect(Object.keys(staticMethodFor).sort()).toEqual(PUBLIC_IDS);
 
     // Every *implemented* capability maps to a library method. The
     // deliberately-unimplemented ones (`Capability.notImplemented`) map to

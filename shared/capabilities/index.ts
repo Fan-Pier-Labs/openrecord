@@ -145,11 +145,11 @@ export const LESS_FREQUENTLY_USED_CAPABILITIES: readonly Capability[] = CAPABILI
 export const WRITE_CAPABILITY_IDS: readonly string[] = CAPABILITIES.filter((c) => c.kind === 'write').map((c) => c.id);
 
 /**
- * The capabilities that need no MyChart account — public directories and
- * registries. Clients use this to decide what to offer, and what to run,
- * before anyone has connected anything.
+ * The account-free lookups — public directories and registries. Reads only:
+ * an `accountFree` write also runs with no account (`isPublicCapability`), but
+ * a caller offering this list as safe lookups must not be handed a send.
  */
-export const PUBLIC_CAPABILITIES: readonly Capability[] = CAPABILITIES.filter(isPublicCapability);
+export const PUBLIC_CAPABILITIES: readonly Capability[] = CAPABILITIES.filter((c) => c.kind === 'public');
 
 export const PUBLIC_CAPABILITY_IDS: readonly string[] = PUBLIC_CAPABILITIES.map((c) => c.id);
 

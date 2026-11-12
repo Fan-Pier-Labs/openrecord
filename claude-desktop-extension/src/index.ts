@@ -102,9 +102,14 @@ async function main(): Promise<void> {
         'does not publish those.' +
         '\n\n' +
         'Missing features: if the user asks for something about their health records or MyChart that no ' +
-        'OpenRecord tool can do, say OpenRecord can\'t do that yet and offer to tell the developers with ' +
-        'send_feature_request — its description lists the three choices to give the user. Never send one ' +
-        'without their answer.',
+        'OpenRecord tool can do, say OpenRecord can\'t do that yet, say the developers would love to hear ' +
+        'what they\'re trying to do, and offer to send them a short description with send_feature_request. ' +
+        'Give three choices: (1) send it with their name, email and health system so the developers can ' +
+        'reply, the default; (2) send it without their name, email or health system; (3) send nothing. For ' +
+        'choice 1, ask the user for their name and email rather than reading them from MyChart, and use the ' +
+        'health system of the account they are using; for choice 2, pass only `request`. Describe the ' +
+        'feature, not their chart: leave out diagnoses, medications, results and dates of care unless the ' +
+        'user asks to include them. Never send one without their answer.',
     },
   );
 

@@ -18,16 +18,11 @@ export const FEEDBACK_CAPABILITIES: readonly CapabilityImpl[] = [
   {
     id: 'send_feature_request',
     title: 'Send a feature request',
+    // Short on purpose: the mobile confirmation dialog shows this to the user.
+    // How to offer it lives in the MCPB server instructions and the mobile
+    // system prompt, the only two clients that offer it.
     description:
-      "Email the OpenRecord developers a short description of something the user wanted to do with their health records that OpenRecord can't do yet. " +
-      "When a request about their records or MyChart needs something none of your OpenRecord tools can do, say OpenRecord can't do that yet, " +
-      "that the developers would love to hear what they're trying to do, and offer to send it. Give three choices: " +
-      '(1) send it with their name, email and health system so the developers can reply — the default; ' +
-      '(2) send it without their name, email or health system; ' +
-      '(3) send nothing. ' +
-      'For choice 1, ask the user for their name and email, and use the health system of the account they are using. ' +
-      'For choice 2, pass only `request`. ' +
-      'Describe the feature, not their chart: leave out diagnoses, medications, results and dates of care unless the user asks to include them.',
+      "Email the OpenRecord developers what the user wanted to do that OpenRecord can't do yet, with their name, email and health system if they chose to include them.",
     kind: 'write',
     accountFree: true,
     modelOnly: true,
@@ -40,12 +35,12 @@ export const FEEDBACK_CAPABILITIES: readonly CapabilityImpl[] = [
         description: 'A few sentences on what the user was trying to do and what they would want OpenRecord to do.',
         required: true,
       },
-      { name: 'name', type: 'string', description: "The user's name. Omit for choice 2." },
-      { name: 'email', type: 'string', description: "The user's email, so the developers can reply. Omit for choice 2." },
+      { name: 'name', type: 'string', description: "The user's name. Omit to send without it." },
+      { name: 'email', type: 'string', description: "The user's email, so the developers can reply. Omit to send without it." },
       {
         name: 'hospital',
         type: 'string',
-        description: 'Their health system, or its MyChart hostname. Omit for choice 2.',
+        description: 'Their health system, or its MyChart hostname. Omit to send without it.',
       },
     ],
     run: (args) =>
