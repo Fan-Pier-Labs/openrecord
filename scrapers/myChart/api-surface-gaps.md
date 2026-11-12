@@ -82,6 +82,8 @@ Its siblings are not worth it: `LoadSingleVisits` (15 KB) is the same visits in 
 
 ## 2.2 `POST /api/security-settings/GetInitialSettings`
 
+**Shipped** as the `security` section of `get_account_settings`.
+
 Password last-updated date, which 2FA methods are on, whether TOTP/passkey/device-remember are
 allowed, deactivation eligibility. Not health data — but it is the one account-hygiene read with a
 question a patient actually asks ("is my 2FA on?"), and we already *write* into exactly this space
@@ -117,13 +119,20 @@ what it actually adds, so nobody re-litigates them.
 | `POST /api/test-results/GetDetailsByCSN` (2.9 KB) | `get_lab_results` uses `GetDetails` by result id | The same details keyed by encounter CSN instead | Worth it only if it surfaces results the list omits — unverified, and that is the whole question |
 | `POST /api/test-results/GetCommunityInfo` (851 B) | — | Happy Together / linked-org result sources and per-org flags | Provenance metadata, not results |
 | `POST /api/test-results/GetWidgetList` (64 KB) | `get_lab_results` | The home-page widget feed | 64 KB of a view we already have the data for |
-| `POST /api/test-results/GetResultsReleasePreferences` (163 B) | — | One preference value | Settings |
+| `POST /api/test-results/GetResultsReleasePreferences` (163 B) | — | One preference value | **Shipped** in `get_account_settings` |
 
 ## Consent, sharing and account settings — one block, low conviction
 
 Real endpoints, all account/consent state rather than record content. If a "privacy and sharing
 posture" capability is ever wanted, these are its parts and they should ship as **one** capability,
 not thirteen. Absent that product decision, none is worth a capability of its own.
+
+**Partly shipped** (November 2026), as two capabilities rather than thirteen:
+`get_notification_preferences` reads `communicationPreferences/GetPreferences` and
+`communicationPreferences/GetContactInformation`; `get_account_settings` reads
+`paperless-settings/GetCombinedPaperless`, `textoptin/GetConsentData` and
+`care-everywhere-opt-out/GetCeConfiguration` (plus 2.2 and the results-release preference above).
+The rest of this list is still unbuilt.
 
 `communicationPreferences/GetPreferences` (**52 KB** of notification topic × channel checkboxes) ·
 `contact-information/GetContactInfoSettings` (overlaps `get_profile`) · `textoptin/GetPhoneNumbers` ·

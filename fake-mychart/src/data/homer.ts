@@ -3525,3 +3525,206 @@ export const avsByCsn: Record<string, { reportContent: string; reportCss: string
     reportCss: '',
   },
 };
+
+// ─── Account settings ───────────────────────────────────────────────
+// Modelled on five captured instances (November 2026). Real
+// `GetPreferences` normalises this tree into four maps keyed by opaque ids;
+// the handler does that, so the fixture can stay a readable list. Channel
+// `type` and `toggleStatus` use the bundle's own codes: type 1 Email, 3 Mail,
+// 4 Phone, 6 Push, 100 Text; toggleStatus 0 Off, 1 On, 3 LockedOn.
+//
+// Homer has an email address and no mobile number on file and never agreed
+// to text messages, so every Text toggle is off and his text-consent map is
+// empty — the same story `GetContactInformation` and `GetConsentData` tell.
+const EMAIL = '1', MAIL = '3', PUSH = '6', TEXT = '100';
+const OFF = 0, ON = 1, LOCKED_ON = 3;
+
+export type FakeNotificationConcept = {
+  title: string;
+  description: string;
+  medias: Array<{ type: string; toggleStatus: number }>;
+  requiredForPaperlessBilling?: boolean;
+  additionalItemSection?: {
+    sectionType: string;
+    sectionDescription: string;
+    options: Array<{ description: string; selected: boolean }>;
+  };
+};
+
+export const notificationPreferences: {
+  groupers: Array<{ title: string; description: string; otherPreferencesLinkPath?: string; otherPreferencesLinkText?: string; concepts: FakeNotificationConcept[] }>;
+  smsFlagOn: boolean;
+  userAcceptsSms: boolean;
+  canApplyToAll: boolean;
+  showContactInformation: boolean;
+} = {
+  groupers: [
+    {
+      title: 'Appointments',
+      description: 'Reminders and updates about upcoming appointments',
+      concepts: [
+        {
+          title: 'Status Updates',
+          description: 'Receive a notification when an appointment changes.',
+          medias: [{ type: EMAIL, toggleStatus: ON }, { type: TEXT, toggleStatus: OFF }, { type: PUSH, toggleStatus: ON }],
+          additionalItemSection: {
+            sectionType: 'Checkbox',
+            sectionDescription: 'Receive reminders when your appointment has been: ',
+            options: [
+              { description: 'Scheduled', selected: true },
+              { description: 'Changed', selected: true },
+              { description: 'Canceled', selected: true },
+              { description: 'Missed', selected: false },
+            ],
+          },
+        },
+        {
+          title: 'Wait List Offer',
+          description: 'Receive a notification when an earlier appointment opens up.',
+          medias: [{ type: EMAIL, toggleStatus: ON }, { type: TEXT, toggleStatus: OFF }],
+          additionalItemSection: {
+            sectionType: 'Checkbox',
+            sectionDescription: '',
+            options: [{ description: 'Automatically sign up my appointments for earlier offers', selected: true }],
+          },
+        },
+      ],
+    },
+    {
+      title: 'Messages',
+      description: 'New messages and letters',
+      concepts: [
+        { title: 'New Message', description: 'Receive a notification when you have a new message.', medias: [{ type: EMAIL, toggleStatus: ON }, { type: TEXT, toggleStatus: OFF }, { type: PUSH, toggleStatus: ON }] },
+        { title: 'Letters', description: 'Receive a notification when a new letter is available.', medias: [{ type: EMAIL, toggleStatus: OFF }, { type: PUSH, toggleStatus: OFF }] },
+      ],
+    },
+    {
+      title: 'Health',
+      description: 'Test results and prescriptions',
+      concepts: [
+        { title: 'Test Result', description: 'Receive a notification when a new test result is available.', medias: [{ type: EMAIL, toggleStatus: ON }, { type: TEXT, toggleStatus: OFF }, { type: PUSH, toggleStatus: ON }] },
+        { title: 'Prescription', description: 'Receive a notification when a prescription is ready.', medias: [{ type: EMAIL, toggleStatus: OFF }, { type: TEXT, toggleStatus: OFF }] },
+      ],
+    },
+    {
+      title: 'Billing',
+      description: 'Statements and payment reminders',
+      concepts: [
+        { title: 'Statement', description: 'Receive a notification when a new statement is available.', medias: [{ type: EMAIL, toggleStatus: ON }, { type: MAIL, toggleStatus: OFF }], requiredForPaperlessBilling: true },
+      ],
+    },
+    {
+      title: 'Account Management',
+      description: 'Changes to your account',
+      concepts: [
+        { title: 'Password Changed', description: 'Receive a notification when your password is changed.', medias: [{ type: EMAIL, toggleStatus: LOCKED_ON }, { type: TEXT, toggleStatus: OFF }] },
+      ],
+    },
+    {
+      title: 'Care Companion',
+      description: 'Tasks in your care plan',
+      otherPreferencesLinkPath: '/app/care-companion/settings',
+      otherPreferencesLinkText: 'Care Companion Settings',
+      concepts: [
+        { title: 'New Task', description: 'Receive a notification when a new task is assigned.', medias: [{ type: PUSH, toggleStatus: ON }] },
+      ],
+    },
+  ],
+  smsFlagOn: true,
+  userAcceptsSms: false,
+  canApplyToAll: false,
+  showContactInformation: true,
+};
+
+export const notificationContactInformation = {
+  email: 'homer.simpson@springfieldnuclear.example.com',
+  mobilePhone: '',
+  emailPending: false,
+  mobilePending: false,
+  showLinkToContactInfo: true,
+  mediaTypesMissingContactMethod: [],
+  proxyContextName: '',
+  mobileIsVerified: false,
+};
+
+// Paperless status codes, from `epic.px.client.paperless-settings`:
+// -1 NotEligible, 1 SignedUp, 2 Declined, 3 NoResponse, 4 Mixed.
+export const paperlessSettings = {
+  billingInfo: { isLTCEnabled: false, hasAnAuthUser: false, status: 1, allowSignup: true, showNoNotifsPopup: false, allowCancel: true },
+  eobInfo: { status: -1, allowSignup: false, showNoNotifsPopup: false, allowCancel: false },
+  invoiceInfo: { status: -1, allowSignup: false, showNoNotifsPopup: false, allowCancel: false },
+  avsInfo: { status: 3, allowSignup: true, showNoNotifsPopup: false, allowCancel: false },
+  showContactInfo: true,
+  expandID: '',
+};
+
+// All five captured instances offered these two options and sent "" for the
+// choice — the patient never picked, so the org's default applies.
+export const resultsReleasePreferences = {
+  options: [
+    { value: '1', titleUtf8: 'Show me test results as soon as possible' },
+    { value: '2', titleUtf8: 'Wait to show me test results' },
+  ],
+  chosenRRPreference: '',
+};
+
+// `twoFactorTOTPOn` is not here: the handler reads the session user's live
+// TOTP state, so it agrees with `GetTwoFactorInfo` after a setup or opt-out.
+export const securitySettings = {
+  passwordLastUpdated: 'Jan 10, 2026',
+  twoFactorEmailSmsOn: false,
+  twoFactorRequired: false,
+  rememberWebDevices: false,
+  rememberWebDevicesAllowed: false,
+  isUserOptedIntoPreviewFeatures: false,
+  arePreviewFeaturesEnabled: true,
+  nativeLoginAllowed: true,
+  passwordChangeAvailable: true,
+  commPrefAvailable: true,
+  passkeyLoginAvailable: true,
+  systemMethodsList: [1, 2, 3],
+  allowEmailSmsToggle: true,
+  allowTotpToggle: true,
+  isMyChartCentral: false,
+  isUserDoubleActivated: false,
+  deactivateAccountAllowed: true,
+  hasPersonalInformationSecurity: true,
+};
+
+export const textOptInConsent = {
+  consentData: { phone: '', shortCodesConsent: {} as Record<string, boolean> },
+  primarySender: {
+    callToAction: 'Text messages about your care at Springfield General will be sent to the phone number above. Message and data rates may apply. Text STOP to opt out.',
+    termsAndConditionsURL: '',
+    privacyPolicyURL: '',
+    shortCode: '55555',
+    displayName: '',
+    hasRcsSender: false,
+  },
+  secondarySenders: [],
+};
+
+export const careEverywhereConfiguration = {
+  dxtId: 1001,
+  isPatientOptedIn: true,
+  doesPatientReqConsent: false,
+  authorizationRequirements: 3,
+  canSignAllOrgAuthorizations: true,
+  hasNonStandardProspectiveAuth: false,
+  hasAuthsOnFile: false,
+  authNotReqReason: 0,
+  authReqReason: 0,
+  canAuthOverride: false,
+  mcesAccessLevel: 0,
+  hideMCESEduVideo: false,
+  isThresholdMet: false,
+  userLocale: 'en-US',
+  canChangeCeStatus: true,
+  hasPatientRequiredAuth: false,
+  isPayerOnly: false,
+  orgLogo: '',
+  orgAuthPreferences: false,
+  needsAuthorization: false,
+  authorizationMnemonic: false,
+  allowToggleDXT234: true,
+};

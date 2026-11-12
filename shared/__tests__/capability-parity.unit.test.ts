@@ -576,6 +576,8 @@ describe('npm library', () => {
       get_preventive_care: 'getPreventiveCare',
       get_medical_history: 'getMedicalHistory',
       get_goals: 'getGoals',
+      get_notification_preferences: 'getNotificationPreferences',
+      get_account_settings: 'getAccountSettings',
       get_upcoming_visits: 'upcomingVisits',
       get_past_visits: 'pastVisits',
       get_visit_notes: 'getVisitNotes',
