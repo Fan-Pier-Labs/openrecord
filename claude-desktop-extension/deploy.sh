@@ -9,6 +9,7 @@
 #   4. keeps the current live bundle as openrecord-<old version>.mcpb, then
 #      uploads the new one to the splash site's bucket and invalidates CloudFront
 #   5. checks the live download is byte-for-byte what was packed
+#   5b. publishes the bundle as GitHub Release mcpb-v<version>
 #   6. deploys the splash site, which regenerates mcpb_version.json — the file
 #      installed copies poll to learn a new version exists
 #
@@ -57,6 +58,8 @@ if [ "$VERSION" = "$LIVE_VERSION" ]; then
   exit 1
 fi
 echo "    releasing MCPB $VERSION (live: $LIVE_VERSION)"
+# Checked now so a missing login can't fail the run after the bundle is live.
+gh auth status >/dev/null
 
 echo "==> Installing dependencies"
 ( cd "$REPO_DIR" && bun install )
@@ -135,6 +138,27 @@ if [ "$LIVE_SHA" != "$SHA" ]; then
   echo "!! $URL serves $LIVE_SHA, expected $SHA" >&2
   echo "   To restore $LIVE_VERSION:  $ROLLBACK" >&2
   exit 1
+fi
+
+# The GitHub Release is what the MCP Registry's mcpb entry points at (it only
+# accepts GitHub/GitLab release URLs), and its download count is our install
+# metric. Before the splash deploy, so a failure here is re-runnable: the
+# version guard above only trips once mcpb_version.json advertises $VERSION.
+SHA256="$(shasum -a 256 "$EXT_DIR/openrecord.mcpb" | cut -d' ' -f1)"
+TAG="mcpb-v$VERSION"
+if gh release view "$TAG" --repo Fan-Pier-Labs/openrecord >/dev/null 2>&1; then
+  echo "==> Replacing the bundle on the existing GitHub Release $TAG"
+  gh release upload "$TAG" "$EXT_DIR/openrecord.mcpb" --repo Fan-Pier-Labs/openrecord --clobber
+else
+  echo "==> Publishing GitHub Release $TAG"
+  gh release create "$TAG" "$EXT_DIR/openrecord.mcpb" --repo Fan-Pier-Labs/openrecord \
+    --target "$(git -C "$REPO_DIR" rev-parse HEAD)" \
+    --title "Claude Desktop extension $VERSION" \
+    --notes "OpenRecord for Claude Desktop, version $VERSION.
+
+Download \`openrecord.mcpb\` below and open it with Claude Desktop (macOS or Windows), then ask Claude to \"set up my MyChart\". The same bundle is served at $URL.
+
+SHA-256: \`$SHA256\`"
 fi
 
 echo "==> Deploying the splash site (publishes mcpb_version.json)"
