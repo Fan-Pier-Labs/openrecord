@@ -455,6 +455,33 @@ export {
   type PhoneNumberStandard,
 } from '../../scrapers/myChart/chart/emergencyContacts/emergencyContacts';
 
+// ─── Settings ────────────────────────────────────────────────────────────
+export {
+  getNotificationPreferences,
+  fetchNotificationPreferencesRaw,
+  notificationPreferencesProcessor,
+  type NotificationPreferencesStandard,
+  type NotificationGrouperStandard,
+  type NotificationConceptStandard,
+  type NotificationMediaStandard,
+  type NotificationOptionStandard,
+  type AdditionalItemSectionStandard,
+  type NotificationContactInformationStandard,
+} from '../../scrapers/myChart/chart/notificationPreferences/notificationPreferences';
+export {
+  getAccountSettings,
+  fetchAccountSettingsRaw,
+  accountSettingsProcessor,
+  type AccountSettingsStandard,
+  type PaperlessStandard,
+  type PaperlessFeatureStandard,
+  type ResultsReleaseStandard,
+  type SecurityStandard,
+  type TextMessagingStandard,
+  type TextSenderStandard,
+  type CareEverywhereStandard,
+} from '../../scrapers/myChart/chart/accountSettings/accountSettings';
+
 // ─── Linked accounts / EHI export ────────────────────────────────────────
 export {
   getLinkedMyChartAccounts,

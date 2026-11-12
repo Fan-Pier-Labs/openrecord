@@ -262,6 +262,18 @@ export const TOOL_SPECS: ToolSpec[] = [
   { name: 'get_activity_feed', group: 'Documents', description: 'Recent portal activity feed', args: { instance: 'optional' } },
   { name: 'get_ehi_export', group: 'Documents', description: 'Electronic Health Information export formats (Cures Act)', args: { instance: 'optional' } },
   { name: 'get_linked_accounts', group: 'Documents', description: 'Linked MyChart accounts at other health systems', args: { instance: 'optional' } },
+  {
+    name: 'get_notification_preferences',
+    group: 'Account',
+    description: 'Which notifications this MyChart sends and on which channels (email, text, push, phone, mail), topic by topic, including the ones locked on',
+    args: { instance: 'optional' },
+  },
+  {
+    name: 'get_account_settings',
+    group: 'Account',
+    description: 'Paperless enrollment, when new test results are released, two-step verification, text-message consent, and Care Everywhere sharing',
+    args: { instance: 'optional' },
+  },
 
   // ── Money ──
   {
@@ -970,6 +982,8 @@ const HANDLERS: Record<string, Handler> = {
   get_activity_feed: (s) => clone(record(s).activityFeed),
   get_ehi_export: (s) => clone(record(s).ehiExport),
   get_linked_accounts: (s) => clone(record(s).linkedAccounts),
+  get_notification_preferences: () => clone(data.notificationPreferences),
+  get_account_settings: () => clone(data.accountSettings),
 
   // ── Money ──
   get_billing: (s, args) => {
