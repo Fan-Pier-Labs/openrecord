@@ -52,7 +52,7 @@ export const ACCOUNT_SETTINGS_SECTIONS = [
 ] as const;
 
 /** `epic.px.client.paperless-settings`: the bundle's own decode table. `0` is its "NotLoaded" placeholder. */
-export const PAPERLESS_STATUS_NAMES: Readonly<Record<number, string>> = {
+const PAPERLESS_STATUS_NAMES: Readonly<Record<number, string>> = {
   [-1]: 'NotEligible',
   1: 'SignedUp',
   2: 'Declined',

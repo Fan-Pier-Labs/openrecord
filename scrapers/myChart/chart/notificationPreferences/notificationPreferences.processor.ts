@@ -33,8 +33,8 @@ export type {
 } from './standardized.types';
 
 /** `epic.px.client.communication-preferences`, module 546: the bundle's own decode tables. */
-export const MEDIA_TYPE_NAMES: Readonly<Record<string, string>> = { 1: 'Email', 3: 'Mail', 4: 'Phone', 6: 'Push', 100: 'Text' };
-export const TOGGLE_STATUS_NAMES: Readonly<Record<number, string>> = { 0: 'Off', 1: 'On', 3: 'LockedOn' };
+const MEDIA_TYPE_NAMES: Readonly<Record<string, string>> = { 1: 'Email', 3: 'Mail', 4: 'Phone', 6: 'Push', 100: 'Text' };
+const TOGGLE_STATUS_NAMES: Readonly<Record<number, string>> = { 0: 'Off', 1: 'On', 3: 'LockedOn' };
 
 function media(value: unknown): NotificationMediaStandard {
   const m = rec<NonNullable<GetPreferences['medias']>[string]>(value);
