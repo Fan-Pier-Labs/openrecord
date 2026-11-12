@@ -24,7 +24,8 @@ import { AGENT_LABEL, AGENT_PLIST, SYNC_LOG } from './applet';
 import { cls, defineHandler, msg, msgTyped, nsstr, sel, type Id } from './objc';
 import { readState, writeState, type LastSync } from './store';
 import { failedRun } from './sync';
-import { iconSymbol, isSyncDue, statusLines, stopNotice } from './tray-menu';
+import { accountId, readAccountIdentities } from '../credential-store';
+import { accountLines, iconSymbol, isSyncDue, statusLines, stopNotice } from './tray-menu';
 
 // Check often rather than arming one 4-hour timer: a timer's clock stops
 // while the Mac sleeps, so a laptop opened in the morning would otherwise wait
@@ -169,6 +170,8 @@ export function runTray(executable: string): never {
       msg(menu, 'removeAllItems');
       addItem('MyChart → Google Calendar', null);
       for (const line of statusLines(state, busy)) addItem(line, null);
+      separator();
+      for (const line of accountLines(readAccountIdentities().map(accountId))) addItem(line, null);
       separator();
       addItem('Sync Now', 'syncNow:', { key: 'r', enabled: !busy && !!state.connectedAt });
       addItem('Open Google Calendar', 'openCalendar:');

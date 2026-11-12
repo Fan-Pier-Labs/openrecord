@@ -1076,7 +1076,7 @@ export function registerAllTools(rawServer: McpServer): void {
           accounts: sync.accounts ?? [],
           message:
             `Google Calendar is connected. ${sync.synced ?? 0} upcoming appointment(s) are on the "MyChart Appointments" calendar. ` +
-            'A calendar icon is now in the menu bar; it starts at login and syncs every 4 hours, and its menu has "Turn Off Calendar Sync". ' +
+            'A medical-cross icon is now in the menu bar; it starts at login and syncs every 4 hours, and its menu has "Turn Off Calendar Sync". ' +
             'Tell the user that macOS may later ask whether openrecord-calendar may use OpenRecord\'s saved MyChart sign-in from the keychain, and to choose "Always Allow" so background syncs can sign in.' +
             (failed.length ? ` These accounts could not be synced yet: ${failed.map((a) => `${a.account} (${a.error})`).join('; ')}.` : '') +
             (!sync.ok && !sync.accounts ? ` The first sync did not finish: ${sync.error ?? 'unknown error'}. The app will retry.` : ''),

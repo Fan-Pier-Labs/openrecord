@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from 'bun:test';
 
-import { iconSymbol, isSyncDue, statusLines, stopNotice, SYNC_INTERVAL_MS } from '../tray-menu';
+import { accountLines, iconSymbol, isSyncDue, statusLines, stopNotice, SYNC_INTERVAL_MS } from '../tray-menu';
 
 const now = new Date('2026-11-05T12:00:00Z');
 const ago = (ms: number) => new Date(now.getTime() - ms).toISOString();
@@ -32,7 +32,8 @@ describe('menu text and icon', () => {
     const lines = statusLines(state, false);
     expect(lines[0]).toMatch(/^Last synced .* · 1 appointment$/);
     expect(lines[1]).toBe('⚠︎ c@d.org: Login failed');
-    expect(iconSymbol(state, false)).toBe('calendar.badge.exclamationmark');
+    expect(iconSymbol(state, false)).toBe('exclamationmark.triangle');
+    expect(iconSymbol({}, false)).toBe('cross.case');
   });
 
   it('shows syncing over everything else', () => {
@@ -87,5 +88,12 @@ describe('retries and stopping', () => {
     const a = stopNotice(run(ago(SYNC_INTERVAL_MS), [account('Login failed', 3, true)]));
     const b = stopNotice(run(ago(0), [account('Login failed', 3, true)]));
     expect(a?.key).toBe(b?.key);
+  });
+});
+
+describe('accountLines', () => {
+  it('lists each connected account, or says there are none', () => {
+    expect(accountLines(['a@b.org', 'c@d.org'])).toEqual(['a@b.org', 'c@d.org']);
+    expect(accountLines([])).toEqual(['No MyChart accounts connected']);
   });
 });

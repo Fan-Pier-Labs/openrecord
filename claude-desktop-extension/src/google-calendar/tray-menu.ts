@@ -22,9 +22,15 @@ export function isSyncDue(state: CalendarState, now: Date): boolean {
   return Number.isNaN(at) || now.getTime() - at >= SYNC_INTERVAL_MS;
 }
 
+/** SF Symbols. There is no hospital symbol, so it's the medical cross; failures swap it for a warning. */
 export function iconSymbol(state: CalendarState, syncing: boolean): string {
   if (syncing) return 'arrow.triangle.2.circlepath';
-  return state.lastSync?.ok === false ? 'calendar.badge.exclamationmark' : 'calendar';
+  return state.lastSync?.ok === false ? 'exclamationmark.triangle' : 'cross.case';
+}
+
+/** The connected MyChart accounts, one disabled menu line each. */
+export function accountLines(accounts: string[]): string[] {
+  return accounts.length ? accounts : ['No MyChart accounts connected'];
 }
 
 const STOPPED_HINT = 'stopped after 3 failed tries; choose Sync Now to try again';

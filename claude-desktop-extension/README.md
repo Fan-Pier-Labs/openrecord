@@ -182,7 +182,9 @@ done** when the accounts have appointments to sync; otherwise ask Claude to
   reads. It syncs when 4 hours have passed since the last sync, checking every
   15 minutes and 30 seconds after a wake (once Wi-Fi is back), because a timer's
   clock stops while the Mac sleeps.
-  The menu has Sync Now, Open Google Calendar and Turn Off Calendar Sync.
+  Its icon is the medical cross (`cross.case`; macOS has no hospital symbol).
+  The menu lists the connected MyChart accounts and has Sync Now, Open Google
+  Calendar and Turn Off Calendar Sync.
 - **Signing in to MyChart.** A sync signs in with `machineLogin`
   (`resolveSessionWithoutUser`), so it never makes MyChart send a 2FA code:
   nobody is there to type one. An account that has only a password and hits
