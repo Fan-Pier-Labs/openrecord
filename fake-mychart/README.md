@@ -713,6 +713,13 @@ exactly like `realShapes.ts` — they live beside the fake data rather than in t
 generated from captures of real *MyChart* instances, and regenerating it must not have to know about
 CMS.
 
+## The forms Lambda
+
+`POST /fanpierlabs-forms` stands in for the shared `fanpierlabs-forms` Lambda that
+`send_feature_request` posts to (`shared/featureRequest.ts`, `endpoint` option). Copied from that
+Lambda's handler: a non-JSON body or a missing/malformed `email` answers 400 with `{ error }`;
+anything else answers `200 {"ok":true}`. It emails nothing and stores nothing.
+
 ## The Pre-Login Surface
 
 What the instance tells anyone with no account, for `scrapers/myChart/prelogin/`. All three are

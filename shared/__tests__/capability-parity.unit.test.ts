@@ -133,7 +133,7 @@ describe('Claude Desktop extension', () => {
         expect(annotations.readOnlyHint).toBe(true);
       } else {
         expect(annotations.readOnlyHint).toBe(false);
-        expect(annotations.destructiveHint).toBe(true);
+        expect(annotations.destructiveHint).toBe(!capability.accountFree);
       }
     }
   });

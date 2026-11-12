@@ -38,15 +38,15 @@ describe('send_feature_request', () => {
       email: 'pat@example.com',
       hospital: 'mychart.example.org',
     });
-    expect(result).toMatchObject({ sent: true, anonymous: false });
+    expect(result).toMatchObject({ sent: true });
   });
 
-  it('sends only the description when anonymous, with the placeholder email the Lambda requires', async () => {
+  it('sends only the description when the user withholds who they are, with the placeholder email the Lambda requires', async () => {
     answer(200);
     const result = await executeCapability(null, 'send_feature_request', { request: 'Track my steps' });
 
     expect(sent[0]!.body).toEqual({ site: FEATURE_REQUEST_SITE, request: 'Track my steps', email: ANONYMOUS_EMAIL });
-    expect(result).toEqual({ sent: true, anonymous: true, submitted: { request: 'Track my steps' } });
+    expect(result).toEqual({ sent: true, submitted: { request: 'Track my steps' } });
   });
 
   it('refuses an empty description without sending anything', async () => {

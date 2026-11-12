@@ -240,9 +240,10 @@ export async function executeCapability(
   if (capability.notImplemented !== undefined) return capability.notImplemented;
 
   let result: unknown;
-  if (capability.kind === 'public') {
+  if (capability.kind === 'public' || capability.accountFree === true) {
     // Public capabilities are the reason `request` is nullable: they read the
-    // NPI Registry or Epic's instance directory, which no account owns. Their
+    // NPI Registry or Epic's instance directory, or send us a feature
+    // request — nothing an account owns. Their
     // `run` cannot take a session, so there is nothing to assert and nothing
     // that could read the wrong chart.
     result = await capability.run(args);

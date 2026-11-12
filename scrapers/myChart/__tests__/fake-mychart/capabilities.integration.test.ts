@@ -668,9 +668,9 @@ describe('capability registry against fake-mychart', () => {
       'setup_totp',
       'disable_totp',
     ])
-    // The `public` capabilities are not in this suite's reach: they read CMS's
-    // NPI Registry and Epic's instance directory, neither of which this server
-    // is. They have their own integration suites, named below.
+    // The `public` capabilities are not in this suite's reach: they talk to CMS's
+    // NPI Registry, Epic's instance directory and our forms Lambda, none of
+    // which this server is. They have their own integration suites, named below.
     const untested = CAPABILITY_IDS.filter(
       (id) => !exercised.has(id) && !PUBLIC_CAPABILITY_IDS.includes(id),
     )
@@ -684,6 +684,7 @@ describe('capability registry against fake-mychart', () => {
     const suites = [
       'scrapers/npi/__tests__/npiRegistry.integration.test.ts',
       'scrapers/list-all-mycharts/__tests__/directory.integration.test.ts',
+      'shared/__tests__/featureRequest.integration.test.ts',
     ]
     const sources = await Promise.all(
       suites.map((path) => Bun.file(new URL(`../../../../${path}`, import.meta.url)).text()),

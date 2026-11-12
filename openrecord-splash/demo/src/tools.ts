@@ -436,13 +436,18 @@ export const TOOL_SPECS: ToolSpec[] = [
   {
     name: 'send_feature_request',
     group: 'Feedback',
+    write: {
+      title: 'Send Feature Request',
+      description: 'Emails this description to the OpenRecord developers.',
+      verb: 'Send',
+    },
     description:
-      "Tell the OpenRecord developers about something the user wanted to do that OpenRecord can't. When a user asks for something none of your tools can do, say so, say the developers would love to hear about it, and offer three choices: (1) send it with their name, email and health system — the default; (2) send it anonymously; (3) send nothing. Show the exact text and call this only after they pick 1 or 2. Leave out chart details unless the user asks.",
+      "Email the OpenRecord developers something the user wanted to do with their records that OpenRecord can't do yet. When that happens, say so, say the developers would love to hear about it, and offer three choices: (1) send it with their name, email and health system — the default; (2) send it without their name, email or health system; (3) send nothing. Ask the user for their name and email. Leave out chart details unless the user asks.",
     args: {
       request: 'what the user wanted to do',
-      name: 'optional — omit to send anonymously',
-      email: 'optional — omit to send anonymously',
-      hospital: 'optional — omit to send anonymously',
+      name: 'optional — omit for choice 2',
+      email: 'optional — omit for choice 2',
+      hospital: 'optional — omit for choice 2',
     },
   },
 ];
@@ -1332,7 +1337,7 @@ const HANDLERS: Record<string, Handler> = {
       const value = str(args, key).trim();
       if (value) submitted[key] = value;
     }
-    return { sent: true, anonymous: Object.keys(submitted).length === 1, submitted };
+    return { sent: true, submitted };
   },
 };
 

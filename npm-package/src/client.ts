@@ -415,7 +415,7 @@ export class MyChartClient {
     return searchMyChartDirectory(query, options);
   }
 
-  /** Email the OpenRecord developers a feature request. Omit name, email and hospital to send it anonymously. */
+  /** Email the OpenRecord developers a feature request. Omit name, email and hospital to send it without them. */
   static sendFeatureRequest(request: FeatureRequest): Promise<FeatureRequestResult> {
     return sendFeatureRequest(request);
   }

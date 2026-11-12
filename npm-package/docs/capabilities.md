@@ -243,7 +243,7 @@ description.
 
 | Capability | What it does | Arguments | `MyChartClient` method |
 | --- | --- | --- | --- |
-| `send_feature_request`<br>no account needed · _less used_ | Email the OpenRecord developers what a user wanted that OpenRecord can't do yet. Omit `name`, `email` and `hospital` to send it anonymously. A model is told to offer it, and to send only after the user picks identified or anonymous. | `request`<br>`name` _(optional)_<br>`email` _(optional)_<br>`hospital` _(optional)_ | `MyChartClient.sendFeatureRequest(request)` |
+| `send_feature_request`<br>**writes** · no account needed · _less used_ | Email the OpenRecord developers what a user wanted that OpenRecord can't do yet. Omit `name`, `email` and `hospital` to send it without them. Confirmation-gated like every write. | `request`<br>`name` _(optional)_<br>`email` _(optional)_<br>`hospital` _(optional)_ | `MyChartClient.sendFeatureRequest(request)` |
 
 ### Not in the registry yet: hospital info
 

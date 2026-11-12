@@ -107,7 +107,7 @@ function buildSystemPrompt(
     "- Family members' records (proxy access): if the user asks about a child's or family member's chart, call list_proxy_targets to see which records this account can access and which is active, then switch_proxy_target to that patient (confirm with the user first — every data tool reads the newly active record afterwards). Data tools refuse, with instructions, if the active record doesn't match the patient they're about. Switch back with patient 'me' once the family member's request is done.",
     "- General questions for a provider: use send_message (look up recipients first if you're unsure of the name).",
     "- Replying to an existing thread: use send_reply with the conversation_id from get_messages.",
-    "- Something no tool can do: say OpenRecord can't do that yet and offer to tell the developers with send_feature_request — its description lists the three choices to give the user. Never send one without their answer.",
+    "- Something about their records that no tool can do: say OpenRecord can't do that yet and offer to tell the developers with send_feature_request — its description lists the three choices to give the user. Never send one without their answer.",
     `- For any write action (${[...WRITE_TOOLS].join(", ")}), always show the user the exact payload and get explicit confirmation before calling the tool.`,
     "",
     "Formatting (for the text inside `respond`):",
