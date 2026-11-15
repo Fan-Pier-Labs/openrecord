@@ -41,7 +41,7 @@ export default defineConfig([
     },
     banner: { js: '#!/usr/bin/env node' },
     // Bundle the scraper sources + the CLI helper modules. `mychart-cli mcp`
-    // (clients/shared/mcp-server) rides in the same file, lazily evaluated; its
+    // (clients/shared/mcp-server) rides in the same file; its
     // one native dependency, @napi-rs/keyring, stays external as a real
     // dependency in package.json.
     noExternal: [/scrapers[\\/]myChart/, /cli[\\/]/, /shared[\\/]/, /read-local-passwords/],
