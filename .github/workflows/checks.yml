@@ -28,13 +28,15 @@ jobs:
           bun-version-file: .bun-version
       - run: bun install
       # Before the unit suite, not after it: `bun run test` scans the whole repo
-      # for *.unit.test.ts, which reaches
-      # claude-desktop-extension/src/__tests__, and the capability-parity test
-      # imports the extension's real registerAllTools to check it registers a
-      # tool per capability. Both need the extension's own dependencies (zod,
-      # the MCP SDK), so they have to be installed first.
+      # for *.unit.test.ts, which reaches clients/shared/mcp-server/__tests__ and
+      # clients/claude-desktop-extension/src/__tests__, and the capability-parity
+      # test registers the real MCP server's tools to check there is one per
+      # capability. Those need the MCP server's dependencies (zod, the MCP SDK)
+      # and the extension's, so both are installed first.
+      - name: Install clients/shared deps (the MCP server)
+        run: cd clients/shared && bun install
       - name: Install Claude Desktop extension deps
-        run: cd claude-desktop-extension && bun install
+        run: cd clients/claude-desktop-extension && bun install
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -42,9 +44,9 @@ jobs:
       # package whose node_modules is missing has its imports degrade to `any`
       # and the type-aware rules silently stop seeing them.
       - name: Install Expo app deps
-        run: cd expo-app && bun install
-      - name: Install npm-package deps
-        run: cd npm-package && bun install
+        run: cd clients/expo-app && bun install
+      - name: Install clients/npm-package deps
+        run: cd clients/npm-package && bun install
       # Knip loads each workspace's config through its framework plugins
       # (Expo's app.config.ts, Next's for fake-mychart), so a workspace without
       # its node_modules reports its whole tree as unused files and deps.
@@ -52,29 +54,29 @@ jobs:
         run: |
           cd fake-mychart && bun install && cd ..
           bun run knip
-      # Built before eslint on purpose: npm-package's bundle test imports
+      # Built before eslint on purpose: clients/npm-package's bundle test imports
       # dist/index.js, and without it the import degrades to `any` — the
       # type-aware rules then misjudge that file (e.g. flagging non-null
       # assertions as vacuous because everything is already `any`).
-      - name: Build npm-package (lint needs dist types)
-        run: cd npm-package && bun run build
+      - name: Build clients/npm-package (lint needs dist types)
+        run: cd clients/npm-package && bun run build
       # mychart-cli is published, so its package.json exports map is a public
       # contract that nothing else here checks: tsc only ever sees the source.
       # publint validates the map, attw resolves the package the way a consumer
       # would in all four module modes. This caught the types resolving as ESM
       # for CJS consumers while the JavaScript they got was CJS.
       - name: Check the published package surface (publint + attw)
-        run: cd npm-package && bun run check:publish
+        run: cd clients/npm-package && bun run check:publish
       - run: npx eslint .
         env:
           NODE_OPTIONS: '--max-old-space-size=8192'
-      # Root tsconfig covers scrapers/, shared/, npm-package/cli/ and
-      # read-local-passwords/ — the shared scraper core no other package's
+      # Root tsconfig covers scrapers/, shared/, clients/npm-package/cli/, clients/shared/ and
+      # the rest — the shared scraper core no other package's
       # typecheck reaches.
       - name: Typecheck scrapers, shared and CLI
         run: bun run typecheck
       - name: Typecheck Expo app
-        run: cd expo-app && bun run typecheck
+        run: cd clients/expo-app && bun run typecheck
       # The browser demo is its own tsconfig project that nothing else reaches:
       # the root include covers openrecord-splash/__tests__ and stops there. It
       # was linted (eslint's projectService finds it) but never typechecked, so
@@ -90,7 +92,7 @@ jobs:
       # build time and not at runtime, or a stray stdout write breaking the
       # JSON-RPC framing. Needs the setup-node above — it runs `node`, not bun.
       - name: Typecheck, build & smoke-test Claude Desktop extension
-        run: cd claude-desktop-extension && bun run smoke
+        run: cd clients/claude-desktop-extension && bun run smoke
       - run: bun run test
 
   integration:
@@ -131,13 +133,14 @@ jobs:
           bun-version-file: .bun-version
       - run: bun install
       # Every package whose sources the integration suites or the coverage gate
-      # touch. The extension's deps are needed twice over: its imaging suite
+      # touch. The MCP server's deps are needed twice over: its imaging suite
       # imports jpeg-js, and without them its modules fail to import and drop
       # out of the coverage report entirely, which reads ~1.5 points high.
       - name: Install package deps
         run: |
-          cd claude-desktop-extension && bun install && cd ..
-          cd npm-package && bun install && cd ..
+          cd clients/shared && bun install && cd ../..
+          cd clients/claude-desktop-extension && bun install && cd ../..
+          cd clients/npm-package && bun install && cd ../..
       # `playwright` itself rides the root install; this fetches the browser it
       # drives. The passkey UI suite skips without it everywhere but CI, where
       # $CI forces it to run so a broken install step fails loudly.
@@ -151,15 +154,15 @@ jobs:
         run: |
           sudo rm -f /etc/apt/sources.list.d/google-chrome*
           bunx playwright install --with-deps chromium
-      # npm-package's integration suite imports the BUILT `dist/index.js` on
+      # clients/npm-package's integration suite imports the BUILT `dist/index.js` on
       # purpose — it exists to test what consumers actually install — so the
       # build has to happen before anything runs.
-      - name: Build npm-package CLI binary
-        run: cd npm-package && bun run build
-      # After the build on purpose: npm-package's integration test imports the
+      - name: Build clients/npm-package CLI binary
+        run: cd clients/npm-package && bun run build
+      # After the build on purpose: clients/npm-package's integration test imports the
       # built dist/ bundle, so the typecheck needs it to exist.
-      - name: Typecheck npm-package
-        run: cd npm-package && bun run typecheck
+      - name: Typecheck clients/npm-package
+        run: cd clients/npm-package && bun run typecheck
       # The backgrounded compose exit code is lost with its shell, so wait for
       # the process to finish, show its log, then re-run the same command in the
       # foreground: a no-op returning in seconds when the background run

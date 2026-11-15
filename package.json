@@ -7,7 +7,7 @@
     "knip": "knip",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "cli": "bun npm-package/cli/entry.ts",
+    "cli": "bun clients/npm-package/cli/entry.ts",
     "fake-mychart": "cd fake-mychart && bun run dev",
     "version:manifest": "bun openrecord-splash/generate-version.ts",
     "test": "bun test --isolate .unit.test.ts",

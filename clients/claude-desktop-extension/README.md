@@ -1,0 +1,642 @@
+# OpenRecord — Claude Desktop Extension
+
+A Claude Desktop Extension (`.mcpb`) that gives Claude access to your Epic
+MyChart patient portal. Read your medications, lab results, imaging, messages,
+billing, and more — or send a message to your care team, request a refill,
+and manage emergency contacts — all through a natural conversation.
+
+## Install
+
+```bash
+cd clients/claude-desktop-extension
+bun install
+bun run pack          # builds dist/server.cjs and produces openrecord.mcpb
+```
+
+Then double-click `openrecord.mcpb` (or drag it into Claude Desktop → Settings → Extensions).
+
+## Use
+
+After installing, open a new Claude chat and say:
+
+> Set up my MyChart.
+
+### Interactive widget (recommended)
+
+In Claude Desktop, Claude shows an inline **step-based setup widget**
+(`get_setup_widget`). It opens on a choice between two routes, and connects
+accounts **one at a time**: nearly every portal asks for a 2FA code, so each
+account runs to the end before the next is offered. The full flow is diagrammed
+in [`docs/mcpb-setup-flow.md`](../../docs/mcpb-setup-flow.md).
+
+**Import from your browser** (the easier one):
+
+1. **Permission** — a screen saying what the scan reads, that passwords stay
+   on this machine, and that macOS will raise its own keychain prompt. Nothing
+   is read until **Allow and search my browsers** is clicked; that runs
+   `import_browser_passwords` (and `list_accounts`, to mark logins already
+   connected).
+2. **Pick one login** — the confirmed MyChart logins, one to choose ("you can
+   import more after this one"). One already connected, or saved without a
+   username, is shown but can't be picked. The widget only ever holds import
+   ids, never a password.
+3. **Connect it** — `connect_imported_account`, then the same 2FA and passkey
+   steps as below. If the saved password is stale, it becomes the manual
+   sign-in step with the username filled in.
+
+**Enter manually**:
+
+1. **Pick a health system** — an autocomplete dropdown over the full MyChart
+   directory. Results appear only once you type (no default list); each shows
+   the system's banner logo. A portal the directory lacks can be reached by
+   typing its web address, which adds a "Use <host>" row. Search **test**, **springfield**, or
+   **fake-mychart** to find the **Springfield General Hospital (test)** entry,
+   which points at the `fake-mychart.fanpierlabs.com` sandbox (Homer Simpson
+   fake data, no real credentials needed — sign in with `homer` / `donuts123`).
+2. **Sign in** — the chosen system's logo sits above username + password
+   fields. Submitting runs the real login scrapers via `setup_account`.
+   Validation/login errors show inline beneath the button.
+3. **Two-step verification** — shown only if `setup_account` reports the portal
+   requires a code; entering it calls `complete_2fa`.
+4. **Set up a passkey?** — shown after login only when the account has no
+   passkey saved. It explains what a passkey changes (no password or code when
+   the session expires), where the private key is stored (the server's live
+   answer — keystore or the file fallback — not a promise), that it adds a
+   credential to the MyChart account until removed, and that some portals
+   refuse registration. **Set up passkey** calls `register_passkey`; **Skip for
+   now** finishes without one, and the message handed back to the chat says
+   which happened so Claude doesn't offer again.
+
+After every account, either route lands on one list: the accounts connected so
+far, then **Connect** for another imported login (while any are left), **Enter
+an account manually**, and **I'm done**, which sends one message to the chat
+naming the connected accounts and how each passkey offer went.
+
+A call that outruns Claude Desktop's timeout comes back parked (see
+`pending-call.ts`) — most likely the scan, waiting on the keychain prompt. The
+note carries the call's id as `structuredContent.pending_call.id`, and the
+widget waits it out with `check_pending_call` rather than showing the note.
+
+The widget is a small React app in `src/setup-widget/`: `flow.ts` is the whole
+flow as a reducer (every tool result is interpreted there, and unit-tested),
+`host.ts` is the MCP Apps JSON-RPC bridge, and the `.tsx` files only render.
+`scripts/bundle-setup-widget.ts` bundles it with esbuild, and a tsup plugin
+inlines the result into `dist/server.cjs` as the `virtual:setup-widget` module,
+so the resource is still one self-contained HTML page.
+
+> **Logos.** MyChart's only per-instance brand asset is the wide banner logo
+> (`media.epic.com`, ~640×230), so the widget uses it everywhere — a
+> banner-shaped slot in the dropdown and a banner above the inputs on the
+> sign-in / 2FA steps. Square favicons aren't used: ~half of instances are
+> multi-tenant (many orgs share one host, e.g. 200+ on `mychart.ochin.org`) and
+> favicons are per-host, so they can't distinguish those orgs; most are also
+> just the generic Epic icon.
+>
+> That host has to be named in the widget resource's `_meta.ui.csp`
+> (`SETUP_UI_RESOURCE_META` in `clients/shared/mcp-server/ui.ts`): the MCP Apps host builds the
+> sandbox CSP from that declaration and every directive defaults to `'none'`,
+> so an undeclared origin — `data:` included — renders as a broken image.
+
+### Tool-call fallback
+
+Without the widget (Claude.ai web, other MCP clients), Claude walks through the
+same setup sequence using ordinary tool calls:
+
+1. **`search_mycharts`** — Claude asks you for your health system name (e.g.
+   "uchealth", "mass general") and looks up the hostname. Searches Epic's live
+   directory, falling back to the list bundled with this build when it can't
+   reach it.
+2. **`setup_account(hostname, username, password)`** — Claude asks you for
+   your credentials in chat, then logs in. Credentials are stored locally in
+   `~/.openrecord-mcpb/` on your machine. Never sent to Anthropic.
+
+Or skip typing a password entirely, if your browser already has one saved:
+
+- **`import_browser_passwords`** — scans this machine's browser password stores
+  (Chrome, Arc, Brave, Edge, Firefox) for MyChart logins. Read-only; on macOS it
+  raises the system keychain prompt, which is where you consent. Only accounts it
+  can confirm are offered — a known Epic instance, or one whose login page it
+  verified. **No passwords are returned** — each entry carries an opaque
+  `import_id`, and the credential stays on your machine. A login saved in more
+  than one browser is one entry, even when the browsers hold different passwords.
+- **`connect_imported_account(import_id)`** — connects the one you picked, using
+  the password already in your browser (each saved password in turn, until
+  MyChart accepts one). Same 2FA and passkey flow as `setup_account`.
+
+Anything it cannot confirm is left out rather than guessed at — use
+`setup_account` for those, or run the import again later if a portal was
+temporarily unreachable. See
+[`clients/shared/read-local-passwords/README.md`](../shared/read-local-passwords/README.md) for what is
+read and how confirmation works.
+3. **`complete_2fa(pending_id, code)`** — if MyChart requires 2FA, Claude
+   asks you for the 6-digit code.
+4. **`register_passkey(account)`** — recommended, and never automatic. Logging
+   in changes nothing about how your account signs in; Claude offers you a
+   passkey afterwards and registers one only if you say yes. With one, future
+   logins skip the password and the 2FA prompt entirely. The private key is
+   stored in your OS keystore (the Keychain on macOS — see
+   [Architecture](#architecture)) and never sent to Anthropic; the
+   credential itself lives on your MyChart account until you remove it with
+   `delete_passkey` or `disconnect_account`.
+
+After setup, every data tool takes a required `account` parameter — the
+account id returned by `list_accounts`, `username@hostname`. Multiple
+accounts can be active at the same time — just pass a different `account`
+per call. That includes several logins on the *same* hostname (a household
+sharing one health system): each keeps its own credentials, passkey, and
+session. An id resolves only on a perfect hostname + username match; there
+is no hostname-only shorthand, so a call can never land on the wrong login.
+
+The data tools are not listed anywhere in this package. They are generated
+from the shared capability registry (`clients/shared/capabilities/`), which is also
+what the CLI and the mobile app derive their surfaces from — so this extension
+cannot quietly support less than they do. `registerAllTools` hand-writes only
+the five account-management tools above, which manage credentials on this
+machine and have no counterpart in the other clients.
+
+> What's my next appointment at uchealth?
+> Refill my lisinopril (use my mass general account).
+> Send a message to Dr. Smith asking about my latest blood pressure reading.
+> Show me my last imaging study.
+
+### Google Calendar sync (macOS)
+
+`connect_google_calendar` puts every connected account's upcoming appointments on
+a Google calendar and keeps them there. The setup widget offers it after **I'm
+done** when the accounts have appointments to sync; otherwise ask Claude to
+"sync my appointments to Google Calendar".
+
+- **Scope.** The only Google scope requested is `calendar.app.created`: OpenRecord
+  creates a "MyChart Appointments" calendar and can see and change only that one.
+  It never reads the user's other calendars.
+- **All TypeScript, one binary.** `src/google-calendar/worker.ts` is compiled
+  with `bun build --compile --aot` into `openrecord-calendar`, one binary per Mac
+  architecture, using this extension's own scrapers, credential store and passkeys:
+  `tray` (the menu-bar item), `connect` (loopback + PKCE consent in the
+  browser), `sync` (one pass) and `disconnect`.
+- **The menu-bar item** (`tray.ts`) drives AppKit through `bun:ffi` (`objc.ts`).
+  `[NSApp run]` owns the main thread, and menu clicks, timers and wake
+  notifications call straight into JS, so the process sleeps in the run loop
+  while idle (0% CPU, about 80 MB). A sync runs as a child process of the same
+  binary, started with NSTask, and writes its outcome to the state file the menu
+  reads. It syncs when 4 hours have passed since the last sync, checking every
+  15 minutes and 30 seconds after a wake (once Wi-Fi is back), because a timer's
+  clock stops while the Mac sleeps.
+  Its icon is the medical cross (`cross.case`; macOS has no hospital symbol).
+  The menu lists the connected MyChart accounts and has Sync Now, Open Google
+  Calendar and Turn Off Calendar Sync.
+- **Signing in to MyChart.** A sync signs in with `machineLogin`
+  (`resolveSessionWithoutUser`), so it never makes MyChart send a 2FA code:
+  nobody is there to type one. An account that has only a password and hits
+  2FA fails with a hint to save a passkey. See
+  [`docs/login-modes.md`](../../docs/login-modes.md).
+- **When a sync fails, three tries, then stop.** Any failure counts: a sign-in
+  MyChart refuses, a network error, Google, or a run that crashed or hit the
+  10-minute timeout. A failure is retried at the next four-hour sync. The third
+  failure in a row stops scheduled syncs, for that account or, when
+  the failure came before any account (Google, a crash), entirely. Repeated
+  rejected passwords can lock a MyChart account. Then macOS shows a
+  notification, once per stop (posted with `osascript`, since
+  `UNUserNotificationCenter` refuses a binary that isn't an app bundle), and the
+  menu says why. **Sync Now** retries everything with the count reset to zero, and so does
+  connecting again.
+- **Install.** The binaries are not in the `.mcpb`, which would be ~200 MB
+  bigger. `deploy.sh` uploads them beside it as
+  `https://openrecord.fanpierlabs.com/calendar/openrecord-calendar-darwin-<arch>-<sha256>`.
+  Content-addressed names make them immutable, so every released bundle keeps
+  finding its own. What ships is `applet/calendar-binaries.json`, the SHA-256 per
+  architecture. On first connect the tool downloads the matching binary and
+  installs it at `~/.openrecord-mcpb/bin/openrecord-calendar` only if the
+  download's hash matches. It downloads nothing when that binary is already
+  installed. A checkout that ran `build:applet` uses its local build instead.
+  It then runs `connect` and a first `sync`, and writes
+  `~/Library/LaunchAgents/com.fanpierlabs.openrecord.calendar.plist`
+  (`openrecord-calendar tray`) so it starts at login.
+- **Uninstall.** `disconnect_google_calendar` revokes the Google grant, then
+  unloads and deletes the LaunchAgent and the log. It keeps the binary in
+  `~/.openrecord-mcpb/bin`, so turning sync back on skips the download (delete it
+  to remove it completely). It also keeps the calendar ID, as Turn Off does.
+- **Updates.** When sync is on, the MCPB checks the installed binary's hash at
+  startup and installs this build's binary if they differ, restarting the
+  menu-bar app. An extension update therefore reaches it without a reconnect.
+- **Turning it off and on again.** Turn Off revokes the Google grant and drops
+  the token and sync status, but keeps the calendar ID in
+  `google-calendar.json`. Turning sync back on reuses that calendar: a fresh grant
+  can still reach a calendar the app created under a revoked one (checked
+  against real Google). A new calendar is made only if the user deleted the old
+  one. The ID matters because `calendar.app.created` can't list calendars, so a
+  lost ID can never be recovered and would leave a second "MyChart
+  Appointments" beside the first. `connect` also reuses a grant Google still
+  honours, and only asks for consent again on `invalid_grant`.
+- **What it writes.** The title is "Visit with <provider>" (or the clinic). The
+  location is the clinic and its address, "Video visit", or the organization.
+  The event lasts the visit's duration (30 minutes if MyChart gives none). The
+  description holds everything MyChart gives about the visit: visit type,
+  providers, reason, procedures, department and specialty, address, clinic
+  phone, arrival time and check-in place, copay, organization, the clinic's
+  instructions, and which MyChart login it came from.
+- **Keys and pruning.** Each event's id is derived from (account, CSN), so a
+  re-sync updates the same event; the CSN held across two fresh logins on one
+  real account. The id and the private property use a hash of the account
+  (`accountTag`). Future events whose visit is gone are deleted, but only
+  after that account's read succeeded. A failed read never empties the calendar.
+  An account removed from OpenRecord has its future events deleted on the next
+  sync. Canceled visits are left off.
+- **Keychain.** The binary stores the Google refresh token itself
+  (`google-calendar:refresh-token`, same `openrecord-mcpb` service). The MyChart
+  passwords and passkeys it reads were created by the MCPB, so the first
+  background sign-in raises macOS's "Always Allow" prompt for
+  `openrecord-calendar`. It's always signed with the Developer ID (the build
+  fails without one), so that approval survives updates.
+- **Build.** `bun run build:applet` (part of `bun run pack`, so packing needs a
+  Mac with the Developer ID) writes
+  `applet/openrecord-calendar-darwin-{arm64,x64}` (about 96 and 106 MB) and
+  `applet/calendar-binaries.json`. It bakes
+  in the Google "Desktop app" OAuth client from
+  `~/.config/fan-pier-labs/google-oauth-client.json`, which is never committed,
+  and refuses to build an architecture whose `@napi-rs/keyring` binding isn't
+  installed. Without that binding the binary would silently fall back to file
+  storage and never see the MCPB's keychain items. State lives in
+  `~/.openrecord-mcpb/google-calendar.json`, which `list_accounts` reports as
+  `calendarSync`.
+
+### Imaging
+
+`download_imaging_study` returns each picture as an image content block, so
+Claude can look at the scan and talk about it. What goes in the chat is a
+**reduced-size preview**: Claude Desktop rejects any tool result over 1MB, and
+one full-size radiograph is ~4MB as a JPEG, so the pictures are downscaled
+until the whole set fits, and a study with more than a dozen images (a CT) is
+sampled evenly rather than shown slice by slice. Ask to **save, download or
+export** it and the same call runs with `save_to_downloads`, writing the
+**full-resolution** JPEGs to your Downloads folder in a folder named for the
+study — inline previews go away with the conversation, and this is the copy
+you keep. A saving call shows no pictures in the chat, just a confirmation of
+where the files went. Nothing is overwritten, so saving the same study twice
+leaves `XR_CHEST` and `XR_CHEST-2`.
+
+### Files: message attachments and billing statements
+
+`get_message_attachment` and `download_billing_statement` each produce a file:
+a photo or PDF attached to a message, or the PDF of one statement or itemized
+bill picked by the `RecordID` that `get_billing` lists beside each statement.
+The file is always written to your Downloads folder (never overwriting — a
+second copy gets `-2`) and Claude gets the path back, with the attachment's id
+or the statement's date and amount. A picture that fits under the 1MB
+tool-result cap is shown in the chat as well. A text file is not, unless the
+call runs with `return_content` — ask what a document says and Claude asks for
+its content, which goes into the result as text when it fits under the cap; a
+larger file is saved and the result says so. A PDF cannot be shown in a chat at
+all — no content block carries one to a model — so the result says the type is
+unsupported and points at the saved copy.
+
+Viewing never writes to disk; only asking for a copy does. The decode runs here,
+on your machine either way: MyChart serves imaging as proprietary CLO, which
+[`scrapers/myChart/clo-image-parser/`](../../scrapers/myChart/clo-image-parser/)
+turns into pixels.
+
+### Saving what Claude writes: `save_file`
+
+Ask Claude to export something — "save my lab history as a spreadsheet", "write
+up everything about my knee" — and it gathers the data with the read tools,
+writes the file itself, and `save_file` puts it in Downloads. Any text format
+(Markdown, CSV, JSON, HTML); a name without an extension is saved as Markdown,
+and a second file of the same name gets `-2` rather than overwriting the first.
+
+### Family records (proxy access)
+
+Accounts with MyChart proxy access (a parent reading a child's chart) can list
+and switch the active patient. **`list_proxy_targets`** shows every record the
+account can reach and which is active; **`switch_proxy_target`** changes it —
+verified against the profile page, so a switch that lands on the wrong patient
+fails instead of returning the wrong chart. MyChart's active patient is
+server-side session state, so every data tool also takes an optional `patient`
+parameter and refuses (with instructions) rather than silently reading a
+different family member's record than the one the call is about.
+
+> Ask my uchealth account which records I can access.
+> Switch to Bart's record and show his immunizations.
+> Switch back to my own record.
+
+### Long tool calls: `check_pending_call`
+
+Claude Desktop cancels a tool call it has waited too long on (its own log
+records one cancel 197 s after the request; four minutes is the figure usually
+quoted), and a paged billing read or an imaging study can take longer. So every
+tool runs under a 2.5-minute deadline. A call that answers in time returns as
+usual. One that does not keeps running in the background and returns a note
+with an id; `check_pending_call(id)` waits up to 2.5 minutes more and returns
+the result exactly as the original tool would have (`wait: false` reports at
+once). A call is given up on 10 minutes after it started.
+
+Calls still run concurrently. A parked call blocks exactly one thing, a repeat
+of itself with the same arguments, because that retry is how `send_message`
+would send twice. The one other effect: `switch_proxy_target` on that account
+refuses until the parked read has finished, since the read is still reading
+whichever patient is active on MyChart's server.
+
+`abandon: true` stops waiting and discards the result. **Abandon means abandon,
+not cancel** — nothing in the scraper core takes an abort signal, so the work
+runs on, a message already sent still lands, and the proxy-switch guard holds
+until it finishes. An abandoned call stays waitable here, so the account coming
+free is observable, which is what that guard's refusal tells you to do.
+
+Collecting is not peeking. A result that is ready is handed over on the next
+`check_pending_call` for that id and removed, `wait: false` included, so a
+caller polling for status gets the data itself the moment it lands. There are
+two clocks, not one: a call that has not finished is given up on 10 minutes
+after it started, and a finished result then waits 10 more minutes to be
+collected.
+
+`check_pending_call` with **no `id` lists every pending call**, which is what a
+refusal naming an id is talking about. The listing, the duplicate guard and the
+proxy guard all read the same map through the same sweep, so they cannot
+disagree: if the listing says a call is gone, it is holding nothing. At the
+10-minute cap an entry is dropped outright — result given up on, chart lock
+released — because a scrape that never settles would otherwise block
+`switch_proxy_target` for the life of the server process with no call able to
+clear it. The parked calls live in memory (`clients/shared/mcp-server/pending-call.ts`).
+
+### Output modes
+
+Every read tool takes an optional `mode`:
+
+| Mode | What Claude gets |
+| --- | --- |
+| `concise` | Markdown, the interesting fields only. **The default** — a full past-visits payload is ~200 KB of Epic view-model flags, and the concise rendering is a few KB |
+| `standard` | Markdown, every useful field, MyChart's own field names |
+| `json` | The same fields as `standard`, as JSON |
+| `raw` | Exactly what MyChart sent, untouched. Large; HTML and UI flags included |
+
+Claude asks for `standard`, `json` or `raw` by name when a concise answer is
+missing something. The field decisions per capability are in
+[`docs/processor-layer-proposal.md`](../../docs/processor-layer-proposal.md);
+example output in every mode is in
+[`docs/processor-layer-examples.md`](../../docs/processor-layer-examples.md).
+
+## Privacy Policy
+
+**[openrecord.fanpierlabs.com/privacy.html](https://openrecord.fanpierlabs.com/privacy.html)** —
+the policy covering this extension, and the URL the manifest's `privacy_policies` points at.
+
+The short version, for what this extension does:
+
+- **Your records stay on your machine.** The extension signs in to your portal
+  from your computer and keeps everything it reads there — credentials and
+  passkeys in the OS keystore, sessions under `~/.openrecord-mcpb/` (see
+  [Architecture](#architecture)), and any imaging study you ask to save as
+  JPEGs in your Downloads folder. Fan Pier Labs runs no server that holds your medical
+  record, and there is no OpenRecord account containing a copy of it.
+- **Your chart reaches Anthropic, and nobody else.** Whatever Claude reads
+  through these tools goes to Anthropic under your own Claude account, governed
+  by Anthropic's terms and privacy policy. Nothing passes through Fan Pier Labs.
+- **Telemetry.** We record basic usage stats and basic user info (eg email) to
+  help improve our product. We do not send any medical information to our
+  server or to analytics services. You can disable by setting
+  `MYCHART_CLI_TELEMETRY_DISABLED=1`.
+- **Self-update.** At startup and daily it reads
+  `openrecord.fanpierlabs.com/mcpb_version.json` and, when a newer version is out, downloads
+  its server code from the same site (see [Self-update](#self-update)). It sends nothing
+  but the requests, which reveal your IP to our CDN, and it runs even with telemetry turned off.
+- **Disconnecting deletes.** `disconnect_account` removes that account's stored
+  credentials, passkey, and session from this machine.
+
+## Architecture
+
+- **stdio MCP server** — speaks the 2025-06-18 MCP protocol with elicitation
+  support. Claude Desktop ships its own Node runtime; no Node install needed
+  on the user's machine.
+- **Pure JS, with one exception** — no `sharp`, no `sqlite3`. CLO → JPEG imaging
+  conversion calls the shared pure-JS exporter (`convertCloToJpgPureJs` in
+  `scrapers/myChart/clo-image-parser/exporters/`), which is
+  [`jpeg-js`](https://www.npmjs.com/package/jpeg-js) end to end and is the same
+  code path the mobile app uses. The exception is
+  [`@napi-rs/keyring`](https://www.npmjs.com/package/@napi-rs/keyring), the
+  native binding used to reach the OS credential store — see below.
+- **Secrets live in the OS keystore** — the macOS Keychain, Windows Credential
+  Manager, or the Secret Service on Linux, under service `openrecord-mcpb`,
+  three items per identity:
+  - `password:<hostname>:<username>`
+  - `totp:<hostname>:<username>`
+  - `passkey:<hostname>:<username>` — a raw P-256 private key that logs in with
+    neither password nor 2FA
+
+  If the keystore is unavailable the store falls back to the 0600 files below
+  and says so in `list_accounts`'s `secretStorage` field, so a downgrade to
+  plaintext is visible rather than silent. `OPENRECORD_SECRET_BACKEND` overrides
+  the choice: `file` to opt out, `os` to fail rather than fall back.
+
+  **Migration happens on read.** The first read after upgrading moves a secret
+  out of its old file location into the keystore and deletes the plaintext copy,
+  so nobody has to log in again — and `accounts.json` loses its inline
+  `password`/`totpSecret` the first time the account is touched.
+- **What stays on disk** at `~/.openrecord-mcpb/`, keyed by (hostname, username)
+  so several logins on one hostname never share or overwrite each other's
+  identity:
+  - `accounts.json` — the index of which logins exist (mode 0600). Also holds
+    `password`/`totpSecret` inline when there is no keystore, which is where
+    every pre-keystore install left them
+  - `passkeys/<hostname>/<username>.json` — keystore fallback only
+  - `sessions/<hostname>/<username>.json` — serialized cookie jars for fast
+    resume. Cookies are bearer credentials too, but they expire and the
+    silent-login ladder just re-mints them
+- **Not a single-file bundle any more** — a `.node` binary cannot be inlined
+  into a CJS file, so `dist/server.cjs` ships alongside
+  `node_modules/@napi-rs/`. The `.mcpb` went from 1.0 MB to 2.8 MB.
+
+  **It is still one download that works everywhere.** The artifact carries all
+  four platform binaries — macOS arm64/x64, Windows x64/arm64 — and
+  `@napi-rs/keyring`'s loader is a `process.platform`/`process.arch` switch that
+  requires the matching one at startup. There is no per-platform build and
+  nothing for a user to choose.
+
+  Getting all four onto one machine is the only wrinkle. They are twelve
+  separate packages `@napi-rs/keyring` lists in its own `optionalDependencies`,
+  gated on `os`/`cpu` — the standard way prebuilt-binary packages ship (esbuild
+  has 26, rollup 27) — so a normal `bun install` resolves only the slice
+  matching the machine doing the install. `bun run pack` therefore overrides
+  with `bun install --os='*' --cpu='*'`, `.mcpbignore` picks the four to keep
+  out of the twelve that pulls.
+
+  Linux is not included (Claude Desktop has no Linux build, and the file
+  fallback covers the raw server). Adding it is about +9 MB and three edits:
+  two lines in `.mcpbignore`, `compatibility.platforms` in `manifest.json`
+  (Claude Desktop reads the manifest and never sees `.mcpbignore`), and
+  `PLATFORMS` in `verify-native-binaries.mjs`, which fails the pack if the last
+  two disagree. `compatibility.runtimes.node` tracks tsup's `target`.
+
+## Self-update
+
+Claude Desktop runs `dist/launcher.cjs`, not the server. The launcher (`src/launcher/`) owns
+stdio and runs `server.cjs` as a child process: the newest download in
+`~/.openrecord-mcpb/versions/<version>/` if there is one, otherwise the copy bundled in this
+`.mcpb`. A download is laid out exactly like the install (`dist/server.cjs`,
+`applet/calendar-binaries.json`), because the server finds files relative to its own `__dirname`.
+Messages pass through unchanged. At startup and daily it downloads the version
+`mcpb_version.json` advertises; a download takes effect the next time Claude Desktop starts the
+extension.
+
+- **Downloads are hash-checked, not signed.** The site's bucket is trusted and HTTPS covers the
+  trip. `payload.json` lists each file's sha256, which catches a release caught mid-upload or a
+  CDN serving one file from the previous release. `deploy.sh` builds it
+  (`scripts/build-payload.ts`) and uploads it to `mcpb-payload/<version>/` before publishing the
+  version number.
+- **Only the server updates.** The launcher, `manifest.json` (tool list, display version) and
+  `node_modules/@napi-rs` (a native binary a download can't replace) change only by
+  reinstalling. The server reaches the installed keyring through `NODE_PATH`. A release that
+  changes what the server needs from the launcher bumps `LAUNCHER_ABI` in
+  `src/launcher/payloads.ts`, and older launchers then refuse it.
+- **A failed update tells the user to reinstall.** If the advertised version can't be
+  downloaded, fails verification, needs a newer launcher, or dies before the MCP handshake,
+  every tool result ends with a notice asking the user to reinstall from the site. A version
+  that died at startup is marked `BAD` and never retried; the launcher falls back to the next
+  payload in the same startup and replays the handshake to it. Not reaching the site at all
+  changes nothing.
+- **Keep the launcher small and stable.** Every installed copy runs whichever launcher it was
+  installed with, for good.
+
+## File layout
+
+```
+clients/claude-desktop-extension/
+├── manifest.json           # MCPB manifest (see https://github.com/modelcontextprotocol/mcpb)
+├── package.json
+├── tsup.config.ts          # CJS bundle for Claude Desktop's Node (@napi-rs/keyring stays external)
+├── smoke.mjs               # boots the built bundle and speaks MCP to it
+├── icon.png                # 256×256 extension icon
+├── scripts/
+│   ├── build-payload.ts    # builds the server payload launchers download (deploy.sh)
+│   └── verify-native-binaries.mjs # refuses to pack without every platform's keyring binary
+└── src/
+    ├── launcher/           # what Claude Desktop runs: self-update + stdio relay to the server
+    ├── index.ts            # stdio entry: startServer(MCPB_HOST) + the setup widget page
+    ├── host.ts             # what this extension adds to the shared server (McpHost)
+    ├── calendar-tools.ts   # connect_google_calendar / disconnect_google_calendar
+    ├── google-calendar/    # the macOS menu-bar sync app
+    └── setup-widget/       # the MCP Apps setup widget (React)
+```
+
+The server itself — every tool, sessions, the credential and secret stores, imaging, long-call
+parking — is shared with `mychart-cli mcp` and lives in
+[`clients/shared/mcp-server/`](../shared/mcp-server/).
+
+## Development
+
+```bash
+bun run typecheck  # tsc --noEmit — catches type errors esbuild silently skips
+bun run build      # tsc --noEmit, then tsup → dist/server.cjs
+bun run dev        # tsup watch mode — rebuilds dist/server.cjs on every save
+bun run smoke      # build, then boot the bundle and speak MCP to it (see below)
+bun run pack       # build + run `mcpb pack` → openrecord.mcpb
+```
+
+> **Smoke test.** Everything else in this package tests the TypeScript sources
+> in-process; `bun run smoke` is the only check that runs the *bundle* the way
+> Claude Desktop does — `node dist/server.cjs`, then a real `initialize` /
+> `tools/list` / `tools/call` exchange over stdio. It runs from a staged copy
+> containing only what `.mcpbignore` ships (the manifest and `dist/`), so a
+> dependency left external to the bundle fails here instead of on a patient's
+> machine; run in place, the repo's `node_modules` would quietly satisfy it. It
+> also parses every line the server writes to stdout, which is where the
+> "stdout carries JSON-RPC and nothing else" rule gets enforced. CI runs it in
+> place of a bare `bun run build`.
+
+> **Type checking.** tsup bundles with esbuild, which strips types without
+> checking them — so type errors (wrong function arguments, missing fields)
+> compile clean and only blow up at runtime. `bun run build` now runs
+> `tsc --noEmit` first so those are caught at build time and in CI. Tests are
+> type-checked too (`@types/bun` provides the `bun:test` types).
+
+### Hot-reload dev loop (recommended)
+
+Claude Desktop spawns `dist/server.cjs` once and does **not** pick up rebuilds on
+its own — you'd otherwise have to toggle the extension off/on after every change.
+[`mcpmon`](https://www.npmjs.com/package/mcpmon) is a transparent stdio proxy
+(think `nodemon` for MCP) that restarts the server when `dist/` changes while
+keeping the client connected, and fires `notifications/tools/list_changed` so the
+tool list refreshes automatically.
+
+```bash
+bun run dev:reload   # build once, then tsup --watch + MCP Inspector via mcpmon
+```
+
+This opens the [MCP Inspector](https://github.com/modelcontextprotocol/inspector)
+in a browser where you can list/call tools, see logs, and render the `ui://`
+setup widget interactively (the Inspector acts as the MCP Apps host). Edit a file
+in `src/` → tsup rebuilds `dist/server.cjs` → mcpmon restarts the server → the
+Inspector stays connected. This is a faster loop than round-tripping through
+Claude Desktop.
+
+**Ports / parallel worktrees.** Only the Inspector binds TCP ports — two of them:
+the browser UI (`CLIENT_PORT`, default 6274) and the proxy (`SERVER_PORT`, default
+6277). `tsup` and `mcpmon` don't bind ports (mcpmon is a stdio proxy), and each
+worktree's `node dist/server.cjs` is an independent stdio child. So `dev:reload`
+grabs two **free OS-assigned ports** on each run and prints the UI URL — multiple
+worktrees / Claude sessions can each run their own loop without colliding. Pin
+them by exporting `CLIENT_PORT` / `SERVER_PORT` before running.
+
+**Running many at once.** Ports won't collide, but each `dev:reload` is ~7
+processes, loads the full server bundle, and opens a browser tab — so a dozen of
+them is heavy. The Inspector is the expensive part; you rarely need its UI in
+*every* worktree. Prefer `bun run dev:proxy` (just `mcpmon` — no ports, no
+browser) in the worktrees that only need the server to hot-reload, and run the
+full `dev:reload` only where you're actively inspecting. If you do want several
+Inspectors, set `MCP_AUTO_OPEN_ENABLED=false` to skip the auto-opened tabs and
+use the URL each run prints.
+
+To auto-reload the **installed** extension inside Claude Desktop (instead of the
+Inspector), point its launch command at the proxy:
+
+```bash
+bun run dev:proxy    # mcpmon --watch dist --ext cjs -- node dist/server.cjs
+```
+
+Use this as the server command in a dev build of `manifest.json` (the shipped
+manifest launches `node dist/launcher.cjs`, which runs `dist/server.cjs` — don't ship `mcpmon`). Keep
+`bun run dev` running alongside it so `dist/` stays current.
+
+### Test in Claude Desktop (packaged)
+
+1. `bun run pack`
+2. Drag the resulting `openrecord.mcpb` into Claude Desktop → Settings → Extensions.
+3. Open a new chat and ask Claude to "set up MyChart".
+
+### Publishing a release
+
+Bump the version in both `manifest.json` (what `mcpb_version.json` is generated from, so
+installed copies learn about the update) and `package.json` (a test holds the two equal) in a
+PR. Once it is merged, from a clean checkout of `main`:
+
+```bash
+./deploy.sh
+```
+
+It installs, refreshes `scrapers/list-all-mycharts/mychart-instances.json` from Epic's
+directory (a few minutes' crawl), packs, boots the packed server (`smoke.mjs`), copies the live
+bundle to `openrecord-<old version>.mcpb`, builds the server payload, uploads to
+`https://openrecord.fanpierlabs.com/openrecord.mcpb` (the splash page's Claude Desktop
+button), invalidates CloudFront, checks the live file matches what was packed, publishes it as the GitHub Release
+`mcpb-v<version>` (needs `gh` signed in), uploads the payload to `mcpb-payload/<version>/`, runs
+`openrecord-splash/deploy.sh` to publish `mcpb_version.json`, and finally starts the MCP Registry
+workflow below. That manifest also carries the
+`mychart-cli` version, so publish a bumped CLI to npm before running it. It refuses a version
+`mcpb_version.json` already advertises, and if the live check fails it prints the command that
+restores the old bundle. A failed run can be re-run as is. Commit a refreshed directory list in
+a PR afterwards — the script says so when it changed.
+
+`.github/workflows/mcp-registry.yml` lists a release on the official MCP Registry as
+`io.github.Fan-Pier-Labs/openrecord`. It fills `server.json`'s version, download URL and SHA-256
+from the release, so the committed copy only needs editing for the description or metadata. It
+runs only when `deploy.sh` starts it as its last step, never when the release is created: a
+re-run of a failed deploy replaces the release's bundle, and the registry rejects a second
+publish of a version, so a listing made between attempts would keep a hash the download no
+longer has. The script only starts the run — check it finished in the Actions tab. If the
+script could not start it, it prints the command to run by hand
+(`gh workflow run mcp-registry.yml --repo Fan-Pier-Labs/openrecord -f tag=mcpb-v<version>`);
+that is for a release not yet listed, since a version already listed is refused as a duplicate.
+
+**Don't sign the bundle.** `mcpb sign` appends a PKCS#7 block after the zip's end record, and
+Claude Desktop reads extensions with `yauzl`, which requires that record to be the file's last
+bytes — a signed 2.1.0 failed to install with "Invalid comment length". Signing also bought
+nothing: Claude Desktop's verifier is unimplemented and reports every bundle, signed or not, as
+`unsigned`. `deploy.sh` refuses to upload a bundle that doesn't end with the end record.

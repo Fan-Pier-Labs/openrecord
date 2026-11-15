@@ -3,7 +3,7 @@
 /**
  * Pins for UI bugs found by clicking through the deployed demo.
  *
- * These scan source the way expo-app's testids test does — the bugs they pin
+ * These scan source the way clients/expo-app's testids test does — the bugs they pin
  * were invisible to logic tests (a CSS rule, a marketing claim) but broke the
  * page for real users.
  */

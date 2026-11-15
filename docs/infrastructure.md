@@ -39,7 +39,7 @@ with Vite. On S3 + CloudFront, following the standard Fan Pier Labs static-site 
   immutable cache; the HTML and fixed-name assets are invalidated.
 - Splash is presentational — no auth. Waitlist form posts to the shared `fanpierlabs-forms` Lambda
   (`https://ns8remz3t7.execute-api.us-east-2.amazonaws.com`), which is not in this repo.
-  The `send_feature_request` capability (`shared/featureRequest.ts`) posts there too, as
+  The `send_feature_request` capability (`clients/shared/featureRequest.ts`) posts there too, as
   `site: "openrecord-feature-request"`.
 - **The demo lives at `/demo.html`, not `/demo`** — the default root object only applies to `/`, and
   the 403/404 → `/index.html` error handling would otherwise quietly serve the splash.
@@ -71,7 +71,7 @@ manifest is script-only.
 Logic modules are framework-free and fully unit-tested: `src/data.ts` (the fictional record; payload
 shapes elsewhere derive from it with `typeof` so they can't drift), `src/types.ts`, `src/tools.ts`
 (all 46 MyChart tools — **write tools genuinely mutate session state**), `src/agent.ts` (a faithful
-port of `expo-app/src/lib/ai/claude-client.ts`: same JSON tool-call protocol, read batching,
+port of `clients/expo-app/src/lib/ai/claude-client.ts`: same JSON tool-call protocol, read batching,
 exclusive write tools, `respond` terminator), `src/stream.ts` (reveals a finished reply at model
 pace using `setTimeout`, **not** `requestAnimationFrame` — rAF is paused in background tabs, so a
 visitor who switches away mid-reply would return to a message frozen half-written), `src/skills.ts`,
@@ -104,7 +104,7 @@ Zero-dep Lambda backing both the demo's chat turns and the **mobile app's free t
 the app's agent loops stay identical.
 
 - Endpoint: `https://dur15eh31e.execute-api.us-east-2.amazonaws.com` (baked into
-  `openrecord-splash/demo/src/config.ts` and `expo-app/app.config.ts`).
+  `openrecord-splash/demo/src/config.ts` and `clients/expo-app/app.config.ts`).
 - **Two tiers.** Unauthenticated (the browser demo): `gemini-2.5-flash` / `gemini-2.5-flash-lite`,
   per-IP rate limit (40 req / 10 min). Signed-in (the mobile app): the request carries a Google ID
   token as `Authorization: Bearer`, verified server-side in `src/google-auth.mjs` against Google's

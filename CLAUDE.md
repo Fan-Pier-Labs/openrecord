@@ -1,9 +1,7 @@
 # CLAUDE.md
 
 Health data platform that connects to Epic MyChart portals to scrape and consolidate a patient's
-medical records (30+ data categories). Four clients on one shared scraper core: a Claude Desktop
-extension (`.mcpb`), an Expo/React Native iOS app, a headless CLI published as the `mychart-cli` npm
-package, and that package's importable library.
+medical records (30+ data categories). Every client (see the repo map) runs on one shared scraper core.
 
 Proprietary source-available license (see `LICENSE`) — personal/educational use only; no commercial
 use, redistribution, or SaaS offerings without written permission from Fan Pier Labs.
@@ -15,15 +13,15 @@ short and put detail in `docs/` or the relevant `README.md`. See [Keeping this f
 
 | Path | What it is |
 | --- | --- |
-| `scrapers/` | Shared scraper core — every client calls into this. **Every folder holds the `README.md` documenting that scraper**; the map is [`scrapers/README.md`](scrapers/README.md) |
-| `shared/` | Capability registry, common types, host concurrency limiter, small codecs |
-| `npm-package/` | The `mychart-cli` CLI and importable library |
-| `claude-desktop-extension/` | `.mcpb` MCP server for Claude Desktop |
-| `expo-app/` | Expo/React Native iOS app (scrapers run on-device, plus an agent loop) |
+| `scrapers/` | Shared scraper core. **Every folder holds the `README.md` documenting that scraper**; the map is [`scrapers/README.md`](scrapers/README.md) |
+| `shared/` | Used by scrapers and clients: logger, `DetailedError`, telemetry, host limiter, codecs |
+| `clients/shared/` | Client-only: capability registry, MCP server (`mcp-server/`), browser password reader (`read-local-passwords/`) |
+| `clients/npm-package/` | The `mychart-cli` CLI and importable library |
+| `clients/claude-desktop-extension/` | `.mcpb` for Claude Desktop: shared MCP server + setup widget + calendar sync |
+| `clients/expo-app/` | Expo/React Native iOS app (scrapers run on-device, plus an agent loop) |
 | `fake-mychart/` | Next.js stand-in for real MyChart — dev + all integration tests |
 | `openrecord-splash/` | Static splash site + the browser demo |
 | `openrecord-demo-lambda/` | AI proxy behind the demo and the app's free tier |
-| `read-local-passwords/` | Browser password store extraction (Chromium + Firefox) — used by the CLI and the MCPB's import flow. Read-only, macOS/Windows |
 | `dev-scripts/` | Run-it-yourself diagnostics (never `import.meta.main` blocks in product code) |
 
 ## Simplicity First
@@ -59,7 +57,7 @@ detail for every line here is in [`docs/architecture.md`](docs/architecture.md).
   request bodies, the behaviours that bite, the research behind them, and its per-mode field
   contract. Change how it talks to MyChart and you update that file in the same PR. Index:
   [`scrapers/README.md`](scrapers/README.md).
-- **`shared/capabilities/` is the single source of truth for what the product can do.** Every
+- **`clients/shared/capabilities/` is the single source of truth for what the product can do.** Every
   client derives its surface from it; none hand-maintains a list — including account-free lookups,
   which are `kind: 'public'` and whose `run` takes no session, so they cannot reach a chart. Add an
   entry and it ships everywhere. `capability-parity.unit.test.ts` fails if a client drops one.
@@ -88,16 +86,16 @@ fake server. **Never take an action that could trigger a 2FA SMS to the user wit
 
 | Command | What it does |
 | --- | --- |
-| `bun run lint` | ESLint — **type-aware**: install every package's deps and build `npm-package` first, or it lints the wrong thing. See [`docs/testing.md`](docs/testing.md#lint) |
-| `bun run typecheck` | Typecheck the shared core (strict). CI also runs `expo-app` and `npm-package` (the latter needs `bun run build` first) |
-| `bun run test` | Every `*.unit.test.ts`. **Needs `cd claude-desktop-extension && bun install` first** — the parity test imports the extension's real tools |
+| `bun run lint` | ESLint — **type-aware**: install every package's deps and build `clients/npm-package` first, or it lints the wrong thing. See [`docs/testing.md`](docs/testing.md#lint) |
+| `bun run typecheck` | Typecheck the shared core (strict). CI also runs `clients/expo-app` and `clients/npm-package` (the latter needs `bun run build` first) |
+| `bun run test` | Every `*.unit.test.ts`. **Needs `bun install` in `clients/shared` and `clients/claude-desktop-extension` first** — the parity test imports both |
 | `bun run test:integration` | Every `*.integration.test.ts` (needs the compose service + built CLI) |
 | `bun run test:coverage` | Unit + integration with the 75%-per-file gate — see [`docs/testing.md`](docs/testing.md) |
 | `bun run test:real-mychart` | Every `*.real-mychart.test.ts`, against a real account. By hand only |
-| `bun run cli mychart [flags]` | Run the CLI scraper. `--help`, `--list-capabilities` (both take `--show-all`) and `--host <host> --action <id> --arg k=v` are self-documenting — [reference](npm-package/docs/cli.md) |
+| `bun run cli mychart [flags]` | Run the CLI scraper. `--help`, `--list-capabilities` (both take `--show-all`) and `--host <host> --action <id> --arg k=v` are self-documenting — [reference](clients/npm-package/docs/cli.md) |
 | `bun run fake-mychart` | Fake MyChart dev server on a **random port in 4000-5000**, printed at startup, so parallel worktrees don't collide. `PORT=4000` pins it — needed by anything defaulting to `localhost:4000`. Sign in as `homer`/`donuts123` (`marge` for 2FA) |
-| `cd claude-desktop-extension && bun run pack` | Build `openrecord.mcpb`. `./deploy.sh` there releases it — never sign it, Claude Desktop can't open a signed bundle |
-| `cd npm-package && bun run build` | Build the CLI binary at `npm-package/dist/cli.cjs` |
+| `cd clients/claude-desktop-extension && bun run pack` | Build `openrecord.mcpb`. `./deploy.sh` there releases it — never sign it, Claude Desktop can't open a signed bundle |
+| `cd clients/npm-package && bun run build` | Build the CLI binary at `clients/npm-package/dist/cli.cjs` |
 | `docker compose -f docker-compose.ci.yaml up -d --build --wait` | Start the CI fake-mychart (port 4000); `down -v` to stop |
 | `bun scrapers/list-all-mycharts/probes/probe-mount-discovery.ts` | Mount discovery against all ~750 directory hosts. Run after touching discovery |
 
@@ -131,7 +129,7 @@ Details — the coverage gate, CI integration setup, known gaps: [`docs/testing.
 
 - **NEVER modify or delete anything in the macOS Keychain or a browser keychain that we did not
   create.** Read-only is OK. The sole exception is the MCPB's own items under service
-  `openrecord-mcpb`, which `claude-desktop-extension/src/secret-store.ts` owns outright.
+  `openrecord-mcpb`, which `clients/shared/mcp-server/secret-store.ts` owns outright.
 - **Repair a passkey's `signCount` by +1, never a round number** — it must equal what the server
   last accepted ([`docs/cli.md`](docs/cli.md#sign-count)).
 - **NEVER make changes in AWS without explicit user direction.** No `create-*`/`delete-*`/`update-*`/
@@ -169,7 +167,7 @@ Details — the coverage gate, CI integration setup, known gaps: [`docs/testing.
   changes whose only assertion would restate the diff — don't. Name the file for the kind of test it
   is.
 - **Every interactive element in the Expo app needs a `testID`**, added in the same diff — enforced
-  by `expo-app/src/__tests__/testids.unit.test.ts`.
+  by `clients/expo-app/src/__tests__/testids.unit.test.ts`.
 - `gh pr edit` fails (Projects Classic deprecation); use
   `gh api repos/Fan-Pier-Labs/openrecord/pulls/<N> -X PATCH -f title="…" -f body="…"`.
 - Embed images/videos in a PR comment: `gh pr comment <N> --attach ./demo.mp4` (gh ≥ 2.99).
@@ -201,10 +199,10 @@ adding, editing, *and deleting*** — it reached 65KB by only ever being appende
 - [Testing](docs/testing.md) — suites, CI integration, the coverage gate
 - [Infrastructure](docs/infrastructure.md) — AWS, deployments, splash + demo, lambdas, S3, secrets
 - [iOS simulator](docs/ios-simulator.md) — `maestro-cli`, sim sessions, testID rules
-- [CLI](npm-package/docs/cli.md) and [library API](npm-package/docs/api.md) references
+- [CLI](clients/npm-package/docs/cli.md) and [library API](clients/npm-package/docs/api.md) references
 - [Scrapers](scrapers/README.md) — the map; each scraper's own README is its documentation
 - [Scraping guide](scrapers/SCRAPING.md) — finding the request the web UI sends, and the traps
-- Package READMEs: `fake-mychart/`, `claude-desktop-extension/`, `npm-package/`,
+- Package READMEs: `fake-mychart/`, `clients/claude-desktop-extension/`, `clients/npm-package/`,
   `openrecord-demo-lambda/`, `openrecord-splash/`
 
 ## Memory

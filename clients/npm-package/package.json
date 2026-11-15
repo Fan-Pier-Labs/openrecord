@@ -1,0 +1,84 @@
+{
+  "name": "mychart-cli",
+  "version": "2.3.0",
+  "description": "Programmatic access to Epic MyChart patient portals: login, scrape every section of a patient's chart, and act on it. Provided as-is and used at your own risk; not affiliated with Epic or MyChart, and its use may violate Epic's terms of service.",
+  "license": "SEE LICENSE IN LICENSE",
+  "mcpName": "io.github.Fan-Pier-Labs/openrecord",
+  "author": "Fan Pier Labs",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Fan-Pier-Labs/openrecord.git",
+    "directory": "clients/npm-package"
+  },
+  "homepage": "https://github.com/Fan-Pier-Labs/openrecord/tree/main/clients/npm-package",
+  "keywords": [
+    "mychart",
+    "epic",
+    "ehr",
+    "health",
+    "medical-records",
+    "patient-portal",
+    "scraper"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "bin": {
+    "mychart-cli": "dist/cli.cjs"
+  },
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md",
+    "docs",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test --isolate .unit.test.ts .integration.test.ts",
+    "prepublishOnly": "bun run build",
+    "check:publish": "publint --strict && attw --pack ."
+  },
+  "dependencies": {
+    "@napi-rs/keyring": "^2.1.2",
+    "cheerio": "^1.2.0",
+    "compare-versions": "^6.1.1",
+    "date-fns": "^4.4.0",
+    "fzstd": "^0.1.1",
+    "html-to-text": "^10.0.1",
+    "jpeg-js": "^0.4.4",
+    "js-base64": "^3.9.6",
+    "markdown-table": "^3.1.0",
+    "sharp": "^0.35.5",
+    "totp-generator": "^2.0.1",
+    "tough-cookie": "^6.1.0"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.5",
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "@types/html-to-text": "^9.0.4",
+    "@types/node": "^26.6.6",
+    "publint": "^0.3.25",
+    "tsup": "^9.0.0",
+    "typescript": "^6.0.3"
+  }
+}

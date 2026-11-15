@@ -1,0 +1,14 @@
+{
+  "name": "@openrecord/clients-shared",
+  "version": "1.0.0",
+  "private": true,
+  "license": "SEE LICENSE IN LICENSE",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "@napi-rs/keyring": "^2.1.2",
+    "@sentry/node": "^11.12.0",
+    "jpeg-js": "^0.4.4",
+    "pica": "^10.0.3",
+    "zod": "^4.6.7"
+  }
+}

@@ -1,7 +1,7 @@
 # MCPB setup widget: user flow
 
 How a user connects MyChart accounts through the Claude Desktop extension's setup widget
-(`get_setup_widget`, a React app in [`claude-desktop-extension/src/setup-widget/`](../claude-desktop-extension/src/setup-widget/);
+(`get_setup_widget`, a React app in [`clients/claude-desktop-extension/src/setup-widget/`](../clients/claude-desktop-extension/src/setup-widget/);
 the flow below is the reducer in `flow.ts`).
 
 The first screen asks whether to connect **real MyChart accounts** or **use a fake MyChart**.
@@ -9,7 +9,7 @@ The fake one signs in to `fake-mychart.fanpierlabs.com` as its no-2FA test patie
 and ends the widget, skipping everything below.
 
 **Rule: the fake MyChart and real accounts are never connected together.** Either the demo is
-saved or one or more real accounts are, never both. `claude-desktop-extension/src/demo-account.ts`
+saved or one or more real accounts are, never both. `clients/shared/mcp-server/demo-account.ts`
 enforces it wherever a login is saved (`setup_account`, `connect_imported_account`,
 `complete_2fa`). Connecting a real account deletes the demo login. The demo is refused while
 any real account is saved, because making room would delete the user's real logins and passkeys,
