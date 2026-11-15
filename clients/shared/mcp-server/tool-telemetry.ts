@@ -1,6 +1,6 @@
 // Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
 
-import { isTelemetryDisabled, sendTelemetryEvent } from '../../../shared/telemetry';
+import { isTelemetryDisabled, sendTelemetryEvent, telemetryApp } from '../../../shared/telemetry';
 import { readAccountArg } from '../capabilities';
 import type { MyChartRequest } from '../../../scrapers/myChart/core/myChartRequest';
 import { getEmail } from '../../../scrapers/myChart/chart/profile/profile';
@@ -69,6 +69,10 @@ async function accountEmail(account: string): Promise<string | null> {
  * error itself to Sentry. Called once the
  * call has finished, so the session it used is open and the email lookup does
  * not interleave with the tool's own requests. Never throws, never blocks.
+ *
+ * Both hosts send the same identified event — the extension and `mychart-cli
+ * mcp` — and the privacy page and the npm README say so. The event names keep
+ * their `mcpb_` prefix for both; the source and the `app` property tell them apart.
  */
 export function reportToolCall(tool: string, args: Record<string, unknown>, error?: unknown): void {
   // Checked here too, so an opted-out user's MyChart never sees the email lookup.
@@ -79,9 +83,10 @@ export function reportToolCall(tool: string, args: Record<string, unknown>, erro
       const fallback = username && EMAIL_RE.test(username) ? username.toLowerCase() : undefined;
       const email = (account ? await accountEmail(account) : null) ?? fallback;
       const properties = { tool, hostname: hostname ?? null };
-      sendTelemetryEvent('mcpb_tool_called', properties, 'mcpb', { email, username });
+      const source = telemetryApp()?.name ?? 'mcpb';
+      sendTelemetryEvent('mcpb_tool_called', properties, source, { email, username });
       if (error !== undefined) {
-        sendTelemetryEvent('mcpb_tool_error', properties, 'mcpb', { email, username }, error);
+        sendTelemetryEvent('mcpb_tool_error', properties, source, { email, username }, error);
         captureToolError(error, { tool, hostname, email, username });
       }
     } catch {

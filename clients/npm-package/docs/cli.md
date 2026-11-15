@@ -357,7 +357,7 @@ printf '.cookie-cache/\n.passkey-credentials/\n.totp-secrets/\n' >> .gitignore
 | --- | --- |
 | `MYCHART_PASSKEY_DIR` | Where passkeys are stored, instead of `./.passkey-credentials` |
 | `MYCHART_TOTP_DIR` | Where TOTP secrets are stored, instead of `./.totp-secrets` |
-| `MYCHART_CLI_TELEMETRY_DISABLED=1` | Turn off anonymous usage events. The update check still runs |
+| `MYCHART_CLI_TELEMETRY_DISABLED=1` | Turn off usage events, including `mychart-cli mcp`'s identified ones. The update check still runs |
 | `MYCHART_MAX_CONCURRENT_REQUESTS_PER_HOST` | Requests in flight to one portal at once. Default 10. Raise it only with good reason, because a portal that sees too many can block your IP |
 
 ## Exit codes
@@ -378,5 +378,6 @@ version, and a random per-install id. Chart data, credentials, usernames and you
 hostname are never sent. On start it also fetches a small version manifest from
 `openrecord.fanpierlabs.com` to tell you about new releases. That request reveals your IP address
 to the CDN, and nothing else. `MYCHART_CLI_TELEMETRY_DISABLED=1` turns off the events; the update
-check always runs. Details are in the
+check always runs. `mychart-cli mcp` is the exception: its per-tool-call event carries your email,
+MyChart username and IP address — see [mcp.md](mcp.md#telemetry). Details are in the
 [package README](../README.md#telemetry).

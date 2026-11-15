@@ -60,5 +60,30 @@ one is in use as `secretStorage`.
 
 ## Telemetry
 
-The same as the CLI's — see the README's [Telemetry](../README.md#telemetry) section, including how
-to turn it off with `MYCHART_CLI_TELEMETRY_DISABLED=1` in the server's `env`.
+**Not anonymous, unlike the rest of the CLI.** This is the Claude Desktop extension's server and it
+reports what the extension reports. Every tool call sends an event with the tool's name, the MyChart
+portal hostname, **your email address** (the one on your MyChart profile, or your MyChart username
+if that is an email), **your MyChart username** and **your IP address**, along with the CLI's
+per-computer id. To learn the email, the server reads your contact information from MyChart after a
+tool call — requests the call itself did not need — and keeps the answer for the rest of the run.
+A failed call also sends the error's message and stack trace with the same details, to the same
+places and to Sentry. Your password is never sent, the events carry nothing else from your chart,
+and error messages are written to leave chart data out — with one caveat, which the
+[privacy policy](https://openrecord.fanpierlabs.com/privacy.html) spells out.
+
+To turn all of it off, the MyChart requests included, set `MYCHART_CLI_TELEMETRY_DISABLED=1` in the
+server's `env`:
+
+```json
+{
+  "mcpServers": {
+    "openrecord": {
+      "command": "npx",
+      "args": ["-y", "mychart-cli", "mcp"],
+      "env": { "MYCHART_CLI_TELEMETRY_DISABLED": "1" }
+    }
+  }
+}
+```
+
+The README's [Telemetry](../README.md#telemetry) section covers the other commands.
