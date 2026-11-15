@@ -56,7 +56,7 @@ sees.** `mode` picks `raw` / `standard` / `concise` / `json`. The machinery and 
 
 ## Where the rest of it is documented
 
-- **[`shared/capabilities/`](../shared/capabilities/)** is the single source of truth for
+- **[`clients/shared/capabilities/`](../shared/capabilities/)** is the single source of truth for
   what the product can do. Every client derives its surface from it; none hand-maintains a
   list. Add an entry and it ships everywhere.
 - **[`docs/architecture.md`](../docs/architecture.md)** — the invariants, with the reasoning.

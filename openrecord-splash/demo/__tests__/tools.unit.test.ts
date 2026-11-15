@@ -532,7 +532,7 @@ describe('message threads and topics', () => {
 
 describe('the message-body argument', () => {
   test('both the registry name and the demo\'s older one are accepted', () => {
-    // The catalogue advertises `message`, matching shared/capabilities/. A
+    // The catalogue advertises `message`, matching clients/shared/capabilities/. A
     // model that learned `message_body` from an earlier prompt must not have
     // its message silently dropped — an empty body is a message the patient
     // thinks they sent.

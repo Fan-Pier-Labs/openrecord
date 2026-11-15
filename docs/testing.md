@@ -3,35 +3,35 @@
 ## Lint
 
 `bun run lint` is **type-aware** (typescript-eslint `projectService`): each file is resolved against
-its package's tsconfig, so every package's deps must be installed first (`expo-app`, `npm-package`,
-`claude-desktop-extension`) **and `npm-package` must be built** — its integration test imports its
+its package's tsconfig, so every package's deps must be installed first (`clients/expo-app`, `clients/npm-package`,
+`clients/claude-desktop-extension`) **and `clients/npm-package` must be built** — its integration test imports its
 types from `../../dist/index.js`, so without `dist/` those types don't resolve. Everything lint
 needs, from a clean checkout:
 
 ```bash
-bun install && (cd expo-app && bun install) && (cd claude-desktop-extension && bun install) \
-  && (cd npm-package && bun install && bun run build) && bun run lint
+bun install && (cd clients/expo-app && bun install) && (cd clients/claude-desktop-extension && bun install) \
+  && (cd clients/npm-package && bun install && bun run build) && bun run lint
 ```
 
 Skip a step and the unresolved imports degrade to `any`, which breaks lint in both directions: the
 type-aware rules silently stop seeing those imports (lint passes while checking less), *and* they
 invent errors. With no `dist/`, `no-unnecessary-type-assertion` reports the `!`s in
-`npm-package/src/__tests__/fake-mychart.integration.test.ts` as unnecessary — removing them fails
-`bun run typecheck`, which is why CI builds npm-package before eslint.
+`clients/npm-package/src/__tests__/fake-mychart.integration.test.ts` as unnecessary — removing them fails
+`bun run typecheck`, which is why CI builds clients/npm-package before eslint.
 
 **Every TS file in the repo belongs to a tsconfig project — there is deliberately no
 `allowDefaultProject` escape hatch.** A new file outside every tsconfig fails lint with a "not
 found by the project service" error; the fix is to put it in a project (root tsconfig's `include`
 or a package tsconfig), never to exempt it — an exempted file resolves without its package's
 `paths` and silently loses type-aware linting. The same projects back `bun run typecheck`, so
-nothing is excluded from typechecking either: expo-app checks its `__tests__`, npm-package checks
+nothing is excluded from typechecking either: clients/expo-app checks its `__tests__`, clients/npm-package checks
 `examples/` and `tsup.config.ts` (build `dist/` first — examples import the published package
 name), and the lambdas' tests, `dev-scripts/` and all of `tests/` (playwright suites included) ride the
 root tsconfig.
 
 One caveat the compiler can't express: the expo test files carry `/// <reference types="bun" />`
 so `bun:test` resolves, and a triple-slash reference is program-wide — it puts `Bun` in scope for
-app code too, where Hermes has no Bun. Don't reach for Bun APIs in `expo-app/src` outside
+app code too, where Hermes has no Bun. Don't reach for Bun APIs in `clients/expo-app/src` outside
 `__tests__`.
 
 `@typescript-eslint/await-thenable` is off in test files only: bun-types declares the
@@ -92,9 +92,9 @@ still leaves the first suite of a run trusting the previous `bun test` invocatio
 Integration tests in `tests/integration/ci/` run against the dockerized fake-mychart from
 `docker-compose.ci.yaml` (served on `localhost:4000`):
 
-- `cli-passkey.integration.test.ts` — spawns the built CLI (`npm-package/dist/cli.cjs`) to exercise
+- `cli-passkey.integration.test.ts` — spawns the built CLI (`clients/npm-package/dist/cli.cjs`) to exercise
   passkey setup, passkey auto-login, and passkey removal end to end. Build the CLI first
-  (`cd npm-package && bun run build`).
+  (`cd clients/npm-package && bun run build`).
 - `fake-mychart-passkey-ui.integration.test.ts` — Playwright-driven browser test of the fake-mychart
   passkey UI using Chromium's WebAuthn virtual authenticator (a CDP feature plain `fetch` can't
   replicate). `playwright` rides the root install, but the Chromium binary is a separate download
@@ -103,7 +103,7 @@ Integration tests in `tests/integration/ci/` run against the dockerized fake-myc
   the workflow fails loudly instead of quietly covering nothing.
 
 The `integration` CI job runs the whole suffix at once, so this directory, the scraper suites, the
-desktop extension's imaging download and npm-package's built-bundle test all share one server. That
+desktop extension's imaging download and clients/npm-package's built-bundle test all share one server. That
 includes `scrapers/myChart/__tests__/fake-mychart/credential-setup.integration.test.ts`, which
 drives `setupTotp`/`disableTotp` and `setupPasskey`/`listPasskeys`/`deletePasskey` **directly**
 rather than through the CLI, so a scraper break reports as a scraper failure instead of a CLI-output
@@ -132,7 +132,7 @@ only place the matrix runs.
 ## Android smoke tests
 
 `.github/workflows/android-smoke.yml` — its own workflow, not a job in `checks.yml`, so it can carry
-a paths filter (`expo-app/**` plus the workflow itself). Two tiers, split by cost:
+a paths filter (`clients/expo-app/**` plus the workflow itself). Two tiers, split by cost:
 
 - **`bundle` (~2-4 min), on every matching PR and push**: `expo prebuild --platform android`
   (validates the config-plugin pipeline) then `expo export --platform android` — Metro compiles the
@@ -141,7 +141,7 @@ a paths filter (`expo-app/**` plus the workflow itself). Two tiers, split by cos
   actually introduces. This is the fast gate; it must stay under ~5 minutes.
 - **`emulator` (~15-40 min), weekly cron + `workflow_dispatch` only — never on PRs**: full
   `gradlew assembleRelease`, boot a headless API 34 emulator (KVM-accelerated, AVD snapshot
-  cached), install the APK, run the Maestro flow `expo-app/e2e/android-smoke.yaml`: cold boot →
+  cached), install the APK, run the Maestro flow `clients/expo-app/e2e/android-smoke.yaml`: cold boot →
   onboarding welcome screen renders → tap Get Started → the Google sign-in step appears. The only
   tier that proves native modules (quick-crypto, nitro-modules, reanimated, screens, secure-store,
   sqlite) actually initialize and expo-router navigates on device.
@@ -168,10 +168,10 @@ a *mode* over the two CI kinds, not a fourth suite. It cannot be folded into eit
 measuring the unit suite alone counts every scraper that is only covered end-to-end as untested, and
 measuring the integration suite alone does the reverse. Coverage has to see both at once.
 
-**It needs everything the integration suite needs** — the compose service, npm-package's `dist/`
+**It needs everything the integration suite needs** — the compose service, clients/npm-package's `dist/`
 built, and every package's deps installed — so the CI step lives in the `integration` job, the only
 one with all of that. Locally: `docker compose -f docker-compose.ci.yaml up -d --build --wait`, then
-`cd npm-package && bun install && bun run build`.
+`cd clients/npm-package && bun install && bun run build`.
 
 Three things to know before touching it:
 
@@ -200,12 +200,12 @@ demo code drag an otherwise fully-covered module under the bar, and the only out
 whole file or leaving CI red. `dev-scripts/` holds no test files, and coverage ignores it outright.
 
 **Install the Claude Desktop extension's dependencies before measuring**
-(`cd claude-desktop-extension && bun install`), as CI does. Without them the extension's modules fail
+(`cd clients/claude-desktop-extension && bun install`), as CI does. Without them the extension's modules fail
 to import, drop out of the report entirely, and the number reads about 1.5 points higher than it
 really is.
 
 **Testing anything that touches `~/.openrecord-mcpb`**: use the in-memory `fs` shim at
-`claude-desktop-extension/src/__tests__/memfs.ts` — import it before the store and the tests touch no
+`clients/shared/mcp-server/__tests__/memfs.ts` — import it before the store and the tests touch no
 disk at all. It intercepts only paths under the store root and delegates everything else to the real
 `fs`, because `bun test` runs the package's files in one process and the imaging suites read real
 fixtures. Do **not** reach for `$HOME`: Bun's `os.homedir()` does not follow it, so redirecting the
@@ -216,10 +216,10 @@ env var silently leaves you pointed at the developer's real credentials.
 Not blockers, but where to spend the next test-writing effort: `eunity/imagingDirectDownload.ts` and
 `eunity/imagingViewer.ts` (need a live eUnity server), `setupTotp.ts` / `setupPasskey.ts`
 (interactive flows), `login.ts`, and the scraper-tool handler bodies in
-`claude-desktop-extension/src/tools.ts` (each needs its scraper mocked; only the shared error path is
+`clients/shared/mcp-server/tools.ts` (each needs its scraper mocked; only the shared error path is
 covered today). All three files in `clo-image-parser/` now run.
 
-`npm-package/cli/capabilityActions.ts` came off the waiver list at 82% lines / 96% functions, once
+`clients/npm-package/cli/capabilityActions.ts` came off the waiver list at 82% lines / 96% functions, once
 `--action` dispatch grew tests that drive it without `cli.ts` in front.
 
 **Check what a waived file actually still calls before writing tests for it.**

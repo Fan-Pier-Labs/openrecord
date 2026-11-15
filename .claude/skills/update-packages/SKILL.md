@@ -57,16 +57,16 @@ Known anchors in this repo (verify each before deciding the target — these con
 - **Next.js + React + React DOM**
   - `next` pins the major versions of `react` and `react-dom` it supports. Match all three.
   - Check `next`'s peer deps: `npm view next@latest peerDependencies`.
-- **Expo SDK + React Native + React + Expo modules** (`expo-app/`)
+- **Expo SDK + React Native + React + Expo modules** (`clients/expo-app/`)
   - Expo SDK dictates exact versions of `react`, `react-native`, and every `expo-*` / `@expo/*` package.
-  - Get the canonical pinned versions: `bunx expo install --check` (run inside `expo-app/`) — it will tell you what each Expo-managed package should be on for the installed SDK.
+  - Get the canonical pinned versions: `bunx expo install --check` (run inside `clients/expo-app/`) — it will tell you what each Expo-managed package should be on for the installed SDK.
   - If you bump the Expo SDK major (e.g. 55 → 56), follow Expo's upgrade guide and accept whatever React/RN versions that SDK pins, even if newer ones exist on npm.
 - **TypeScript + `@types/*` + ESLint plugins**
-  - Keep `typescript` and `@types/node` aligned with the Node engines field (`"node": ">=18"` in `npm-package/`).
+  - Keep `typescript` and `@types/node` aligned with the Node engines field (`"node": ">=18"` in `clients/npm-package/`).
   - `@typescript-eslint/*` packages must be on the same minor version as each other.
 - **AWS SDK v3 (`@aws-sdk/*`)** — bump all `@aws-sdk/*` packages to the same version in lockstep.
 - **Sentry (`@sentry/*`)** — bump all `@sentry/*` packages to the same version in lockstep.
-- **@modelcontextprotocol/sdk** — check that the MCP server code in `claude-desktop-extension/` is compatible with the new SDK shape before bumping.
+- **@modelcontextprotocol/sdk** — check that the MCP server code in `clients/claude-desktop-extension/` is compatible with the new SDK shape before bumping.
 
 If the latest version of an anchor package isn't yet compatible with a peer's latest, **pick the highest mutually-compatible set** — that may mean staying one minor behind on either side. Document the constraint in the PR description so a reviewer understands why.
 
@@ -76,17 +76,17 @@ Edit each `package.json` with the new versions. Then reinstall in each workspace
 
 ```bash
 bun install                              # root
-cd npm-package && bun install && cd ..
+cd clients/npm-package && bun install && cd ..
 cd fake-mychart && bun install && cd ..
-cd expo-app && bun install && cd ..
-cd claude-desktop-extension && bun install && cd ..
+cd clients/expo-app && bun install && cd ..
+cd clients/claude-desktop-extension && bun install && cd ..
 ```
 
 (Only the workspaces with their own `bun.lock` / `package-lock.json` / `yarn.lock` need a dedicated install — check for a lockfile in each folder first.)
 
-For `expo-app/`, prefer:
+For `clients/expo-app/`, prefer:
 ```bash
-cd expo-app && bunx expo install --check
+cd clients/expo-app && bunx expo install --check
 ```
 which will warn about Expo-managed packages on the wrong version and let you align them in one step.
 
@@ -133,7 +133,7 @@ docker compose -f docker-compose.ci.yaml down -v
 
 Don't skip the CI integration tests just because they're slow — they're the only thing that catches runtime regressions in the CLI passkey flow against a real fake-mychart server. If Docker isn't running, ask the user whether to start it or skip CI integration (note the skip in the PR description).
 
-For `expo-app/`, also run any unit tests it has and at minimum confirm `bunx expo doctor` is clean.
+For `clients/expo-app/`, also run any unit tests it has and at minimum confirm `bunx expo doctor` is clean.
 
 ## Step 7: Fix every broken test
 
@@ -163,7 +163,7 @@ cd fake-mychart && PORT=4000 bun run dev &
 
 Wait for it to come up, then `curl -s -o /dev/null -w '%{http_code}' http://localhost:4000/` to confirm a 302. Kill the server after.
 
-For the Expo app, at minimum run `bunx expo doctor` and `bun run lint` inside `expo-app/`. Don't try to launch the simulator unless the user asks.
+For the Expo app, at minimum run `bunx expo doctor` and `bun run lint` inside `clients/expo-app/`. Don't try to launch the simulator unless the user asks.
 
 ## Step 10: Commit and open a PR
 

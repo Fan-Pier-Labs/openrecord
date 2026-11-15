@@ -49,7 +49,7 @@ import { getEducationMaterials } from '../../chart/educationMaterials/educationM
 import { getEhiExportTemplates } from '../../chart/ehiExport/ehiExport'
 import { upcomingVisits, pastVisits } from '../../chart/visits/visits'
 import type { VisitStandard } from '../../chart/visits/visits'
-import { executeCapability, decodeImageId } from '../../../../shared/capabilities'
+import { executeCapability, decodeImageId } from '../../../../clients/shared/capabilities'
 import { getVisitNotes, getNoteContent, getVisitAVS } from '../../chart/notes/notes'
 import { listLabResults } from '../../chart/labs/labResults'
 import { getBillingHistory } from '../../chart/bills/bills'
