@@ -638,7 +638,7 @@ study stays clean so both shapes are covered.
 
 ### Coverage in CI
 
-`claude-desktop-extension/src/imaging/__tests__/encode.unit.test.ts` exercises the CLO fixtures directly, and the `integration` CI job runs every `*.integration.test.ts` in the repo — the scraper suites, the desktop extension and npm-package included — against a live instance of this server.
+`clients/shared/mcp-server/imaging/__tests__/encode.unit.test.ts` exercises the CLO fixtures directly, and the `integration` CI job runs every `*.integration.test.ts` in the repo — the scraper suites, the desktop extension and clients/npm-package included — against a live instance of this server.
 
 ## The mychart.org Directory
 
@@ -718,7 +718,7 @@ CMS.
 ## The forms Lambda
 
 `POST /fanpierlabs-forms` stands in for the shared `fanpierlabs-forms` Lambda that
-`send_feature_request` posts to (`shared/featureRequest.ts`, `endpoint` option). Copied from that
+`send_feature_request` posts to (`clients/shared/featureRequest.ts`, `endpoint` option). Copied from that
 Lambda's handler: a non-JSON body or a missing/malformed `email` answers 400 with `{ error }`;
 anything else answers `200 {"ok":true}`. It emails nothing and stores nothing.
 

@@ -7,7 +7,7 @@
  * Both clients expose the same two agent tools — `list_proxy_targets` and
  * `switch_proxy_target` — and gate every other data tool behind
  * `assertProxyReadContext`. The semantics deliberately mirror the CLI's
- * conservative stance (see `npm-package/cli/cli.ts`): reads assert which
+ * conservative stance (see `clients/npm-package/cli/cli.ts`): reads assert which
  * patient they are about and refuse on a mismatch; only an explicit switch
  * changes MyChart's server-side active patient.
  *

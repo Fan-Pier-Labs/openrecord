@@ -1,7 +1,7 @@
 # MyChart features we don't cover
 
 What the product *does* cover is not documented here — the capability registry
-([`shared/capabilities/`](../../shared/capabilities/)) is the single source of truth across every
+([`clients/shared/capabilities/`](../../shared/capabilities/)) is the single source of truth across every
 client. Run `bun run cli --list-capabilities --show-all` for the live list.
 
 This file is the remainder: MyChart features we have looked at and **do not** scrape, so nobody has

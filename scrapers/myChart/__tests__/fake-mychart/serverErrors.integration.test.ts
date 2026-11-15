@@ -21,7 +21,7 @@ import { myChartUserPassLogin } from '../../auth/login'
 import type { MyChartRequest } from '../../core/myChartRequest'
 import { MyChartResponseError } from '../../core/rawResponse'
 import { OUTPUT_MODES, type OutputMode } from '../../processors/processor'
-import { executeCapability } from '../../../../shared/capabilities'
+import { executeCapability } from '../../../../clients/shared/capabilities'
 import { resetFakeMyChart, setFailingEndpoints } from './mountMode'
 
 const HOST = process.env.FAKE_MYCHART_HOST ?? 'localhost:4000'

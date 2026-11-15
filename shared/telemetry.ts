@@ -168,6 +168,11 @@ export function setTelemetryApp(name: string, version: string): void {
   app = { name, version };
 }
 
+/** The app `setTelemetryApp` named, for reporters that tag events with it. */
+export function telemetryApp(): { name: string; version: string } | undefined {
+  return app;
+}
+
 /**
  * Send a telemetry event to both sinks (Amplitude and our analytics
  * Lambda). Fire-and-forget. Never throws. Returns immediately when

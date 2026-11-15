@@ -41,7 +41,7 @@ coverageThreshold = { lines = 0.75, functions = 0.75 }
 #   __tests__/         — test helpers. `coverageSkipTestFiles` only drops
 #                        *.test.ts, so shared fixtures (mockMyChartRequest.ts,
 #                        memfs.ts, mountMode.ts) were landing in the denominator.
-#   dist/              — build output, measured only because npm-package's
+#   dist/              — build output, measured only because clients/npm-package's
 #                        integration test imports the bundle on purpose (it
 #                        exists to catch bundling breakage — a dropped export, an
 #                        unbundled dep — that a source-level test can't see). The
@@ -70,18 +70,18 @@ coverageThreshold = { lines = 0.75, functions = 0.75 }
 #       download loop that no caller reaches; deleting it takes the file to
 #       93%/93%. Parked until the live path can be checked against a real
 #       eUnity instance — see #245.
-#   claude-desktop-extension/src/tools.ts (47%/56%)
+#   clients/shared/mcp-server/tools.ts (47%/56%)
 #     — the per-tool handler bodies, each needing its scraper mocked.
 #       Registration shape and the shared error path are covered.
-#   claude-desktop-extension/src/session-manager.ts (31%/67%)
+#   clients/shared/mcp-server/session-manager.ts (31%/67%)
 #     — the login and keepalive paths. Lifecycle and resolution are covered.
-#   npm-package/src/client.ts (45%/1%)
+#   clients/npm-package/src/client.ts (45%/1%)
 #     — the library surface.
 #   openrecord-demo-lambda/src/spend.mjs (41%/86%)
 #     — createDynamoSpendStore needs the AWS SDK, absent locally by design. The
 #       pure pricing and ledger logic is covered.
 #
-# npm-package/cli/capabilityActions.ts came off this list at 82%/96%, once
+# clients/npm-package/cli/capabilityActions.ts came off this list at 82%/96%, once
 # `--action` dispatch grew tests of its own.
 coveragePathIgnorePatterns = [
   "**/mock_data/**",
@@ -92,11 +92,11 @@ coveragePathIgnorePatterns = [
   "**/dist/**",
   "dev-scripts/**",
 
-  "claude-desktop-extension/src/imaging/**",
-  "claude-desktop-extension/src/tools.ts",
-  "claude-desktop-extension/src/session-manager.ts",
+  "clients/shared/mcp-server/imaging/**",
+  "clients/shared/mcp-server/tools.ts",
+  "clients/shared/mcp-server/session-manager.ts",
   "scrapers/myChart/eunity/imagingViewer.ts",
   "scrapers/myChart/eunity/imagingDirectDownload.ts",
-  "npm-package/src/client.ts",
+  "clients/npm-package/src/client.ts",
   "openrecord-demo-lambda/src/spend.mjs",
 ]
