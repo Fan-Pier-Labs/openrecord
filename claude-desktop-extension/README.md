@@ -582,17 +582,23 @@ directory (a few minutes' crawl), packs, boots the packed server (`smoke.mjs`), 
 bundle to `openrecord-<old version>.mcpb`, uploads to
 `https://openrecord.fanpierlabs.com/openrecord.mcpb` (the splash page's Claude Desktop
 button), invalidates CloudFront, checks the live file matches what was packed, publishes it as the GitHub Release
-`mcpb-v<version>` (needs `gh` signed in), then runs `openrecord-splash/deploy.sh` to publish `mcpb_version.json`. That manifest also carries the
+`mcpb-v<version>` (needs `gh` signed in), runs `openrecord-splash/deploy.sh` to publish `mcpb_version.json`, and
+finally starts the MCP Registry workflow below. That manifest also carries the
 `mychart-cli` version, so publish a bumped CLI to npm before running it. It refuses a version
 `mcpb_version.json` already advertises, and if the live check fails it prints the command that
 restores the old bundle. A failed run can be re-run as is. Commit a refreshed directory list in
 a PR afterwards — the script says so when it changed.
 
-Publishing a GitHub Release tagged `mcpb-v<version>` triggers
-`.github/workflows/mcp-registry.yml`, which lists that version on the official MCP Registry as
+`.github/workflows/mcp-registry.yml` lists a release on the official MCP Registry as
 `io.github.Fan-Pier-Labs/openrecord`. It fills `server.json`'s version, download URL and SHA-256
-from the release, so the committed copy only needs editing for the description or metadata. To
-list a release again by hand, run the workflow from the Actions tab with its tag.
+from the release, so the committed copy only needs editing for the description or metadata. It
+runs only when `deploy.sh` starts it as its last step, never when the release is created: a
+re-run of a failed deploy replaces the release's bundle, and the registry rejects a second
+publish of a version, so a listing made between attempts would keep a hash the download no
+longer has. The script only starts the run — check it finished in the Actions tab. If the
+script could not start it, it prints the command to run by hand
+(`gh workflow run mcp-registry.yml --repo Fan-Pier-Labs/openrecord -f tag=mcpb-v<version>`);
+that is for a release not yet listed, since a version already listed is refused as a duplicate.
 
 **Don't sign the bundle.** `mcpb sign` appends a PKCS#7 block after the zip's end record, and
 Claude Desktop reads extensions with `yauzl`, which requires that record to be the file's last
