@@ -77,12 +77,12 @@ scrapers/<scraper_name>/
 
 ## Phase 3: CLI Integration
 
-1. **Create `npm-package/cli/<scraper_name>.ts`** following the existing CLI pattern:
+1. **Create `clients/cli/cli/<scraper_name>.ts`** following the existing CLI pattern:
    - Parse `--user` and `--pass` flags
    - Call `scrapeAll(user, pass)`
    - Output JSON results
 
-2. **Update `npm-package/cli/entry.ts`** to add the new subcommand:
+2. **Update `clients/cli/cli/entry.ts`** to add the new subcommand:
    ```typescript
    if (subcommand === '<scraper_name>') {
      import('./<scraper_name>').then(m => m.main()).catch(...)
@@ -127,7 +127,7 @@ Do NOT move on to documentation until the CLI scrape works end-to-end.
    - `CLAUDE.md` itself gets only what a session must know up front — the repo-map row and
      the CLI command. Anything longer belongs in the doc; see "Keeping this file small"
      there, and delete or shorten something if you add a line
-   - Update `npm-package/cli/entry.ts` subcommand docs
+   - Update `clients/cli/cli/entry.ts` subcommand docs
 
 ## Critical Rules
 

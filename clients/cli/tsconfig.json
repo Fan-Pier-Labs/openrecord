@@ -1,0 +1,43 @@
+{
+  "compilerOptions": {
+    // tsup's DTS step hard-codes `baseUrl: "."` (see node_modules/tsup/dist/rollup.js),
+    // which trips TS 6's deprecation error. Remove this once tsup ships a fix.
+    "ignoreDeprecations": "6.0",
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "types": ["bun", "node"],
+    "outDir": "./dist",
+    "rootDir": "../..",
+    "strictNullChecks": true,
+    "noUncheckedIndexedAccess": true,
+    // `a?: string` means absent-or-string, not "may be explicitly undefined" — so an
+    // `{ patientId: undefined }` can't slip into a request payload where the key should be absent.
+    "exactOptionalPropertyTypes": true,
+    // Pure checks — they change what tsc rejects, never what it emits.
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false,
+    "verbatimModuleSyntax": true,
+    "noImplicitAny": true,
+    "noImplicitReturns": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "declaration": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": [
+    "src/**/*",
+    "examples/**/*",
+    "tsup.config.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}

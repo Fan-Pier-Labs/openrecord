@@ -18,7 +18,7 @@
       "project": [
         "scrapers/**/*.ts",
         "shared/**/*.ts",
-        "read-local-passwords/**/*.ts",
+        "clients/shared/**/*.ts",
         "dev-scripts/**/*.ts",
         "openrecord-splash/*.ts",
         "openrecord-splash/__tests__/**/*.ts",
@@ -28,7 +28,7 @@
       // the Expo app, absent (and expected to throw) under Node and Bun.
       "ignoreDependencies": ["expo"]
     },
-    "claude-desktop-extension": {
+    "clients/claude-desktop-extension": {
       // The setup widget's entry is bundled by path (scripts/bundle-setup-widget.ts), never imported;
       // so is the calendar binary's (scripts/build-calendar-applet.ts, `bun build --compile`).
       "entry": ["dev/*.mjs", "scripts/*.mjs", "src/setup-widget/main.tsx", "src/google-calendar/worker.ts"],
@@ -45,7 +45,7 @@
         "tough-cookie"
       ]
     },
-    "expo-app": {
+    "clients/expo-app": {
       // Referenced by path from metro.config.js / app.config.ts, never imported.
       "entry": ["shims/*.{ts,js}", "plugins/*.js"],
       "ignoreDependencies": [
@@ -77,7 +77,7 @@
       // Invoked as a python module by `bun run deploy`, not imported.
       "ignoreDependencies": ["deploy"]
     },
-    "npm-package": {
+    "clients/cli": {
       "entry": ["examples/*.ts"],
       "ignoreDependencies": [
         "cheerio",

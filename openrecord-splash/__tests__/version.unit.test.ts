@@ -48,8 +48,8 @@ describe("mcpb_version.json", () => {
     const read = (relative: string) =>
       (JSON.parse(readFileSync(join(SPLASH_DIR, "..", relative), "utf8")) as { version: string })
         .version;
-    expect(read("claude-desktop-extension/manifest.json")).toBe(
-      read("claude-desktop-extension/package.json"),
+    expect(read("clients/claude-desktop-extension/manifest.json")).toBe(
+      read("clients/claude-desktop-extension/package.json"),
     );
   });
 
@@ -69,9 +69,9 @@ describe("mcpb_version.json", () => {
         .version;
 
     expect(manifest.versions.scrapers).toBe(pkgVersion("scrapers/package.json"));
-    expect(manifest.versions.cli).toBe(pkgVersion("npm-package/package.json"));
-    expect(manifest.versions.mcpb).toBe(pkgVersion("claude-desktop-extension/manifest.json"));
-    expect(manifest.versions.app).toBe(pkgVersion("expo-app/package.json"));
+    expect(manifest.versions.cli).toBe(pkgVersion("clients/cli/package.json"));
+    expect(manifest.versions.mcpb).toBe(pkgVersion("clients/claude-desktop-extension/manifest.json"));
+    expect(manifest.versions.app).toBe(pkgVersion("clients/expo-app/package.json"));
   });
 });
 

@@ -32,7 +32,7 @@ fixture rebuilt from it.
 
 ## 1a. Capabilities we declare and deliberately do not implement
 
-`Capability.notImplemented` in `shared/capabilities/types.ts` is one sentence saying why a
+`Capability.notImplemented` in `clients/shared/capabilities/types.ts` is one sentence saying why a
 capability ships no scraper. `capabilityDescription()` appends it to the description every
 client shows, and `executeCapability` returns `unimplementedMessage()` instead of calling
 anything. `UnimplementedCapabilityImpl` has `run?: never`, so attaching a scraper to one is a
@@ -80,7 +80,7 @@ through whole and answer empty honestly. Those belong in the table above.
 Done in the implementation PR: the MCPB and the Expo agent default to `concise` and expose
 `mode` on every read tool; the CLI takes `--mode` (default `json`); the library's typed methods
 return the standard object and `runCapability(id, { mode })` picks any mode; `docs/cli.md`,
-`claude-desktop-extension/README.md` and `npm-package/README.md` describe it. Remaining:
+`clients/claude-desktop-extension/README.md` and `clients/cli/README.md` describe it. Remaining:
 
 - `docs/processor-layer-examples.md` is generated and CI fails when it is stale (the fake-mychart
   job regenerates it and diffs). Regenerate with `bun dev-scripts/generate-processor-examples.ts`

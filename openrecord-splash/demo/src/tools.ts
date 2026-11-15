@@ -126,7 +126,7 @@ export const TOOL_SPECS: ToolSpec[] = [
   // ── Session / account ──
   //
   // These mirror the Claude Desktop extension's meta tools
-  // (`claude-desktop-extension/src/tools.ts`), which manage the credentials
+  // (`clients/claude-desktop-extension/src/tools.ts`), which manage the credentials
   // saved on the machine rather than anything inside a chart.
   { name: 'list_accounts', group: 'Account', description: 'List MyChart accounts configured on this device', args: {} },
   {

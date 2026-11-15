@@ -156,7 +156,7 @@ sequenceDiagram
 | Client | Human path | Machine path |
 | --- | --- | --- |
 | Desktop extension | `setup_account`, `connect_imported_account`, and `resolveSession` — the lazy sign-in behind every data tool (`humanLogin`) → `complete_2fa` | `reauthenticate` hook, and `resolveSessionWithoutUser` for background work like a calendar sync (throws `NeedsHumanSignInError`) → `machineLogin` |
-| CLI | `login()` in `npm-package/cli/cli.ts`: prompts for the code (or `--2fa`, or a saved TOTP) | `wireCliSessionRenewal` → `machineLogin` |
+| CLI | `login()` in `clients/cli/cli/cli.ts`: prompts for the code (or `--2fa`, or a saved TOTP) | `wireCliSessionRenewal` → `machineLogin` |
 | iOS app | `connectAccount` (onboarding) → `humanLogin` → twofa step → `complete2fa` | `connectAll` / `requireSession` (chat, alerts, memory) and the `reauthenticate` hook → `machineLogin` |
 | npm library | `MyChartClient.connect` returns `need_2fa` with `complete(code)`; `skipSendCode` is the caller's choice | `wireSilentReauthentication` → `machineLogin` |
 

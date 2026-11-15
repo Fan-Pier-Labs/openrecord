@@ -8,7 +8,7 @@ import reactHooks from "eslint-plugin-react-hooks";
 
 
 export default [
-  {ignores: ["dist/**", "**/node_modules/**", ".claude/**", "out/**", "scrapers/myChart/clo-to-jpg-converter/**", "scrapers/myChart/clo-image-parser/**", "sample_data/**", "pdfs/**", "fake-mychart/**", "npm-package/dist/**", "claude-desktop-extension/dist/**", "*.config.*", "**/*.js"]},
+  {ignores: ["dist/**", "**/node_modules/**", ".claude/**", "out/**", "scrapers/myChart/clo-to-jpg-converter/**", "scrapers/myChart/clo-image-parser/**", "sample_data/**", "pdfs/**", "fake-mychart/**", "clients/cli/dist/**", "clients/claude-desktop-extension/dist/**", "*.config.*", "**/*.js"]},
   {files: ["**/*.{ts}"]},
   {languageOptions: { globals: globals.node }},
   pluginJs.configs.recommended,
@@ -96,7 +96,7 @@ export default [
       // load-bearing for bundlers. `inline-type-imports` merges into one
       // statement instead of splitting every import in two.
       // `disallowTypeAnnotations: false` keeps `typeof import(...)` legal —
-      // npm-package's built-bundle test types a runtime dynamic import with it.
+      // clients/cli's built-bundle test types a runtime dynamic import with it.
       "@typescript-eslint/consistent-type-imports": ["error", {
         fixStyle: "inline-type-imports",
         disallowTypeAnnotations: false,
@@ -298,9 +298,9 @@ export default [
       "no-restricted-syntax": "off",
     },
   },
-  // Module-cycle detection for the scraper core. #263 made the session-renewal
+  // Module-cycle detection for the scraper core and clients/shared. #263 made the session-renewal
   // graph acyclic; this locks that in so a cycle can't silently return behind
-  // an eslint-disable. Scoped to scrapers/ + shared/ because the rule walks
+  // an eslint-disable. Scoped to scrapers/ + shared/ (+ clients/shared/) because the rule walks
   // every import transitively and is slow repo-wide. Both settings are
   // load-bearing: the resolver so `./foo` finds foo.ts, and the parsers map so
   // no-cycle can PARSE the imported .ts files — without it the rule silently
@@ -308,7 +308,7 @@ export default [
   // enough). Only no-cycle is enabled: no-unresolved false-positives on
   // `bun:test` imports in the test files this block also matches.
   {
-    files: ["scrapers/**/*.ts", "shared/**/*.ts"],
+    files: ["scrapers/**/*.ts", "shared/**/*.ts", "clients/shared/**/*.ts"],
     plugins: { "import-x": importX },
     settings: {
       "import-x/resolver": { typescript: true },
@@ -346,9 +346,9 @@ export default [
   // line-level disable saying why.
   {
     files: [
-      "expo-app/**/*.ts", "expo-app/**/*.tsx",
+      "clients/expo-app/**/*.ts", "clients/expo-app/**/*.tsx",
       "openrecord-splash/**/*.ts", "openrecord-splash/**/*.tsx",
-      "claude-desktop-extension/src/setup-widget/**/*.tsx",
+      "clients/claude-desktop-extension/src/setup-widget/**/*.tsx",
     ],
     plugins: { "react-hooks": reactHooks },
     rules: {

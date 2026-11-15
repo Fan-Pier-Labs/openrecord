@@ -11,9 +11,9 @@
 
 OpenRecord ships as three clients, all built on the same scraper core:
 
-1. **Claude Desktop extension** (`claude-desktop-extension/`) — a `.mcpb` bundle that runs entirely on your machine. Install it, say "Set up my MyChart", and Claude handles the rest.
-2. **Mobile app** (`expo-app/`) — an Expo/React Native iOS app with an on-device agent, skills, and alerts.
-3. **CLI + npm package** (`npm-package/`) — the `mychart-cli` npm package: a headless CLI for scripting and testing, plus an importable library.
+1. **Claude Desktop extension** (`clients/claude-desktop-extension/`) — a `.mcpb` bundle that runs entirely on your machine. Install it, say "Set up my MyChart", and Claude handles the rest.
+2. **Mobile app** (`clients/expo-app/`) — an Expo/React Native iOS app with an on-device agent, skills, and alerts.
+3. **CLI + npm package** (`clients/cli/`) — the `mychart-cli` npm package: a headless CLI for scripting and testing, plus an importable library.
 
 ## Documentation
 
@@ -21,15 +21,15 @@ OpenRecord ships as three clients, all built on the same scraper core:
 
 | Doc | For |
 | --- | --- |
-| [Claude Desktop extension](claude-desktop-extension/README.md) | Install, setup, tools, privacy, development |
-| [Mobile app](expo-app/README.md) | What the app does, AI providers, building and running it |
-| [`mychart-cli` overview](npm-package/README.md) | Install, quick starts for the CLI and the library |
-| [CLI reference](npm-package/docs/cli.md) | Every flag, sign-in, output, family records, files, exit codes |
-| [Library API reference](npm-package/docs/api.md) | `MyChartClient`, every method and type, errors, imaging, raw scrapers, the capability registry |
-| [Capabilities](npm-package/docs/capabilities.md) | Every action across all clients, with arguments, output modes and id chaining |
-| [Authentication](npm-package/docs/authentication.md) | Passkeys, TOTP, 2FA codes, sessions, family records |
-| [Recipes](npm-package/docs/recipes.md) | Export a chart, clinical notes, imaging, messaging, unattended runs, AI agents |
-| [Troubleshooting](npm-package/docs/troubleshooting.md) | Sign-in failures, refused reads, empty categories |
+| [Claude Desktop extension](clients/claude-desktop-extension/README.md) | Install, setup, tools, privacy, development |
+| [Mobile app](clients/expo-app/README.md) | What the app does, AI providers, building and running it |
+| [`mychart-cli` overview](clients/cli/README.md) | Install, quick starts for the CLI and the library |
+| [CLI reference](clients/cli/docs/cli.md) | Every flag, sign-in, output, family records, files, exit codes |
+| [Library API reference](clients/cli/docs/api.md) | `MyChartClient`, every method and type, errors, imaging, raw scrapers, the capability registry |
+| [Capabilities](clients/cli/docs/capabilities.md) | Every action across all clients, with arguments, output modes and id chaining |
+| [Authentication](clients/cli/docs/authentication.md) | Passkeys, TOTP, 2FA codes, sessions, family records |
+| [Recipes](clients/cli/docs/recipes.md) | Export a chart, clinical notes, imaging, messaging, unattended runs, AI agents |
+| [Troubleshooting](clients/cli/docs/troubleshooting.md) | Sign-in failures, refused reads, empty categories |
 | [Privacy policy](https://openrecord.fanpierlabs.com/privacy.html) | What stays on your device and what leaves it |
 
 **Working on OpenRecord**
@@ -46,7 +46,7 @@ OpenRecord ships as three clients, all built on the same scraper core:
 | [iOS simulator](docs/ios-simulator.md) | Driving the simulator, `maestro-cli`, testID rules |
 | [Infrastructure](docs/infrastructure.md) | AWS, deployments, the splash site and demo, lambdas, secrets |
 | [Splash site and demo](openrecord-splash/README.md), [demo](docs/demo.md) | The website and in-browser demo |
-| [Browser password import](read-local-passwords/README.md) | Reading saved MyChart logins from Chromium and Firefox |
+| [Browser password import](clients/shared/read-local-passwords/README.md) | Reading saved MyChart logins from Chromium and Firefox |
 
 ## What It Does
 
@@ -85,7 +85,7 @@ Sessions are kept alive automatically and re-established on expiry. Credentials 
 **[Download openrecord.mcpb](https://openrecord.fanpierlabs.com/openrecord.mcpb)**, or build it from a checkout:
 
 ```bash
-cd claude-desktop-extension
+cd clients/claude-desktop-extension
 bun install
 bun run pack          # builds dist/server.cjs and produces openrecord.mcpb
 ```
@@ -94,11 +94,11 @@ Then double-click `openrecord.mcpb` (or drag it into Claude Desktop → Settings
 
 Want to try it without real credentials? Search for **Springfield General Hospital (test)** during setup — it points at the `fake-mychart.fanpierlabs.com` sandbox (sign in with `homer` / `donuts123`).
 
-See [claude-desktop-extension/README.md](claude-desktop-extension/README.md) for details.
+See [clients/claude-desktop-extension/README.md](clients/claude-desktop-extension/README.md) for details.
 
 ### 2. Mobile app
 
-The Expo app in `expo-app/` runs the scrapers on-device. See [expo-app/README.md](expo-app/README.md) to build and run it (`bunx expo run:ios`).
+The Expo app in `clients/expo-app/` runs the scrapers on-device. See [clients/expo-app/README.md](clients/expo-app/README.md) to build and run it (`bunx expo run:ios`).
 
 ### 3. CLI and library
 
@@ -108,7 +108,7 @@ mychart-cli --action search_mycharts --arg query="your health system"   # find y
 mychart-cli --host mychart.example.org                                   # sign in and print your chart
 ```
 
-Or from a checkout: `bun run cli mychart [flags]`. Start with the [`mychart-cli` README](npm-package/README.md), then the [CLI reference](npm-package/docs/cli.md) or the [library API reference](npm-package/docs/api.md).
+Or from a checkout: `bun run cli mychart [flags]`. Start with the [`mychart-cli` README](clients/cli/README.md), then the [CLI reference](clients/cli/docs/cli.md) or the [library API reference](clients/cli/docs/api.md).
 
 ## Architecture
 
@@ -116,17 +116,17 @@ Or from a checkout: `bun run cli mychart [flags]`. Start with the [`mychart-cli`
 openrecord/
   scrapers/                  # Shared MyChart scraper code (login, API calls, parsing)
   shared/                    # Capability registry (what every client can do), common types, host limiter
-  claude-desktop-extension/  # Claude Desktop .mcpb extension
-  expo-app/                  # Expo/React Native mobile app
-  npm-package/               # mychart-cli npm package (CLI + library)
-  read-local-passwords/      # Browser password store extraction (used by the CLI)
+  clients/claude-desktop-extension/  # Claude Desktop .mcpb extension
+  clients/expo-app/                  # Expo/React Native mobile app
+  clients/cli/               # mychart-cli npm package (CLI + library)
+  clients/shared/read-local-passwords/      # Browser password store extraction (used by the CLI)
   fake-mychart/              # Fake MyChart server for development and CI
   openrecord-splash/         # Static splash site + in-browser interactive demo
   openrecord-demo-lambda/    # AI proxy behind the demo and the mobile app's free tier
   dev-scripts/               # Run-it-yourself diagnostics
 ```
 
-The scrapers are shared across all entry points. Each entry point handles auth and session management differently, but they all call into the same scraper functions, and every client derives its tools from one capability registry in `shared/capabilities/` — so a capability added there ships in the extension, the app, the CLI and the library at once.
+The scrapers are shared across all entry points. Each entry point handles auth and session management differently, but they all call into the same scraper functions, and every client derives its tools from one capability registry in `clients/shared/capabilities/` — so a capability added there ships in the extension, the app, the CLI and the library at once.
 
 ## Development
 
@@ -155,7 +155,7 @@ usage events (event name, MyChart portal hostname, OS platform / arch /
 version, runtime version, plus a per-machine random UUID for dedupe).
 No public IP, OS hostname, OS username, git identity, or scraped chart
 content is ever collected. Set
-`MYCHART_CLI_TELEMETRY_DISABLED=1` to opt out. Details: [`mychart-cli` telemetry](npm-package/README.md#telemetry).
+`MYCHART_CLI_TELEMETRY_DISABLED=1` to opt out. Details: [`mychart-cli` telemetry](clients/cli/README.md#telemetry).
 
 On start the CLI also fetches a small version manifest from
 `openrecord.fanpierlabs.com` to tell you if a newer release exists. That request

@@ -34,11 +34,11 @@ scraper.
 
 ## Monorepo Structure (slimmed 2026-08 to three clients: CLI, desktop extension, mobile)
 - `scrapers/` — shared scraper code (myChart)
-- `npm-package/` — `mychart-cli` npm package (CLI entry at `npm-package/cli/cli.ts`) + resend 2FA
-- `claude-desktop-extension/` — Claude Desktop `.mcpb` extension
-- `expo-app/` — Expo/React Native mobile app
+- `clients/cli/` — `mychart-cli` npm package (CLI entry at `clients/cli/cli/cli.ts`) + resend 2FA
+- `clients/claude-desktop-extension/` — Claude Desktop `.mcpb` extension
+- `clients/expo-app/` — Expo/React Native mobile app
 - `shared/` — the capability registry, logger, host concurrency limiter and other cross-package helpers
-- `read-local-passwords/` — browser keystore extraction
+- `clients/shared/read-local-passwords/` — browser keystore extraction
 - `scrapers/myChart/clo-image-parser/` — eUnity CLO image parser
 - `fake-mychart/` — fake MyChart server for dev/CI
 - `openrecord-splash/` — static splash + browser demo (with `openrecord-demo-lambda/` backing it)
@@ -72,7 +72,7 @@ scraper.
   it, so it only shows on an iOS 27 device.
 - Expo SDK 57 removed top-level `splash` (now the `expo-splash-screen` plugin),
   `newArchEnabled`, and `android.edgeToEdgeEnabled` from `ExpoConfig`.
-- React Native (expo-app's version) removed `StyleSheet.absoluteFillObject` at
+- React Native (clients/expo-app's version) removed `StyleSheet.absoluteFillObject` at
   runtime too — spreading it silently yields `undefined`. Use
   `StyleSheet.absoluteFill`.
 - bun:test typing quirk: calling a generic-defaulted method inline inside

@@ -35,18 +35,18 @@ against the full matrix, and every skipped check skipped with a written reason.*
   never drop one.
 - **The verification matrix, run before every push:**
   ```bash
-  cd npm-package && bun run build && cd ..           # lint needs dist types (see below)
+  cd clients/cli && bun run build && cd ..           # lint needs dist types (see below)
   NODE_OPTIONS=--max-old-space-size=8192 npx eslint .
   bun run typecheck
-  cd expo-app && bun run typecheck && cd ..
-  cd npm-package && ./node_modules/.bin/tsc --noEmit && cd ..
-  cd claude-desktop-extension && ./node_modules/.bin/tsc --noEmit && cd ..
+  cd clients/expo-app && bun run typecheck && cd ..
+  cd clients/cli && ./node_modules/.bin/tsc --noEmit && cd ..
+  cd clients/claude-desktop-extension && ./node_modules/.bin/tsc --noEmit && cd ..
   bun run test
   ```
-  Every package's deps must be installed first (root, expo-app, npm-package,
-  claude-desktop-extension) — type-aware lint silently degrades
+  Every package's deps must be installed first (root, clients/expo-app, clients/cli,
+  clients/claude-desktop-extension) — type-aware lint silently degrades
   imports to `any` when a `node_modules` is missing, and rules stop seeing them. Same
-  trap with `npm-package/dist`: the bundle test imports it, so lint without a fresh
+  trap with `clients/cli/dist`: the bundle test imports it, so lint without a fresh
   build misjudges that file. If a change touches session/proxy/renewal code, also run
   the fake-mychart integration suites.
 - **Behavior neutrality is a claim you must defend per fix, in the PR body.**
@@ -68,7 +68,7 @@ NODE_OPTIONS=--max-old-space-size=8192 npx eslint . 2>&1 \
 
 For TS compiler options, pass the flag directly per project and count:
 `./node_modules/.bin/tsc --noEmit --<flag> 2>&1 | grep -cE 'error TS'` — run it in
-EVERY tsconfig project (root, expo-app, npm-package, claude-desktop-extension,
+EVERY tsconfig project (root, clients/expo-app, clients/cli, clients/claude-desktop-extension,
 fake-mychart, openrecord-splash/demo), not just root.
 
 **First check whether the flag is already set**, per project:
@@ -136,7 +136,7 @@ The batching line is code changes, not violation count:
 - PR body states: violation count, fix approach, per-fix behavior-change analysis,
   and what was measured-and-deferred with counts.
 - Update `docs/testing.md` if the lint/typecheck contract changes. CI lives in
-  `.github/workflows/checks.yml` — installs and the npm-package build come BEFORE
+  `.github/workflows/checks.yml` — installs and the clients/cli build come BEFORE
   the eslint step, and there must be exactly ONE `npx eslint .` step; grep for it
   after any workflow edit (an edit here once deleted the step and CI went green by
   linting nothing).
