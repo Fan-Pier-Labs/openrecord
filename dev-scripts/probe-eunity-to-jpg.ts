@@ -13,7 +13,7 @@ import { myChartPasskeyLogin } from '../scrapers/myChart/auth/login';
 import { passkeyLoginWithCounterRetry } from '../scrapers/myChart/auth/passkeyLoginRetry';
 import { serializeCredential, deserializeCredential } from '../scrapers/myChart/auth/softwareAuthenticator';
 import { initEunitySession, downloadSingleImage } from '../scrapers/myChart/eunity/imagingDirectDownload';
-import { decodeImageId } from '../shared/capabilities';
+import { decodeImageId } from '../clients/shared/capabilities';
 import { convertCloToBitmap } from '../scrapers/myChart/clo-image-parser/clo_to_bitmap';
 import { convertBitmapToJpg } from '../scrapers/myChart/clo-image-parser/exporters/to_jpg';
 

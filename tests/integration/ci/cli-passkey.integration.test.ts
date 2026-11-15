@@ -23,9 +23,9 @@ import fs from 'fs';
 const FAKE_MYCHART_HOST = process.env.CI_FAKE_MYCHART_CLI_HOST || 'localhost:4000';
 const FAKE_MYCHART_URL = process.env.CI_FAKE_MYCHART_URL || 'http://localhost:4000';
 const PROJECT_ROOT = path.resolve(__dirname, '..', '..', '..');
-// Run the BUILT binary (`npm-package/dist/cli.cjs`), not the TypeScript source.
-// CI must `cd npm-package && bun run build` before this test file runs.
-const CLI_BIN = path.join(PROJECT_ROOT, 'npm-package', 'dist', 'cli.cjs');
+// Run the BUILT binary (`clients/npm-package/dist/cli.cjs`), not the TypeScript source.
+// CI must `cd clients/npm-package && bun run build` before this test file runs.
+const CLI_BIN = path.join(PROJECT_ROOT, 'clients/npm-package', 'dist', 'cli.cjs');
 
 // Temp dirs for passkey/TOTP credential storage (avoid polluting real dirs)
 const TEMP_DIR = fs.mkdtempSync(path.join(PROJECT_ROOT, '.test-cli-passkey-'));
@@ -43,7 +43,7 @@ const CLI_TIMEOUT_MS = 45_000;
 function runCli(args: string[], timeoutMs = CLI_TIMEOUT_MS): Promise<{ code: number; stdout: string; stderr: string }> {
   if (!fs.existsSync(CLI_BIN)) {
     throw new Error(
-      `Built CLI binary not found at ${CLI_BIN}. Run: cd npm-package && bun run build`
+      `Built CLI binary not found at ${CLI_BIN}. Run: cd clients/npm-package && bun run build`
     );
   }
   return new Promise((resolve) => {

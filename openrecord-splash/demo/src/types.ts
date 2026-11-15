@@ -398,7 +398,7 @@ export type ToolGroup =
   | 'Patients'
   /**
    * Public lookups that need no account at all — CMS's NPI Registry. `public`
-   * in `shared/capabilities.ts`; the demo answers them from its own cast
+   * in `clients/shared/capabilities.ts`; the demo answers them from its own cast
    * rather than calling the real registry, which holds real people.
    */
   | 'Providers'
@@ -416,7 +416,7 @@ export type ToolGroup =
  * It lives on the tool spec rather than in a lookup table beside it so the two
  * cannot drift: declaring a write tool means writing the dialog that gates it,
  * and the type is what enforces that. The real iOS client derives the same
- * three fields from `kind: 'write'` in `shared/capabilities/`.
+ * three fields from `kind: 'write'` in `clients/shared/capabilities/`.
  */
 type WriteMeta = {
   /** Dialog title — the action, not the function name. "Send Message". */
