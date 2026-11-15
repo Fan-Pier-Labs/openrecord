@@ -92,18 +92,18 @@ picks one:
 
 | Provider | Where the call goes | Models (default / small side-calls) |
 | --- | --- | --- |
-| Free tier (default) | The OpenRecord AI Lambda ([`openrecord-demo-lambda/`](../openrecord-demo-lambda/)) with the Google ID token as `Authorization: Bearer`; it verifies the token and meters a $50/month credit per Google account | `gemini-2.5-flash` / `gemini-2.5-flash-lite` |
+| Free tier (default) | The OpenRecord AI Lambda ([`openrecord-demo-lambda/`](../../openrecord-demo-lambda/)) with the Google ID token as `Authorization: Bearer`; it verifies the token and meters a $50/month credit per Google account | `gemini-2.5-flash` / `gemini-2.5-flash-lite` |
 | OpenAI key | `api.openai.com` directly | `gpt-4o` / `gpt-5.4-mini` |
 | Anthropic key | `api.anthropic.com` directly | `claude-sonnet-4-6` / `claude-haiku-4-5-20251001` |
 | Gemini key | `generativelanguage.googleapis.com` directly | `gemini-2.5-flash` / `gemini-2.5-flash-lite` |
 
 On the free tier a 401 is surfaced as "sign in again", a 402 as "monthly credit used up". Expired
 Google ID tokens are refreshed silently before each call (`src/lib/backend/google-signin.ts`). The
-Lambda's tiers, limits and deploy are in [`docs/infrastructure.md`](../docs/infrastructure.md#openrecord-ai-lambda-openrecord-demo-lambda).
+Lambda's tiers, limits and deploy are in [`docs/infrastructure.md`](../../docs/infrastructure.md#openrecord-ai-lambda-openrecord-demo-lambda).
 
 ## Build and run
 
-Prerequisites: Bun (the version in [`../.bun-version`](../.bun-version)), Xcode with an iOS
+Prerequisites: Bun (the version in [`.bun-version`](../../.bun-version)), Xcode with an iOS
 simulator, and CocoaPods. The app bundles source from outside this folder (`scrapers/`, `shared/`),
 so install both the repo root and this package:
 
@@ -123,7 +123,7 @@ On a simulator, give each session its own sim and Metro port when other sessions
 bunx expo run:ios --device "$UDID" --port 8083
 ```
 
-[`docs/ios-simulator.md`](../docs/ios-simulator.md) has the full setup and the `maestro-cli` commands
+[`docs/ios-simulator.md`](../../docs/ios-simulator.md) has the full setup and the `maestro-cli` commands
 for driving the sim. `bunx expo run:ios --device` with no value prompts for a simulator or a
 connected device.
 
@@ -146,7 +146,7 @@ PORT=4000 bun run fake-mychart     # from the repo root
 ```
 
 Sign in as `homer` / `donuts123` (`marge` exercises 2FA). See
-[`fake-mychart/README.md`](../fake-mychart/README.md).
+[`fake-mychart/README.md`](../../fake-mychart/README.md).
 
 ### Dev shortcuts
 
@@ -185,7 +185,7 @@ The unit tests import the real modules, which is why `tool-catalog.ts`, `outOfRa
 
 **Every interactive element needs a `testID`** (plus an `accessibilityLabel`), added in the same
 diff — Maestro targets by it on both platforms. Naming rules are in
-[`docs/ios-simulator.md`](../docs/ios-simulator.md#testids-are-mandatory).
+[`docs/ios-simulator.md`](../../docs/ios-simulator.md#testids-are-mandatory).
 
 ### Maestro flows
 
@@ -205,7 +205,7 @@ diff — Maestro targets by it on both platforms. Naming rules are in
 
 Neither tier may be able to reach a real model: the flow stops at the sign-in gate, release builds
 strip the dev skip button, and the workflow bakes `EXPO_PUBLIC_BACKEND_URL=http://127.0.0.1:9`.
-Keep all three — see [`docs/testing.md`](../docs/testing.md#android-smoke-tests).
+Keep all three — see [`docs/testing.md`](../../docs/testing.md#android-smoke-tests).
 
 ## EAS builds
 
@@ -219,12 +219,12 @@ Keep all three — see [`docs/testing.md`](../docs/testing.md#android-smoke-test
 
 `submit.production` holds the Apple account and team for iOS submissions. The `EXPO_TOKEN` and
 Apple credentials used for EAS builds and TestFlight submissions are listed under Secrets in
-[`docs/infrastructure.md`](../docs/infrastructure.md).
+[`docs/infrastructure.md`](../../docs/infrastructure.md).
 
 ## Reference
 
-- [Architecture](../docs/architecture.md) — the invariants every client follows
-- [Testing](../docs/testing.md) — suites, CI, the coverage gate, Android smoke
-- [iOS simulator](../docs/ios-simulator.md) — sim sessions, `maestro-cli`, testID rules
-- [Infrastructure](../docs/infrastructure.md) — the AI Lambda, secrets
-- [Scrapers](../scrapers/README.md) and [capabilities](../shared/capabilities/) — what the agent can call
+- [Architecture](../../docs/architecture.md) — the invariants every client follows
+- [Testing](../../docs/testing.md) — suites, CI, the coverage gate, Android smoke
+- [iOS simulator](../../docs/ios-simulator.md) — sim sessions, `maestro-cli`, testID rules
+- [Infrastructure](../../docs/infrastructure.md) — the AI Lambda, secrets
+- [Scrapers](../../scrapers/README.md) and [capabilities](../shared/capabilities/) — what the agent can call
