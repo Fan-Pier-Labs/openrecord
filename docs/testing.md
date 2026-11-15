@@ -4,12 +4,13 @@
 
 `bun run lint` is **type-aware** (typescript-eslint `projectService`): each file is resolved against
 its package's tsconfig, so every package's deps must be installed first (`clients/expo-app`, `clients/npm-package`,
-`clients/claude-desktop-extension`) **and `clients/npm-package` must be built** — its integration test imports its
+`clients/shared`, `clients/claude-desktop-extension`) **and `clients/npm-package` must be built** — its integration test imports its
 types from `../../dist/index.js`, so without `dist/` those types don't resolve. Everything lint
 needs, from a clean checkout:
 
 ```bash
-bun install && (cd clients/expo-app && bun install) && (cd clients/claude-desktop-extension && bun install) \
+bun install && (cd clients/expo-app && bun install) && (cd clients/shared && bun install) \
+  && (cd clients/claude-desktop-extension && bun install) \
   && (cd clients/npm-package && bun install && bun run build) && bun run lint
 ```
 
@@ -199,9 +200,9 @@ product module.** Such a block is unreachable from a test, so under a per-file g
 demo code drag an otherwise fully-covered module under the bar, and the only outs are waiving the
 whole file or leaving CI red. `dev-scripts/` holds no test files, and coverage ignores it outright.
 
-**Install the Claude Desktop extension's dependencies before measuring**
-(`cd clients/claude-desktop-extension && bun install`), as CI does. Without them the extension's modules fail
-to import, drop out of the report entirely, and the number reads about 1.5 points higher than it
+**Install the MCP server's and the Claude Desktop extension's dependencies before measuring**
+(`bun install` in `clients/shared` and in `clients/claude-desktop-extension`), as CI does. Without them their
+modules fail to import, drop out of the report entirely, and the number reads about 1.5 points higher than it
 really is.
 
 **Testing anything that touches `~/.openrecord-mcpb`**: use the in-memory `fs` shim at

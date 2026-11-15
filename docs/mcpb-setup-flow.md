@@ -1,7 +1,7 @@
 # MCPB setup widget: user flow
 
 How a user connects MyChart accounts through the Claude Desktop extension's setup widget
-(`get_setup_widget`, a React app in [`clients/claude-desktop-extension/src/setup-widget/`](../claude-desktop-extension/src/setup-widget/);
+(`get_setup_widget`, a React app in [`clients/claude-desktop-extension/src/setup-widget/`](../clients/claude-desktop-extension/src/setup-widget/);
 the flow below is the reducer in `flow.ts`).
 
 The first screen asks whether to connect **real MyChart accounts** or **use a fake MyChart**.
