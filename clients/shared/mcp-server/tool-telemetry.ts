@@ -1,7 +1,7 @@
 // Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
 
 import { isTelemetryDisabled, sendTelemetryEvent } from '../../../shared/telemetry';
-import { readAccountArg } from '../../shared/capabilities';
+import { readAccountArg } from '../capabilities';
 import type { MyChartRequest } from '../../../scrapers/myChart/core/myChartRequest';
 import { getEmail } from '../../../scrapers/myChart/chart/profile/profile';
 import { checkProxyContext } from '../../../scrapers/myChart/proxy/proxyContext';

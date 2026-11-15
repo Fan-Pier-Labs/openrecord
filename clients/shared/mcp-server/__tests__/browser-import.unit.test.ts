@@ -44,7 +44,7 @@ const candidates = [
   },
 ];
 
-void mock.module('../../../shared/read-local-passwords/index', () => ({
+void mock.module('../../read-local-passwords/index', () => ({
   isSupportedPlatform: () => true,
   findMyChartCandidates: async () => candidates,
   blockedBrowsers: () => ['Firefox'],

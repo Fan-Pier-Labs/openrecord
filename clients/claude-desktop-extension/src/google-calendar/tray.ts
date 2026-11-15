@@ -24,7 +24,7 @@ import { AGENT_LABEL, AGENT_PLIST, SYNC_LOG } from './applet';
 import { cls, defineHandler, msg, msgTyped, nsstr, sel, type Id } from './objc';
 import { readState, writeState, type LastSync } from './store';
 import { failedRun } from './sync';
-import { accountId, readAccountIdentities } from '../credential-store';
+import { accountId, readAccountIdentities } from '../../../shared/mcp-server/credential-store';
 import { accountLines, iconSymbol, isSyncDue, statusLines, stopNotice } from './tray-menu';
 
 // Check often rather than arming one 4-hour timer: a timer's clock stops

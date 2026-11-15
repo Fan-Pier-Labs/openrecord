@@ -9,6 +9,7 @@
  * type it cannot show was saved instead of attaching bytes the host will drop.
  */
 import { describe, expect, test, beforeEach, afterEach } from 'bun:test';
+import { TEST_HOST } from './host';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
@@ -16,7 +17,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { registerAllTools, fileResult } from '../tools';
 import { saveFilePayload } from '../save-file';
 import { INLINE_BUDGET_BYTES } from '../imaging/inline-preview';
-import type { MessageAttachmentFile } from '../../../shared/capabilities';
+import type { MessageAttachmentFile } from '../../capabilities';
 
 type RegisteredTool = { config: { inputSchema?: Record<string, unknown> } };
 
@@ -27,7 +28,7 @@ function captureTools(): Map<string, RegisteredTool> {
       tools.set(name, { config });
     },
   } as unknown as McpServer;
-  registerAllTools(server);
+  registerAllTools(server, TEST_HOST);
   return tools;
 }
 

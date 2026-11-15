@@ -1,8 +1,8 @@
 // Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
 
 import { describe, expect, test } from 'bun:test';
-import { bundleSetupWidget } from '../../scripts/bundle-setup-widget';
-import { buildSetupUiHtml, SETUP_UI_MIME_TYPE, SETUP_UI_RESOURCE_META } from '../ui';
+import { bundleSetupWidget } from '../../../claude-desktop-extension/scripts/bundle-setup-widget';
+import { buildSetupUiHtml, SETUP_UI_MIME_TYPE, SETUP_UI_RESOURCE_META } from '../../../shared/mcp-server/ui';
 import { MYCHART_MEDIA_ORIGIN } from '../../../../scrapers/list-all-mycharts/directory';
 import { SANDBOX_INSTANCE } from '../../../../scrapers/list-all-mycharts/searchDirectory';
 import bundledInstances from '../../../../scrapers/list-all-mycharts/mychart-instances.json';

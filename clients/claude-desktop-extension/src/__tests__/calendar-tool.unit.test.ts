@@ -7,7 +7,7 @@
  */
 import { beforeEach, describe, expect, it, mock } from 'bun:test'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import * as memfs from './memfs'
+import * as memfs from '../../../shared/mcp-server/__tests__/memfs'
 
 let connects = 0
 let unsupported: string | null = null
@@ -21,8 +21,9 @@ void mock.module('../google-calendar/applet', () => ({
   },
 }))
 
-const store = await import('../credential-store')
-const { registerAllTools } = await import('../tools')
+const store = await import('../../../shared/mcp-server/credential-store')
+const { registerAllTools } = await import('../../../shared/mcp-server/tools')
+const { MCPB_HOST } = await import('../host')
 
 type Handler = (args: Record<string, unknown>) => Promise<{ content: Array<{ text: string }>; isError?: boolean }>
 let connect: Handler = () => Promise.reject(new Error('not registered'))
@@ -30,7 +31,7 @@ registerAllTools({
   registerTool: (name: string, _config: unknown, handler: Handler) => {
     if (name === 'connect_google_calendar') connect = handler
   },
-} as unknown as McpServer)
+} as unknown as McpServer, MCPB_HOST)
 
 const text = async (args: Record<string, unknown>) => (await connect(args)).content[0]!.text
 

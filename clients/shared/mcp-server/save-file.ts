@@ -12,7 +12,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-import type { FilePayload } from '../../shared/capabilities';
+import type { FilePayload } from '../capabilities';
 import { downloadsDir } from './imaging/save-study';
 import { safeFileName } from '../../../scrapers/myChart/core/safeFileName';
 import { DetailedError } from '../../../shared/detailedError';

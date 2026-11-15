@@ -2,7 +2,7 @@
 
 import { afterEach, describe, expect, test } from 'bun:test';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import { checkPendingCall, resetPendingCalls, runGuarded } from '../../pending-call';
+import { checkPendingCall, resetPendingCalls, runGuarded } from '../../../../shared/mcp-server/pending-call';
 import { createHost, decodeToolResult, type HostContext, type RpcMessage } from '../host';
 
 const json = (value: unknown): CallToolResult => ({ content: [{ type: 'text', text: JSON.stringify(value) }] });

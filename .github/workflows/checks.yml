@@ -28,11 +28,13 @@ jobs:
           bun-version-file: .bun-version
       - run: bun install
       # Before the unit suite, not after it: `bun run test` scans the whole repo
-      # for *.unit.test.ts, which reaches
-      # clients/claude-desktop-extension/src/__tests__, and the capability-parity test
-      # imports the extension's real registerAllTools to check it registers a
-      # tool per capability. Both need the extension's own dependencies (zod,
-      # the MCP SDK), so they have to be installed first.
+      # for *.unit.test.ts, which reaches clients/shared/mcp-server/__tests__ and
+      # clients/claude-desktop-extension/src/__tests__, and the capability-parity
+      # test registers the real MCP server's tools to check there is one per
+      # capability. Those need the MCP server's dependencies (zod, the MCP SDK)
+      # and the extension's, so both are installed first.
+      - name: Install clients/shared deps (the MCP server)
+        run: cd clients/shared && bun install
       - name: Install Claude Desktop extension deps
         run: cd clients/claude-desktop-extension && bun install
       - uses: actions/setup-node@v4
@@ -131,11 +133,12 @@ jobs:
           bun-version-file: .bun-version
       - run: bun install
       # Every package whose sources the integration suites or the coverage gate
-      # touch. The extension's deps are needed twice over: its imaging suite
+      # touch. The MCP server's deps are needed twice over: its imaging suite
       # imports jpeg-js, and without them its modules fail to import and drop
       # out of the coverage report entirely, which reads ~1.5 points high.
       - name: Install package deps
         run: |
+          cd clients/shared && bun install && cd ../..
           cd clients/claude-desktop-extension && bun install && cd ../..
           cd clients/cli && bun install && cd ../..
       # `playwright` itself rides the root install; this fetches the browser it

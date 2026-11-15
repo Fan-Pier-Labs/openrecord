@@ -1,20 +1,23 @@
 // Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
 
 /**
- * Tool registry for the OpenRecord MCPB stdio MCP server.
+ * Tool registry for OpenRecord's stdio MCP server, which both the Claude Desktop
+ * extension and `mychart-cli mcp` run. What differs between them is `McpHost`.
  *
- * Two groups of tools:
- *   1. Meta tools — list_accounts, get_setup_widget, setup_account, import_browser_passwords,
+ * Three groups of tools:
+ *   1. Meta tools — list_accounts, get_setup_widget (hosts with the widget only),
+ *                   setup_account, import_browser_passwords,
  *                   connect_imported_account, complete_2fa,
- *                   disconnect_account, check_pending_call. These are
- *                   MCPB-specific: most manage the credentials stored on this
- *                   machine, get_setup_widget returns a Claude Desktop UI
+ *                   disconnect_account, check_pending_call. These are not
+ *                   capabilities: most manage the credentials stored on this
+ *                   machine, get_setup_widget returns an MCP Apps UI
  *                   resource, and check_pending_call collects a result that
- *                   outran Claude Desktop's request timeout (pending-call.ts).
+ *                   outran the client's request timeout (pending-call.ts).
  *                   `search_mycharts` and `get_hospital_info` used to be
  *                   meta tools and are now `public` capabilities in the
  *                   shared registry, so every client has them.
- *   2. Capability tools — one per entry in `clients/shared/capabilities/`, which is
+ *   2. Host tools — `McpHost.registerExtraTools` (the extension's Google Calendar sync).
+ *   3. Capability tools — one per entry in `clients/shared/capabilities/`, which is
  *                   the single source of truth for what OpenRecord can do with
  *                   a MyChart account. Nothing in this file decides what the
  *                   extension supports; add a capability there and it appears
@@ -65,8 +68,8 @@ import {
   type CapabilityParam,
   type StudyImagePayload,
   type FilePayload,
-} from '../../shared/capabilities';
-import { readLocalFile } from '../../shared/readLocalFile';
+} from '../capabilities';
+import { readLocalFile } from '../readLocalFile';
 
 import { BACKEND_DESCRIPTION } from './secret-store';
 import {
@@ -82,7 +85,6 @@ import {
   lookupAccount,
   lookupIdentity,
   readAccounts,
-  readAccountIdentities,
   secretBackend,
   readAccountPasskey,
   removeAccount,
@@ -94,7 +96,8 @@ import { addPending, takePending } from './pending-logins';
 import { demoConflict, demoConflictMessage, saveAccount } from './demo-account';
 import { CHECK_TOOL, DEADLINE_LABEL, checkPendingCall, runGuarded, unsettledCallOnAccount } from './pending-call';
 import { releaseImportedCandidate, scanBrowserPasswords, takeImportedCandidates } from './browser-import';
-import { FULL_DISK_ACCESS_STEPS } from './setup-widget/flow';
+import { FULL_DISK_ACCESS_STEPS, FULL_DISK_ACCESS_STEPS_OTHER_HOST } from './full-disk-access';
+import type { McpHost } from './host';
 import { decodeStudy, encodeFullResolutionJpegs, type DecodedStudy } from './imaging/download-study';
 import { inlinePreviews } from './imaging/inline-preview';
 import { saveStudyJpegs, type SavedStudy } from './imaging/save-study';
@@ -103,16 +106,18 @@ import { saveFilePayload, saveTextFile } from './save-file';
 import { reportToolCall } from './tool-telemetry';
 import { withUpdateNotice } from './update-notice';
 import { detailedMessage } from '../../../shared/detailedError';
-import { calendarSyncStatus, connectGoogleCalendar, uninstallGoogleCalendar, unsupportedReason as calendarSyncUnsupported } from './google-calendar/applet';
+
+// Host tools build their schemas with this zod, so the SDK sees one zod instance.
+export { z };
 
 // ── Result helpers ──────────────────────────────────────────────────────────
 
 type ToolContent =
   | { type: 'text'; text: string }
   | { type: 'image'; data: string; mimeType: string };
-type ToolResult = { content: ToolContent[]; isError?: boolean };
+export type ToolResult = { content: ToolContent[]; isError?: boolean };
 
-function jsonResult(data: unknown): ToolResult {
+export function jsonResult(data: unknown): ToolResult {
   return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
 }
 
@@ -127,7 +132,7 @@ function errorResult(message: string): ToolResult {
 /** Results built from a caught error, so `guarded` can report the error itself — stack and all. */
 const caughtErrors = new WeakMap<ToolResult, unknown>();
 
-function caughtErrorResult(err: unknown): ToolResult {
+export function caughtErrorResult(err: unknown): ToolResult {
   const result = errorResult(detailedMessage(err));
   caughtErrors.set(result, err);
   return result;
@@ -146,7 +151,7 @@ function caughtErrorResult(err: unknown): ToolResult {
  * string and neither can be forgotten. `tool-metadata.unit.test.ts` fails the
  * build if a registration skips it.
  */
-function toolMeta(
+export function toolMeta(
   title: string,
   hints: { readOnlyHint: boolean; destructiveHint?: boolean; openWorldHint: boolean },
 ): { title: string; annotations: { title: string; readOnlyHint: boolean; destructiveHint?: boolean; openWorldHint: boolean } } {
@@ -735,7 +740,7 @@ function registerCheckPendingCall(server: McpServer): void {
 
 // ── Public: register everything on the server ──────────────────────────────
 
-export function registerAllTools(rawServer: McpServer): void {
+export function registerAllTools(rawServer: McpServer, host: McpHost): void {
   const withNotice = noticed(rawServer);
   // check_pending_call collects parked results, so it is never itself parked.
   registerCheckPendingCall(withNotice);
@@ -771,7 +776,7 @@ export function registerAllTools(rawServer: McpServer): void {
             // otherwise a locked keychain downgrades storage silently and
             // nobody ever finds out.
             text: JSON.stringify(
-              { count: accounts.length, secretStorage: secretBackend(), calendarSync: calendarSyncStatus(), accounts: accountList },
+              { count: accounts.length, secretStorage: secretBackend(), ...host.listAccountsExtra?.(), accounts: accountList },
               null,
               2,
             ),
@@ -782,7 +787,9 @@ export function registerAllTools(rawServer: McpServer): void {
       if (accounts.length === 0) {
         result.content.push({
           type: 'text',
-          text: '\nNo MyChart accounts are configured yet. Call get_setup_widget to display the interactive connection widget.',
+          text: host.setupWidgetHtml
+            ? '\nNo MyChart accounts are configured yet. Call get_setup_widget to display the interactive connection widget.'
+            : '\nNo MyChart accounts are configured yet. Ask the user which health system they use, find its hostname with search_mycharts, then call setup_account.',
         });
       } else {
         result.content.push({
@@ -799,7 +806,7 @@ export function registerAllTools(rawServer: McpServer): void {
     },
   );
 
-  server.registerTool(
+  if (host.setupWidgetHtml) server.registerTool(
     'get_setup_widget',
     {
       description: 'Display an interactive widget for connecting MyChart accounts: the user can import logins already saved in their browser, or search for their health system and sign in by hand, then finish 2FA and the passkey offer in the widget. Use this if the user wants a GUI instead of chat-based setup.',
@@ -857,7 +864,7 @@ export function registerAllTools(rawServer: McpServer): void {
         // Ahead of the empty case: with a browser blocked, "none found" is not known to be true.
         const blockedNote = scan.blocked_browsers.length
           ? `macOS blocked reading saved passwords from ${scan.blocked_browsers.join(', ')}, so any MyChart logins there are missing. ` +
-            `To include them, the user must: ${FULL_DISK_ACCESS_STEPS.join(' ')} Relay these steps to the user; you cannot change this setting for them.`
+            `To include them, the user must: ${(host.app === 'mcpb' ? FULL_DISK_ACCESS_STEPS : FULL_DISK_ACCESS_STEPS_OTHER_HOST).join(' ')} Relay these steps to the user; you cannot change this setting for them.`
           : '';
         if (scan.accounts.length === 0) {
           return jsonResult({
@@ -1016,88 +1023,7 @@ export function registerAllTools(rawServer: McpServer): void {
     },
   );
 
-  // Mac-only and machine-local (it installs a menu-bar app), like the account
-  // tools above — so it is hand-written here, not a shared capability.
-  server.registerTool(
-    'connect_google_calendar',
-    {
-      description:
-        "Sync the user's upcoming MyChart appointments (every connected account) to their Google Calendar, and keep them in sync every 4 hours. macOS only. " +
-        'Only call this when the user has asked for it. Call it first without confirmed_with_user: that changes nothing and returns what setup involves, ' +
-        'to explain to the user. Call it again with confirmed_with_user: true only after the user has agreed.',
-      inputSchema: {
-        confirmed_with_user: z.boolean().optional().describe(
-          'true only once the user has read what setup involves (returned by a call without this) and agreed to go ahead.',
-        ),
-      } satisfies ZodRawShape,
-      ...toolMeta('Sync appointments to Google Calendar', { readOnlyHint: false, destructiveHint: false, openWorldHint: true }),
-    },
-    async ({ confirmed_with_user }) => {
-      try {
-        const unsupported = calendarSyncUnsupported();
-        if (unsupported) throw new Error(unsupported);
-        if (confirmed_with_user !== true) {
-          const accounts = readAccountIdentities().map(accountId);
-          if (accounts.length === 0) {
-            return jsonResult({ state: 'no_accounts', message: 'No MyChart account is connected yet, so there is nothing to sync. Help the user connect one first.' });
-          }
-          return jsonResult({
-            state: 'needs_confirmation',
-            message_for_user:
-              'Want to install the OpenRecord Google Calendar Sync applet?\n\n' +
-              `This applet copies all of your upcoming appointments from all of your connected MyChart accounts (${accounts.join(', ')}) ` +
-              'to a new "MyChart Appointments" calendar in your Google Calendar. It only touches this new calendar. ' +
-              'This applet will sit in your macOS status bar, launch at login, and sync appointments every 4 hours. ' +
-              'Setup will download the 100 MB applet and trigger permission prompts (macOS and Google sign-in).',
-            message:
-              'Nothing has been set up yet. Show the user message_for_user exactly as written, and wait for their answer. ' +
-              'Only if they agree, call connect_google_calendar again with confirmed_with_user: true.',
-          });
-        }
-        const { sync } = await connectGoogleCalendar();
-        const failed = (sync.accounts ?? []).filter((a) => a.error);
-        return jsonResult({
-          state: 'connected',
-          synced: sync.synced ?? 0,
-          accounts: sync.accounts ?? [],
-          message:
-            `Google Calendar is connected. ${sync.synced ?? 0} upcoming appointment(s) are on the "MyChart Appointments" calendar. ` +
-            'A medical-cross icon is now in the menu bar; it starts at login and syncs every 4 hours, and its menu has "Turn Off Calendar Sync". ' +
-            'Tell the user that macOS may later ask whether openrecord-calendar may use OpenRecord\'s saved MyChart sign-in from the keychain, and to choose "Always Allow" so background syncs can sign in.' +
-            (failed.length ? ` These accounts could not be synced yet: ${failed.map((a) => `${a.account} (${a.error})`).join('; ')}.` : '') +
-            (!sync.ok && !sync.accounts ? ` The first sync did not finish: ${sync.error ?? 'unknown error'}. The app will retry.` : ''),
-        });
-      } catch (err) {
-        return caughtErrorResult(err);
-      }
-    },
-  );
-
-  server.registerTool(
-    'disconnect_google_calendar',
-    {
-      description:
-        'Turn off Google Calendar sync: revokes OpenRecord\'s access to the user\'s Google account, ' +
-        'quits the menu-bar app and stops it starting at login. The app itself stays on disk at ~/.openrecord-mcpb/bin/openrecord-calendar (about 100 MB) so turning sync back on needs no download. ' +
-        'The "MyChart Appointments" calendar and its events stay in Google Calendar, and connecting again later reuses that calendar. Only call this when the user has asked for it.',
-      inputSchema: {} satisfies ZodRawShape,
-      ...toolMeta('Turn off Google Calendar sync', { readOnlyHint: false, destructiveHint: true, openWorldHint: true }),
-    },
-    async () => {
-      try {
-        await uninstallGoogleCalendar();
-        return jsonResult({
-          state: 'disconnected',
-          message:
-            'Google Calendar sync is off: OpenRecord no longer has access to the Google account, and its menu-bar app has quit and no longer starts at login. ' +
-            'The "MyChart Appointments" calendar and its events are still in Google Calendar for the user to keep or delete. ' +
-            'The app stays at ~/.openrecord-mcpb/bin/openrecord-calendar (about 100 MB) so turning sync back on is fast; deleting that file removes it completely.',
-        });
-      } catch (err) {
-        return caughtErrorResult(err);
-      }
-    },
-  );
+  host.registerExtraTools?.(server);
 
   // ── Capability tools ──────────────────────────────────────────────────────
   //

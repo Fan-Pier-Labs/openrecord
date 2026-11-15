@@ -91,6 +91,7 @@ const fakeFs = {
     }
     // Default 0644 until chmodSync says otherwise, mirroring real file creation.
     files.set(p, { data: String(data), mode: files.get(p)?.mode ?? 0o644 })
+    return undefined
   },
 
   mkdirSync(dir: string, ...rest: unknown[]) {
@@ -110,6 +111,7 @@ const fakeFs = {
     const entry = files.get(p)
     if (!entry) throw enoent(p)
     entry.mode = mode
+    return undefined
   },
 
   unlinkSync(p: string, ...rest: unknown[]) {
@@ -118,6 +120,7 @@ const fakeFs = {
       return (realUnlinkSync as (...a: unknown[]) => unknown)(p, ...rest)
     }
     if (!files.delete(p)) throw enoent(p)
+    return undefined
   },
 }
 

@@ -13,6 +13,7 @@
  * error handling lives.
  */
 import { describe, it, expect, beforeEach, afterEach, mock } from 'bun:test'
+import { TEST_HOST } from './host';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import * as memfs from './memfs'
 
@@ -33,7 +34,7 @@ function captureTools(): Map<string, { handler: Handler }> {
       tools.set(name, { handler })
     },
   } as unknown as McpServer
-  registerAllTools(server)
+  registerAllTools(server, TEST_HOST)
   return tools
 }
 

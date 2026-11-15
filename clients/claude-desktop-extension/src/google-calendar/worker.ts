@@ -25,8 +25,8 @@ import { execFile } from 'child_process';
 
 import { executeCapability } from '../../../shared/capabilities';
 import { detailedMessage } from '../../../../shared/detailedError';
-import { accountId, readAccountIdentities } from '../credential-store';
-import { clearAllSessions, NeedsHumanSignInError, resolveSessionWithoutUser } from '../session-manager';
+import { accountId, readAccountIdentities } from '../../../shared/mcp-server/credential-store';
+import { clearAllSessions, NeedsHumanSignInError, resolveSessionWithoutUser } from '../../../shared/mcp-server/session-manager';
 import type { SyncVisit } from './events';
 import { accessTokenFor, authorizeInBrowser, CalendarClient } from './google-api';
 import { connectAccessToken, disconnectGoogle, ensureCalendar, failedRun, syncAccounts } from './sync';

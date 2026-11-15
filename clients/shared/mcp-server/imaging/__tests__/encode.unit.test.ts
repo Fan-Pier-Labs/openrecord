@@ -13,7 +13,7 @@ import { describe, it, expect } from 'bun:test';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { encodeStudyJpegs } from '../download-study';
-import { encodeImageId, decodeImageId, type StudyImagePayload } from '../../../../shared/capabilities';
+import { encodeImageId, decodeImageId, type StudyImagePayload } from '../../../capabilities';
 
 const CLO_DIR = join(__dirname, '../../../../../fake-mychart/src/data/clo-images');
 

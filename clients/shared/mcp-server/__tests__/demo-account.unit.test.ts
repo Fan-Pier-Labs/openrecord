@@ -1,6 +1,7 @@
 // Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
 
 import { describe, it, expect, beforeEach } from 'bun:test'
+import { TEST_HOST } from './host';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import * as memfs from './memfs'
 
@@ -49,7 +50,7 @@ describe('the demo and real accounts are never saved together', () => {
       registerTool: (name: string, _config: unknown, h: typeof handler) => {
         if (name === 'setup_account') handler = h
       },
-    } as unknown as McpServer)
+    } as unknown as McpServer, TEST_HOST)
     const result = await handler!({ hostname: DEMO, username: 'homer', password: 'donuts123' })
     const body = JSON.parse(result.content[0]!.text)
     expect(body.state).toBe('demo_conflict')

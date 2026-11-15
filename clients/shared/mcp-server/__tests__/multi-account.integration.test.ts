@@ -25,6 +25,7 @@
  * there. `beforeAll` refuses to run rather than let that happen.
  */
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
+import { TEST_HOST } from './host';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { resetFakeMyChart } from '../../../../scrapers/myChart/__tests__/fake-mychart/mountMode'
 import * as memfs from './memfs'
@@ -48,7 +49,7 @@ function captureTools(): Map<string, Handler> {
       tools.set(name, handler)
     },
   } as unknown as McpServer
-  registerAllTools(server)
+  registerAllTools(server, TEST_HOST)
   return tools
 }
 

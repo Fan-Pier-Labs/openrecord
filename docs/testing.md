@@ -205,7 +205,7 @@ to import, drop out of the report entirely, and the number reads about 1.5 point
 really is.
 
 **Testing anything that touches `~/.openrecord-mcpb`**: use the in-memory `fs` shim at
-`clients/claude-desktop-extension/src/__tests__/memfs.ts` — import it before the store and the tests touch no
+`clients/shared/mcp-server/__tests__/memfs.ts` — import it before the store and the tests touch no
 disk at all. It intercepts only paths under the store root and delegates everything else to the real
 `fs`, because `bun test` runs the package's files in one process and the imaging suites read real
 fixtures. Do **not** reach for `$HOME`: Bun's `os.homedir()` does not follow it, so redirecting the
@@ -216,7 +216,7 @@ env var silently leaves you pointed at the developer's real credentials.
 Not blockers, but where to spend the next test-writing effort: `eunity/imagingDirectDownload.ts` and
 `eunity/imagingViewer.ts` (need a live eUnity server), `setupTotp.ts` / `setupPasskey.ts`
 (interactive flows), `login.ts`, and the scraper-tool handler bodies in
-`clients/claude-desktop-extension/src/tools.ts` (each needs its scraper mocked; only the shared error path is
+`clients/shared/mcp-server/tools.ts` (each needs its scraper mocked; only the shared error path is
 covered today). All three files in `clo-image-parser/` now run.
 
 `clients/cli/cli/capabilityActions.ts` came off the waiver list at 82% lines / 96% functions, once

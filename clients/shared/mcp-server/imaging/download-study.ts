@@ -25,7 +25,7 @@ import {
   executeCapability,
   getCapability,
   type StudyImagePayload,
-} from '../../../shared/capabilities';
+} from '../../capabilities';
 
 export interface DecodedImage {
   index: number;

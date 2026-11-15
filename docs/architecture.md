@@ -44,7 +44,7 @@ SAME request object via `MyChartRequest.adoptStateFrom` — login functions cons
 and everything holding a reference mid-scrape has to keep working.
 
 Wired in all four clients: the CLI (`wireCliSessionRenewal` in `clients/cli/cli/cli.ts`), the
-desktop extension (`manageSession` in `clients/claude-desktop-extension/src/session-manager.ts`), the Expo
+desktop extension (`manageSession` in `clients/shared/mcp-server/session-manager.ts`), the Expo
 app (`manageSession` in `clients/expo-app/src/lib/scrapers/session-manager.ts`), and the npm library
 (`MyChartClient` wires it from connect args; `autoRenew: false` opts out).
 
@@ -309,7 +309,7 @@ either side that isn't semver are all `null`, meaning "couldn't tell", and a cli
 `null`. "We could not reach the site" and "you are up to date" are different facts.
 
 The CLI prints the notice once per run. The MCPB checks at startup and daily, and appends the notice
-to every tool result while it is behind (`clients/claude-desktop-extension/src/update-notice.ts`) — a tool
+to every tool result while it is behind (`clients/shared/mcp-server/update-notice.ts`) — a tool
 result is the only place it can reach the user.
 
 ## Per-host rate limiting (`shared/hostConcurrency.ts`)
@@ -380,7 +380,7 @@ rather than requiring a looked-up id.
 **All clients expose proxy support with the CLI's semantics.** The desktop extension and the mobile
 app share `scrapers/myChart/proxy/proxyTools.ts`, a thin client layer over `proxyContext.ts`:
 `runListProxyTargets` / `runSwitchProxyTarget` back the `list_proxy_targets` /
-`switch_proxy_target` agent tools (extension: `clients/claude-desktop-extension/src/tools.ts`; app: declared
+`switch_proxy_target` agent tools (extension: `clients/shared/mcp-server/tools.ts`; app: declared
 in `clients/expo-app/src/lib/ai/tool-catalog.ts`, dispatched in
 `clients/expo-app/src/lib/scrapers/session-manager.ts`), and `assertProxyReadContext` gates every other data
 tool.
@@ -397,7 +397,7 @@ a one-entry list is "nothing to switch", not an error.
 
 Tests: `scrapers/myChart/proxy/__tests__/proxyTools.unit.test.ts` (mocked),
 `scrapers/myChart/__tests__/fake-mychart/proxy.integration.test.ts` (end to end),
-`clients/claude-desktop-extension/src/__tests__/proxy-tools.unit.test.ts` (registration shape),
+`clients/shared/mcp-server/__tests__/proxy-tools.unit.test.ts` (registration shape),
 `clients/expo-app/src/lib/ai/__tests__/tool-catalog.unit.test.ts` (declarations + write gating).
 
 ## CLO image parser (`scrapers/myChart/clo-image-parser/`)

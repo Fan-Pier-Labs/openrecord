@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 import * as os from 'os';
 import { captureToolError, resetErrorReporting } from '../error-reporting';
 import { DetailedError } from '../../../../shared/detailedError';
+import { setTelemetryApp } from '../../../../shared/telemetry';
 
 const DSN = 'https://publickey@o0.ingest.sentry.io/1';
 
@@ -20,6 +21,7 @@ let originalFetch: typeof fetch;
 let fetchMock: ReturnType<typeof mock>;
 
 beforeEach(() => {
+  setTelemetryApp('mcpb', '9.9.9');
   originalFetch = globalThis.fetch;
   fetchMock = mock((_url: string, _init?: RequestInit) => Promise.resolve(new Response('{}', { status: 200 })));
   globalThis.fetch = fetchMock as unknown as typeof fetch;
@@ -66,7 +68,7 @@ describe('captureToolError', () => {
     expect(values.at(-1)!.stacktrace!.frames.some((f) => f.function === 'failingScraper')).toBe(true);
     expect(event.user).toEqual({ email: 'h@example.com', username: 'homer', ip_address: '{{auto}}' });
     expect(event.tags).toEqual({ tool: 'get_lab_results', hostname: 'mychart.example.org' });
-    expect(event.release).toStartWith('openrecord-mcpb@');
+    expect(event.release).toBe('openrecord-mcpb@9.9.9');
     expect(event.breadcrumbs ?? []).toEqual([]);
     // Nothing that names the machine or its user: no computer name, no home folder in a path.
     expect(event.server_name).toBeUndefined();

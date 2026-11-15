@@ -19,6 +19,7 @@
  * multi-account.integration.test.ts for why that guard matters).
  */
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
+import { TEST_HOST } from './host';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { resetFakeMyChart } from '../../../../scrapers/myChart/__tests__/fake-mychart/mountMode'
 import { readOutbox } from '../../../../scrapers/myChart/__tests__/fake-mychart/outbox'
@@ -42,7 +43,7 @@ registerAllTools({
   registerTool: (name: string, _config: unknown, handler: Handler) => {
     tools.set(name, handler)
   },
-} as unknown as McpServer)
+} as unknown as McpServer, TEST_HOST)
 
 const call = (name: string, args: Record<string, unknown> = {}) => tools.get(name)!(args)
 const parse = (result: ToolResult) => JSON.parse(result.content[0]!.text)

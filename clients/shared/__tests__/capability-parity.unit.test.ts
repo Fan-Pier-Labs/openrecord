@@ -15,6 +15,7 @@
  */
 
 import { describe, it, expect } from 'bun:test';
+import { MCPB_HOST } from '../../claude-desktop-extension/src/host';
 
 import {
   ACCOUNT_PARAM,
@@ -60,10 +61,10 @@ function recordingMcpServer() {
 
 describe('Claude Desktop extension', () => {
   it('registers an MCP tool for every capability', async () => {
-    const { registerAllTools } = await import('../../claude-desktop-extension/src/tools');
+    const { registerAllTools } = await import('../mcp-server/tools');
     const server = recordingMcpServer();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    registerAllTools(server as any);
+    registerAllTools(server as any, MCPB_HOST);
 
     const registered = server.tools.map((t) => t.name);
     const missing = ALL.filter((id) => !registered.includes(id));
@@ -71,10 +72,10 @@ describe('Claude Desktop extension', () => {
   });
 
   it('registers each tool exactly once', async () => {
-    const { registerAllTools } = await import('../../claude-desktop-extension/src/tools');
+    const { registerAllTools } = await import('../mcp-server/tools');
     const server = recordingMcpServer();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    registerAllTools(server as any);
+    registerAllTools(server as any, MCPB_HOST);
 
     const names = server.tools.map((t) => t.name);
     const duplicated = names.filter((n, i) => names.indexOf(n) !== i);
@@ -82,10 +83,10 @@ describe('Claude Desktop extension', () => {
   });
 
   it('keeps the account-management meta tools that only this client has', async () => {
-    const { registerAllTools } = await import('../../claude-desktop-extension/src/tools');
+    const { registerAllTools } = await import('../mcp-server/tools');
     const server = recordingMcpServer();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    registerAllTools(server as any);
+    registerAllTools(server as any, MCPB_HOST);
 
     const names = server.tools.map((t) => t.name);
     // Credentials live on this machine and setup happens in chat, so these
@@ -102,10 +103,10 @@ describe('Claude Desktop extension', () => {
   });
 
   it('gives every capability tool the registry’s account parameter plus its own declared ones', async () => {
-    const { registerAllTools } = await import('../../claude-desktop-extension/src/tools');
+    const { registerAllTools } = await import('../mcp-server/tools');
     const server = recordingMcpServer();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    registerAllTools(server as any);
+    registerAllTools(server as any, MCPB_HOST);
 
     for (const capability of CAPABILITIES) {
       const tool = server.tools.find((t) => t.name === capability.id);
@@ -122,10 +123,10 @@ describe('Claude Desktop extension', () => {
   });
 
   it('marks reads and public lookups read-only, and everything else destructive', async () => {
-    const { registerAllTools } = await import('../../claude-desktop-extension/src/tools');
+    const { registerAllTools } = await import('../mcp-server/tools');
     const server = recordingMcpServer();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    registerAllTools(server as any);
+    registerAllTools(server as any, MCPB_HOST);
 
     for (const capability of CAPABILITIES) {
       const tool = server.tools.find((t) => t.name === capability.id)!;
@@ -216,11 +217,11 @@ describe('the account selector', () => {
   // registry exists to kill, so the parity test now watches it too.
 
   it('is spelled the same in the extension and the mobile app', async () => {
-    const { registerAllTools } = await import('../../claude-desktop-extension/src/tools');
+    const { registerAllTools } = await import('../mcp-server/tools');
     const { TOOLS } = await import('../../expo-app/src/lib/ai/tool-catalog');
     const server = recordingMcpServer();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    registerAllTools(server as any);
+    registerAllTools(server as any, MCPB_HOST);
 
     const extensionTool = server.tools.find((t) => t.name === 'get_profile')!;
     const mobileTool = TOOLS.find((t) => t.name === 'get_profile')!;
@@ -317,7 +318,7 @@ describe('rendersMedia', () => {
     // The extension resolves its post-processing off the flag. If someone
     // reintroduced an id check, flipping the flag off would stop mattering.
     const source = await Bun.file(
-      new URL('../../claude-desktop-extension/src/tools.ts', import.meta.url).pathname,
+      new URL('../mcp-server/tools.ts', import.meta.url).pathname,
     ).text();
     expect(source).toContain('capability.rendersMedia');
     expect(source).not.toContain("capability.id === 'download_imaging_study'");
@@ -340,7 +341,7 @@ describe('returnsFile', () => {
     expect(files.some((c) => c.rendersMedia)).toBe(false);
 
     for (const client of [
-      '../../claude-desktop-extension/src/tools.ts',
+      '../mcp-server/tools.ts',
       '../../cli/cli/capabilityActions.ts',
       '../../expo-app/src/lib/scrapers/session-manager.ts',
     ]) {
@@ -373,7 +374,7 @@ describe('capability dispatch', () => {
   // What remains here is the positive half — that each client actually calls
   // the guarded entry point — which the type system cannot express.
   const CLIENT_SOURCES = [
-    'clients/claude-desktop-extension/src/tools.ts',
+    'clients/shared/mcp-server/tools.ts',
     'clients/expo-app/src/lib/scrapers/session-manager.ts',
     'clients/cli/cli/capabilityActions.ts',
   ];
@@ -744,10 +745,10 @@ describe('the browser demo', () => {
 
 describe('the output mode', () => {
   it('is offered by the extension on exactly the capabilities that have a processor', async () => {
-    const { registerAllTools } = await import('../../claude-desktop-extension/src/tools');
+    const { registerAllTools } = await import('../mcp-server/tools');
     const server = recordingMcpServer();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    registerAllTools(server as any);
+    registerAllTools(server as any, MCPB_HOST);
     for (const capability of CAPABILITIES) {
       const shape = server.tools.find((t) => t.name === capability.id)!.config.inputSchema as Record<string, unknown>;
       expect(Object.keys(shape).includes(MODE_PARAM.name)).toBe(acceptsModeParam(capability));

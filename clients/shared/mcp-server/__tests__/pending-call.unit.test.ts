@@ -5,9 +5,10 @@
  * milliseconds; the 10-minute cap is exercised by moving the clock.
  */
 import { afterEach, beforeEach, describe, expect, it, setSystemTime } from 'bun:test';
+import { TEST_HOST } from './host';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import { CAPABILITIES } from '../../../shared/capabilities';
+import { CAPABILITIES } from '../../capabilities';
 import { DetailedError } from '../../../../shared/detailedError';
 import { CHECK_TOOL, MAX_RUN_MS, checkPendingCall, resetPendingCalls, runGuarded, unsettledCallOnAccount } from '../pending-call';
 
@@ -211,7 +212,7 @@ describe('registered through the server', () => {
       registerTool: (name: string, _config: unknown, handler: Handler) => {
         tools.set(name, handler);
       },
-    } as unknown as McpServer);
+    } as unknown as McpServer, TEST_HOST);
 
     const d = deferred();
     const id = idOf(await runGuarded('get_billing', ACCOUNT, d.fn, 5));

@@ -12,6 +12,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
+import { TEST_HOST } from './host';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { registerAllTools } from '../tools';
 
@@ -31,7 +32,7 @@ function captureTools(): Map<string, RegisteredTool> {
       tools.set(name, { config, handler });
     },
   } as unknown as McpServer;
-  registerAllTools(server);
+  registerAllTools(server, TEST_HOST);
   return tools;
 }
 

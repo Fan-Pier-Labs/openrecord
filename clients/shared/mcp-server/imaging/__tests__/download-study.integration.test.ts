@@ -14,7 +14,7 @@
 import { describe, it, expect, beforeAll } from 'bun:test';
 import { myChartUserPassLogin } from '../../../../../scrapers/myChart/auth/login';
 import { getImagingResults } from '../../../../../scrapers/myChart/chart/labs/labResults';
-import { decodeImageId } from '../../../../shared/capabilities';
+import { decodeImageId } from '../../../capabilities';
 import type { MyChartRequest } from '../../../../../scrapers/myChart/core/myChartRequest';
 import { downloadStudyJpegs } from '../download-study';
 

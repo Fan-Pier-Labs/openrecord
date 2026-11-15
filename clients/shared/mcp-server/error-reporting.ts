@@ -2,7 +2,7 @@
 
 import * as os from 'os';
 import * as Sentry from '@sentry/node';
-import { version as MCPB_VERSION } from '../manifest.json';
+import { telemetryApp } from '../../../shared/telemetry';
 
 /** The openrecord-2 Sentry project. Public by design: a DSN only lets a client send events. */
 const SENTRY_DSN = 'https://ef29f66fb6933cd8350543c371a66e6a@o4509283904323584.ingest.us.sentry.io/4512317698080768';
@@ -45,9 +45,10 @@ let startedWith: string | undefined;
 
 function start(dsn: string): void {
   if (startedWith === dsn) return;
+  const app = telemetryApp();
   Sentry.initWithoutDefaultIntegrations({
     dsn,
-    release: `openrecord-mcpb@${MCPB_VERSION}`,
+    ...(app ? { release: `openrecord-${app.name}@${app.version}` } : {}),
     // Errors only, and nothing collected on the side. The default integrations
     // would add breadcrumbs of every console line and outgoing request — that is
     // scraper logs and MyChart URLs — and runtime patching of loaded modules.

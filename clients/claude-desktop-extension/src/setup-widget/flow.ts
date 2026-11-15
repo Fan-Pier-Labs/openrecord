@@ -1,6 +1,6 @@
 // Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
 
-import type { ScanResult } from '../browser-import';
+import type { ScanResult } from '../../../shared/mcp-server/browser-import';
 import type { MyChartDirectoryMatch } from '../../../../scrapers/list-all-mycharts/searchDirectory';
 import { isSyncableVisit, type SyncVisit } from '../google-calendar/events';
 
@@ -40,15 +40,7 @@ export interface Connected {
   passkey: PasskeyOutcome;
 }
 
-/**
- * What the user does to let the scan read a browser macOS blocked. Lives here,
- * not beside the scan, so the widget bundle can use it; the tool relays it too.
- */
-export const FULL_DISK_ACCESS_STEPS = [
-  'Open System Settings → Privacy & Security → Full Disk Access.',
-  'Turn on Claude. If it is not listed, click +, choose Claude from Applications, then turn it on.',
-  'Quit Claude completely and reopen it, then import again.',
-];
+export { FULL_DISK_ACCESS_STEPS } from '../../../shared/mcp-server/full-disk-access';
 
 interface Scanned {
   supported: boolean;

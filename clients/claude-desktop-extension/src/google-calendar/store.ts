@@ -11,8 +11,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-import { _paths } from '../credential-store';
-import { clearSecret, readSecret, writeSecret, type FileSlot } from '../secret-store';
+import { _paths } from '../../../shared/mcp-server/credential-store';
+import { clearSecret, readSecret, writeSecret, type FileSlot } from '../../../shared/mcp-server/secret-store';
 
 const STATE_PATH = path.join(_paths.ROOT, 'google-calendar.json');
 const TOKEN_FILE = path.join(_paths.ROOT, 'google-calendar-token.json');

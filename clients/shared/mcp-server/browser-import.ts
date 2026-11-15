@@ -15,7 +15,7 @@
  * prompt, which is the consent gate for the scan itself.
  */
 
-import { blockedBrowsers, findMyChartCandidates, isSupportedPlatform, type MyChartCandidate } from '../../shared/read-local-passwords/index';
+import { blockedBrowsers, findMyChartCandidates, isSupportedPlatform, type MyChartCandidate } from '../read-local-passwords/index';
 
 /**
  * Scanned credentials, held only long enough for the user to choose one.

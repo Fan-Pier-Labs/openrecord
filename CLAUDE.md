@@ -131,7 +131,7 @@ Details — the coverage gate, CI integration setup, known gaps: [`docs/testing.
 
 - **NEVER modify or delete anything in the macOS Keychain or a browser keychain that we did not
   create.** Read-only is OK. The sole exception is the MCPB's own items under service
-  `openrecord-mcpb`, which `clients/claude-desktop-extension/src/secret-store.ts` owns outright.
+  `openrecord-mcpb`, which `clients/shared/mcp-server/secret-store.ts` owns outright.
 - **Repair a passkey's `signCount` by +1, never a round number** — it must equal what the server
   last accepted ([`docs/cli.md`](docs/cli.md#sign-count)).
 - **NEVER make changes in AWS without explicit user direction.** No `create-*`/`delete-*`/`update-*`/

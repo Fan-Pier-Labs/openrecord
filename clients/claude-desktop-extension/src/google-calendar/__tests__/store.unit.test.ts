@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it } from 'bun:test';
 import * as os from 'node:os';
 import path from 'node:path';
 
-import * as memfs from '../../__tests__/memfs';
+import * as memfs from '../../../../shared/mcp-server/__tests__/memfs';
 
 const store = await import('../store');
 const ROOT = path.join(os.homedir(), '.openrecord-mcpb');

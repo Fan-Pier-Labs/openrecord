@@ -6,6 +6,7 @@
  * the real tool handlers against fake-mychart; only the browser scan is faked.
  */
 import { describe, it, expect, beforeAll, afterAll, mock } from 'bun:test'
+import { TEST_HOST } from './host';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { resetFakeMyChart } from '../../../../scrapers/myChart/__tests__/fake-mychart/mountMode'
 import * as memfs from './memfs'
@@ -24,7 +25,7 @@ const saved = (key: string, pass: string, source: string) => ({
 })
 
 // The stale password comes first, so a pass proves the second one was tried.
-void mock.module('../../../shared/read-local-passwords/index', () => ({
+void mock.module('../../read-local-passwords/index', () => ({
   isSupportedPlatform: () => true,
   findMyChartCandidates: async () => [saved('stale1111', 'not-the-password', 'Chrome'), saved('fresh2222', 'donuts123', 'Firefox')],
   blockedBrowsers: () => [],
@@ -45,7 +46,7 @@ registerAllTools({
   registerTool: (name: string, _config: unknown, handler: Handler) => {
     tools.set(name, handler)
   },
-} as unknown as McpServer)
+} as unknown as McpServer, TEST_HOST)
 const call = async (name: string, args: Record<string, unknown> = {}) => JSON.parse((await tools.get(name)!(args)).content[0]!.text)
 
 beforeAll(async () => {

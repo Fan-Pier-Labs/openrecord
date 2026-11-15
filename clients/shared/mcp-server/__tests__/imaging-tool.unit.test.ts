@@ -10,12 +10,13 @@
  * result builder writes nothing unless it is told to.
  */
 import { describe, expect, test } from 'bun:test';
+import { TEST_HOST } from './host';
 import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { registerAllTools, imagingResult } from '../tools';
-import type { StudyImagePayload } from '../../../shared/capabilities';
+import type { StudyImagePayload } from '../../capabilities';
 import { encodePixelFile } from '../../../../scrapers/myChart/clo-image-parser/generate_clo';
 
 type RegisteredTool = { config: { inputSchema?: Record<string, unknown> } };
@@ -27,7 +28,7 @@ function captureTools(): Map<string, RegisteredTool> {
       tools.set(name, { config });
     },
   } as unknown as McpServer;
-  registerAllTools(server);
+  registerAllTools(server, TEST_HOST);
   return tools;
 }
 

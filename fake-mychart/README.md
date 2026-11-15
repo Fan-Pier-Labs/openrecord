@@ -638,7 +638,7 @@ study stays clean so both shapes are covered.
 
 ### Coverage in CI
 
-`clients/claude-desktop-extension/src/imaging/__tests__/encode.unit.test.ts` exercises the CLO fixtures directly, and the `integration` CI job runs every `*.integration.test.ts` in the repo — the scraper suites, the desktop extension and clients/cli included — against a live instance of this server.
+`clients/shared/mcp-server/imaging/__tests__/encode.unit.test.ts` exercises the CLO fixtures directly, and the `integration` CI job runs every `*.integration.test.ts` in the repo — the scraper suites, the desktop extension and clients/cli included — against a live instance of this server.
 
 ## The mychart.org Directory
 
