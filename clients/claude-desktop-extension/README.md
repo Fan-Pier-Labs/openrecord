@@ -27,7 +27,7 @@ In Claude Desktop, Claude shows an inline **step-based setup widget**
 (`get_setup_widget`). It opens on a choice between two routes, and connects
 accounts **one at a time**: nearly every portal asks for a 2FA code, so each
 account runs to the end before the next is offered. The full flow is diagrammed
-in [`docs/mcpb-setup-flow.md`](../docs/mcpb-setup-flow.md).
+in [`docs/mcpb-setup-flow.md`](../../docs/mcpb-setup-flow.md).
 
 **Import from your browser** (the easier one):
 
@@ -126,7 +126,7 @@ Or skip typing a password entirely, if your browser already has one saved:
 Anything it cannot confirm is left out rather than guessed at — use
 `setup_account` for those, or run the import again later if a portal was
 temporarily unreachable. See
-[`clients/shared/read-local-passwords/README.md`](../read-local-passwords/README.md) for what is
+[`clients/shared/read-local-passwords/README.md`](../shared/read-local-passwords/README.md) for what is
 read and how confirmation works.
 3. **`complete_2fa(pending_id, code)`** — if MyChart requires 2FA, Claude
    asks you for the 6-digit code.
@@ -189,7 +189,7 @@ done** when the accounts have appointments to sync; otherwise ask Claude to
   (`resolveSessionWithoutUser`), so it never makes MyChart send a 2FA code:
   nobody is there to type one. An account that has only a password and hits
   2FA fails with a hint to save a passkey. See
-  [`docs/login-modes.md`](../docs/login-modes.md).
+  [`docs/login-modes.md`](../../docs/login-modes.md).
 - **When a sync fails, three tries, then stop.** Any failure counts: a sign-in
   MyChart refuses, a network error, Google, or a run that crashed or hit the
   10-minute timeout. A failure is retried at the next four-hour sync. The third
@@ -292,7 +292,7 @@ unsupported and points at the saved copy.
 
 Viewing never writes to disk; only asking for a copy does. The decode runs here,
 on your machine either way: MyChart serves imaging as proprietary CLO, which
-[`scrapers/myChart/clo-image-parser/`](../scrapers/myChart/clo-image-parser/)
+[`scrapers/myChart/clo-image-parser/`](../../scrapers/myChart/clo-image-parser/)
 turns into pixels.
 
 ### Saving what Claude writes: `save_file`
@@ -370,9 +370,9 @@ Every read tool takes an optional `mode`:
 
 Claude asks for `standard`, `json` or `raw` by name when a concise answer is
 missing something. The field decisions per capability are in
-[`docs/processor-layer-proposal.md`](../docs/processor-layer-proposal.md);
+[`docs/processor-layer-proposal.md`](../../docs/processor-layer-proposal.md);
 example output in every mode is in
-[`docs/processor-layer-examples.md`](../docs/processor-layer-examples.md).
+[`docs/processor-layer-examples.md`](../../docs/processor-layer-examples.md).
 
 ## Privacy Policy
 

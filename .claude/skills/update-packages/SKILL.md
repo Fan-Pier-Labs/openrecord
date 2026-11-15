@@ -20,13 +20,14 @@ find . -name "package.json" \
 
 You should see (at minimum):
 - `./package.json` (root)
-- `./npm-package/package.json`
+- `./clients/npm-package/package.json`
 - `./shared/package.json`
 - `./scrapers/package.json`
 - `./scrapers/myChart/clo-image-parser/package.json`
-- `./claude-desktop-extension/package.json`
+- `./clients/shared/package.json`
+- `./clients/claude-desktop-extension/package.json`
 - `./fake-mychart/package.json`
-- `./expo-app/package.json`
+- `./clients/expo-app/package.json`
 - `./openrecord-splash/demo/package.json`
 - `./openrecord-demo-lambda/package.json`
 
@@ -66,7 +67,7 @@ Known anchors in this repo (verify each before deciding the target — these con
   - `@typescript-eslint/*` packages must be on the same minor version as each other.
 - **AWS SDK v3 (`@aws-sdk/*`)** — bump all `@aws-sdk/*` packages to the same version in lockstep.
 - **Sentry (`@sentry/*`)** — bump all `@sentry/*` packages to the same version in lockstep.
-- **@modelcontextprotocol/sdk** — check that the MCP server code in `clients/claude-desktop-extension/` is compatible with the new SDK shape before bumping.
+- **@modelcontextprotocol/sdk** — check that the MCP server code in `clients/shared/mcp-server/` is compatible with the new SDK shape before bumping.
 
 If the latest version of an anchor package isn't yet compatible with a peer's latest, **pick the highest mutually-compatible set** — that may mean staying one minor behind on either side. Document the constraint in the PR description so a reviewer understands why.
 
@@ -76,10 +77,11 @@ Edit each `package.json` with the new versions. Then reinstall in each workspace
 
 ```bash
 bun install                              # root
-cd clients/npm-package && bun install && cd ..
+cd clients/npm-package && bun install && cd ../..
 cd fake-mychart && bun install && cd ..
-cd clients/expo-app && bun install && cd ..
-cd clients/claude-desktop-extension && bun install && cd ..
+cd clients/expo-app && bun install && cd ../..
+cd clients/shared && bun install && cd ../..
+cd clients/claude-desktop-extension && bun install && cd ../..
 ```
 
 (Only the workspaces with their own `bun.lock` / `package-lock.json` / `yarn.lock` need a dedicated install — check for a lockfile in each folder first.)
