@@ -329,6 +329,11 @@ describe('listPasskeys', () => {
     expect(await listPasskeys(req)).toEqual(passkeys)
   })
 
+  it('returns the passkeys from a response that wraps them in data', async () => {
+    const { req } = createMockRequest(listRoutes(() => jsonResponse({ success: true, data: { passkeys, lastAuthentication: { hasAuthenticated: true } } })), { hostname: HOSTNAME })
+    expect(await listPasskeys(req)).toEqual(passkeys)
+  })
+
   it('returns an empty list — not null — when the account has no passkeys', async () => {
     // Callers distinguish "none registered" from "could not ask"; collapsing
     // the two would make an error look like an empty account.

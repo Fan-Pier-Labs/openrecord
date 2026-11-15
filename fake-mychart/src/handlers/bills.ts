@@ -25,6 +25,9 @@ import { prefix, type ExactRoutes, type PatternRoute } from './types';
  * 25-stub capture), and reproducing it is the whole point — the earlier
  * fixture echoed the handle back, which let a key-based join pass every test
  * here while returning `"$0.00"` for 25 of 45 real visits.
+ *
+ * A handle with no hydrated row in the dataset gets an empty answer, which is
+ * what a live instance sends for a stub it will not load.
  */
 function hydrateRequested(
   body: string,
@@ -99,6 +102,9 @@ export const billsPost: ExactRoutes = {
 export const billsPostPatterns: readonly PatternRoute[] = [
   prefix('billing/details/getmorevisits', async ({ request, ds }) => {
     const rows = hydrateRequested(await request.text(), ds.billingVisits, ds.billingHydratedVisits ?? []);
-    return json(conformToShape(shapes.billingGetVisits, { Success: true, Data: { UnifiedVisitList: rows } }));
+    // A stub with no hydrated row is answered the way a live instance answers
+    // a stub it will not load: success, an empty list, `HasVisits: false`.
+    const data = rows.length > 0 ? { UnifiedVisitList: rows } : { UnifiedVisitList: [], HasVisits: false };
+    return json(conformToShape(shapes.billingGetVisits, { Success: true, Data: data }));
   }),
 ];

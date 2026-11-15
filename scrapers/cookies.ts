@@ -29,7 +29,7 @@ export async function cookieHeaderFor(jar: CookieJar, url: string): Promise<stri
  *
  * Two paths because the runtimes disagree. Node/undici and Bun expose
  * `Headers.getSetCookie()`, which keeps the headers as separate strings.
- * React Native's `Headers` (RN 0.86 still ships the whatwg-fetch shim) has no
+ * React Native's `Headers` (RN 0.88 still ships the whatwg-fetch shim) has no
  * such method and folds them into one comma-joined string — so they have to be
  * split back apart on the commas that separate cookies rather than the ones
  * inside an `Expires=Wed, 09 Jun 2027 …` date. Looking ahead for a `name=` is

@@ -72,6 +72,19 @@ describe('looksLikeSignedOutPage', () => {
   it('does not match an authenticated page that carries a verification token and the Epic footer', () => {
     expect(looksLikeSignedOutPage(AUTHENTICATED_PAGE_HTML)).toBe(false);
   });
+
+  it('matches isPrelogin as a body class token on its own', () => {
+    expect(looksLikeSignedOutPage('<html><body class="isPrelogin">Login</body></html>')).toBe(true);
+    expect(looksLikeSignedOutPage("<html><body class='md_layout isPrelogin hasHeader'></body></html>")).toBe(true);
+  });
+
+  it('does not match an authenticated page whose routing JSON says "isPrelogin":false', () => {
+    const html = `<!DOCTYPE html><html><body>
+  <script>var config = {"routing":{"isPrelogin":false,"activity":"home"}};</script>
+  <input name="__RequestVerificationToken" type="hidden" value="fake-csrf" />
+</body></html>`;
+    expect(looksLikeSignedOutPage(html)).toBe(false);
+  });
 });
 
 describe('makeAuthenticatedRequest', () => {

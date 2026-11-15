@@ -1,0 +1,55 @@
+name: Publish to the MCP Registry
+# Lists a Claude Desktop extension release on registry.modelcontextprotocol.io.
+# Started by deploy.sh as its last step, never by the release being published:
+# a re-run of a failed deploy replaces the release's bundle, and the registry
+# cannot be corrected afterwards — a published version is immutable, so it
+# would keep the first attempt's hash and clients would refuse the download.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to publish, e.g. mcpb-v2.3.0
+        required: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      # OIDC is what grants the io.github.Fan-Pier-Labs/* namespace; the
+      # interactive `login github` cannot publish to an organization namespace.
+      id-token: write
+      contents: read
+    env:
+      TAG: ${{ inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install mcp-publisher
+        run: |
+          curl -fsSL -o mcp-publisher.tar.gz https://github.com/modelcontextprotocol/registry/releases/download/v1.8.9/mcp-publisher_linux_amd64.tar.gz
+          echo "4d527ca8f1ced0394c962dc925c2a4a4addef441cbefd62501c875e9481823a8  mcp-publisher.tar.gz" | sha256sum -c -
+          tar xzf mcp-publisher.tar.gz mcp-publisher
+      # The registry stores the hash but never checks it; clients refuse to
+      # install a bundle whose bytes don't match, so it has to come from the
+      # asset actually attached to the release. The npm entry takes the
+      # mychart-cli version in the repo at that tag, which must already be on
+      # npm: the registry checks it exists and that its mcpName matches.
+      - name: Point server.json at this release
+        working-directory: clients/claude-desktop-extension
+        run: |
+          gh release download "$TAG" --pattern openrecord.mcpb --dir "$RUNNER_TEMP"
+          jq --arg v "${TAG#mcpb-v}" \
+             --arg url "https://github.com/${{ github.repository }}/releases/download/$TAG/openrecord.mcpb" \
+             --arg sha "$(sha256sum "$RUNNER_TEMP/openrecord.mcpb" | cut -d' ' -f1)" \
+             --arg npm "$(jq -r .version ../npm-package/package.json)" \
+             '.version = $v
+              | (.packages[] | select(.registryType == "mcpb")) |= (.identifier = $url | .fileSha256 = $sha)
+              | (.packages[] | select(.registryType == "npm")).version = $npm' \
+             server.json > "$RUNNER_TEMP/server.json"
+          mv "$RUNNER_TEMP/server.json" server.json
+          cat server.json
+      - name: Publish
+        working-directory: clients/claude-desktop-extension
+        run: |
+          ../../mcp-publisher login github-oidc
+          ../../mcp-publisher publish

@@ -14,12 +14,15 @@ import type { FilePayload } from '../../core/filePayload';
 import { safeFileName } from '../../core/safeFileName';
 import { parseBillingAccountsHtml } from './summaryHtml';
 import { VISIT_LIST_CATEGORIES, billingProcessor, isStubRow, statementDateISO, type BillingStandard } from './bills.processor';
+import { DetailedError } from '../../../../shared/detailedError';
 
 export { parsePaymentUrl, parseBillingAccountsHtml, parseAmount } from './summaryHtml';
 export type {
   BillingStandard,
   BillingAccountStandard,
   BillingVisitStandard,
+  BillingUnloadedVisitStandard,
+  BillingUnloadedReason,
   BillingVisitCategory,
   BillingStatementStandard,
   BillingPaymentStandard,
@@ -27,7 +30,7 @@ export type {
   BillingProcedureGroupStandard,
   BillingCoverageInfoStandard,
 } from './bills.processor';
-export { billingProcessor, mergeVisitLists, VISIT_LIST_CATEGORIES, BillingNotFullyLoadedError } from './bills.processor';
+export { billingProcessor, mergeVisitLists, VISIT_LIST_CATEGORIES } from './bills.processor';
 
 // Two jobs live here: the `get_billing` read (fetchBillingRaw + the
 // processor) and the `download_billing_statement` file download, which
@@ -103,9 +106,13 @@ function moreVisitsBody(account: BillingAccount, keys: HydrateKey[]): string {
  * comes back is the answer to the single handle that was posted, and a
  * request that fails names exactly the visit it failed for.
  *
- * Best-effort here, but not silently: the processor throws if any row is
- * still a stub once the answers are merged, because a stub's fabricated
- * `"$0.00"` is indistinguishable from a settled visit.
+ * Best-effort here, but not silently: a stub still unloaded once the answers
+ * are merged goes to `unloadedVisits` with a `notice`, never to `visits`,
+ * because a stub's fabricated `"$0.00"` is indistinguishable from a settled
+ * visit. A request that fails, or answers without `Success: true`, is tried
+ * once more first, so `not_loaded` means it failed twice. An empty success is
+ * not retried: on the one instance that sends it, it was the same answer
+ * every time.
  */
 async function hydrateStubs(
   collector: RawCollector,
@@ -130,20 +137,23 @@ async function hydrateStubs(
 
   await Promise.all(
     [...byHandle.values()].map(async (key) => {
-      const { failure } = await collector.send(
-        {
-          path: `${GET_MORE_VISITS_PATH}?noCache=${Math.random()}`,
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-            'X-Requested-With': 'XMLHttpRequest',
-            __RequestVerificationToken: token,
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        const { failure, body } = await collector.send(
+          {
+            path: `${GET_MORE_VISITS_PATH}?noCache=${Math.random()}`,
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+              'X-Requested-With': 'XMLHttpRequest',
+              __RequestVerificationToken: token,
+            },
+            body: moreVisitsBody(account, [key]),
           },
-          body: moreVisitsBody(account, [key]),
-        },
-        { tolerateFailure: true },
-      );
-      if (failure) logger.debug(`Billing: GetMoreVisits failed for ${account.guarantorNumber}: ${failure.message}`);
+          { tolerateFailure: true },
+        );
+        if (!failure && rec(body).Success === true) return;
+        logger.debug(`Billing: GetMoreVisits attempt ${attempt} failed for ${account.guarantorNumber}: ${failure?.message ?? 'Success was not true'}`);
+      }
     }),
   );
 }
@@ -257,6 +267,7 @@ async function findStatement(
   const summary = await makeAuthenticatedRequest(mychartRequest, { path: '/Billing/Summary' });
   const accounts = parseBillingAccountsHtml(await summary.text(), mychartRequest.hostname);
   const seen: string[] = [];
+  const seenByAccount: string[] = [];
   for (const account of accounts) {
     const statementList = await getStatementList(mychartRequest, account);
     const statements = [
@@ -266,11 +277,14 @@ async function findStatement(
     const statement = statements.find((s) => s.RecordID === recordId);
     if (statement) return { account, statement };
     const ids = statements.map((s) => s.RecordID).filter(Boolean);
-    if (ids.length) seen.push(`account ${account.guarantorNumber}: ${ids.join(', ')}`);
+    seen.push(...ids);
+    if (ids.length) seenByAccount.push(`account ${account.guarantorNumber}: ${ids.join(', ')}`);
   }
-  throw new Error(
-    `No billing statement has RecordID "${recordId}". get_billing lists each statement's RecordID; ` +
-      (seen.length ? `the statements on this login are — ${seen.join('; ')}.` : 'this login has no statements on any account.'),
+  const lead = `No billing statement has RecordID "${recordId}". get_billing lists each statement's RecordID; `;
+  if (!seen.length) throw new Error(lead + 'this login has no statements on any account.');
+  throw new DetailedError(
+    lead + `the RecordIDs on this login are ${seen.join(', ')}.`,
+    lead + `the statements on this login are — ${seenByAccount.join('; ')}.`,
   );
 }
 
@@ -289,13 +303,15 @@ export async function downloadBillingStatement(
   const { account, statement } = await findStatement(mychartRequest, recordId);
   const encId = await getEncBillingId(mychartRequest, account);
   if (!encId) {
-    throw new Error(
+    throw new DetailedError(
+      "MyChart's billing details page for this statement's account carried no EncID, which the statement download needs.",
       `MyChart's billing details page for account ${account.guarantorNumber} carried no EncID, which the statement download needs.`,
     );
   }
   const bytes = await saveStatementPdf(mychartRequest, encId, statement);
   if (bytes.subarray(0, 4).toString() !== '%PDF') {
-    throw new Error(
+    throw new DetailedError(
+      `MyChart did not return a PDF for statement ${recordId} (${bytes.length} bytes).`,
       `MyChart did not return a PDF for statement ${recordId} (${bytes.length} bytes, starting "${bytes.subarray(0, 40).toString().replace(/\s+/g, ' ')}").`,
     );
   }

@@ -1,12 +1,12 @@
 ---
 name: pr-demo-video
-description: Demo a pull request's changes on the PR itself — a recorded video for interactive surfaces (Playwright for web, the iOS simulator via maestro-cli + simctl for expo-app changes) posted as an embedded video comment, or a faithful terminal transcript for CLI/MCPB changes. Use whenever the user asks to demo a PR, record a video or screencast of a PR/feature/change, "show what this PR does", or post a demo to a pull request — even if they don't say "video" explicitly (e.g. "demo PR 123 and put it on the PR").
+description: Demo a pull request's changes on the PR itself — a recorded video for interactive surfaces (Playwright for web, the iOS simulator via maestro-cli + simctl for clients/expo-app changes) posted as an embedded video comment, or a faithful terminal transcript for CLI/MCPB changes. Use whenever the user asks to demo a PR, record a video or screencast of a PR/feature/change, "show what this PR does", or post a demo to a pull request — even if they don't say "video" explicitly (e.g. "demo PR 123 and put it on the PR").
 ---
 
 # PR Demo Video
 
 Given a PR number, understand what the PR changes, run the app with video recording —
-Playwright for web surfaces, the iOS simulator for `expo-app/` changes — drive a short
+Playwright for web surfaces, the iOS simulator for `clients/expo-app/` changes — drive a short
 demo of the change, convert the recording to mp4, and post it to the PR as an embedded
 video comment.
 
@@ -45,8 +45,8 @@ Pick the demo surface:
 | --- | --- |
 | `scrapers/`, `fake-mychart/`, capabilities, auth/session flows | fake-mychart UI at `localhost:4000` (login `homer`/`donuts123`, TOTP user `marge`/`donuts123`, code `123456`) |
 | `openrecord-splash/` | the splash (`index.html`) or the interactive demo (`/demo.html` via `npx vite` in `openrecord-splash/demo`) |
-| CLI / npm package / `claude-desktop-extension/` | a terminal transcript, not a video — see "CLI and MCPB demos" below |
-| `expo-app/` | the real app in the iOS simulator, driven by maestro-cli and recorded with `simctl` — skip Steps 2–3 below and follow "iOS demos" instead |
+| CLI / npm package / `clients/claude-desktop-extension/` | a terminal transcript, not a video — see "CLI and MCPB demos" below |
+| `clients/expo-app/` | the real app in the iOS simulator, driven by maestro-cli and recorded with `simctl` — skip Steps 2–3 below and follow "iOS demos" instead |
 | Pure refactor / CI / docs | often still demoable as "the flow still works" — if genuinely nothing can be shown, tell the user instead of forcing a pointless video |
 
 ## Step 2 — Check out the PR and start the app
@@ -137,9 +137,9 @@ ffmpeg -y -i <video.webm> -vf fps=1 /tmp/pr-demo-<N>-frames/f%03d.png
 Read several frames (start / middle / end). If the feature isn't clearly visible,
 fix the script and re-record. Iterate until the frames tell the PR's story.
 
-## iOS demos (expo-app changes)
+## iOS demos (clients/expo-app changes)
 
-When the PR touches `expo-app/`, demo the real app in the iOS simulator instead of a
+When the PR touches `clients/expo-app/`, demo the real app in the iOS simulator instead of a
 browser. The division of labor: **maestro-cli drives the app** (per the repo's
 simulator rules — one-shot commands, never multi-step YAML, never the macOS mouse) and
 **`xcrun simctl io recordVideo` records the screen** natively to h264. Playwright is
@@ -181,16 +181,16 @@ not involved.
 
 ## CLI and MCPB demos (terminal transcripts, not video)
 
-When the PR's user-visible surface is the CLI (`npm-package/`) or the desktop extension
-(`claude-desktop-extension/`), a video would just show a wall of text. Post a terminal
+When the PR's user-visible surface is the CLI (`clients/npm-package/`) or the desktop extension
+(`clients/claude-desktop-extension/`), a video would just show a wall of text. Post a terminal
 transcript instead: the real command and its real output in a `console` code block.
 It embeds better, it's searchable, and it's honest in a way a video can't be — anyone
 can rerun the command.
 
-- **CLI**: build it (`cd npm-package && bun run build`), start fake-mychart, then run
+- **CLI**: build it (`cd clients/npm-package && bun run build`), start fake-mychart, then run
   the actual command the PR affects, e.g.
   `bun run cli --host localhost:4000 --action <capability-id> --arg name=value`.
-- **MCPB**: build it (`cd claude-desktop-extension && bun run pack`), then drive
+- **MCPB**: build it (`cd clients/claude-desktop-extension && bun run pack`), then drive
   `dist/server.cjs` over MCP stdio — send `initialize`, `tools/list`, `tools/call` as
   JSON-RPC lines and capture the responses. Show the tool call and its result, not the
   whole handshake.
@@ -275,7 +275,7 @@ which GitHub account posted it.
 Lessons from real runs of the iOS path:
 
 - **`pod install` / build fails with `EncodingError` or "sandbox not in sync with
-  Podfile.lock"**: run `pod install` in `expo-app/ios` with
+  Podfile.lock"**: run `pod install` in `clients/expo-app/ios` with
   `LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8` set — CocoaPods crashes in a shell without a
   UTF-8 locale.
 - **The app can't reach `fake-mychart.fanpierlabs.com`**: the deployed instance may not

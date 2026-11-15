@@ -29,20 +29,23 @@ Raw `makeRequest` remains the transport for the pre-login world: mount discovery
 terms, keepalive pings. That is also what makes renewal deadlock-free — the renewal path itself
 only issues raw or `autoRenew: false` calls.
 
-## Silent login ladder (`scrapers/myChart/auth/silentLogin.ts`)
+## Login modes (`scrapers/myChart/auth/loginModes.ts`)
 
-The shared non-interactive login behind every client's `reauthenticate` hook: saved passkey (with
-WebAuthn signature-counter retry) → username/password → TOTP-secret 2FA. Anything needing a human
-returns a failure instead of blocking.
+One ladder — saved passkey (with WebAuthn signature-counter retry) → username/password →
+TOTP-secret 2FA — behind two functions split by who asked. `machineLogin` (renewal, background
+work) never makes MyChart send a 2FA code and answers `logged_in` / `needs_human` / `failed`.
+`humanLogin` (a person asked, including through a Claude tool call) may send one and returns the
+pending login for the caller to finish. A code may only be sent by a caller that can accept it
+afterwards. Diagrams of every trigger: [`login-modes.md`](login-modes.md).
 
-`wireSilentReauthentication(request, getParams, onRenewed?)` wires the hook. `getParams` runs at
+`wireSilentReauthentication(request, getParams, onRenewed?)` wires the hook to `machineLogin`. `getParams` runs at
 renewal time so credential stores are re-read fresh, and success adopts the fresh state onto the
 SAME request object via `MyChartRequest.adoptStateFrom` — login functions construct a new instance,
 and everything holding a reference mid-scrape has to keep working.
 
-Wired in all four clients: the CLI (`wireCliSessionRenewal` in `npm-package/cli/cli.ts`), the
-desktop extension (`manageSession` in `claude-desktop-extension/src/session-manager.ts`), the Expo
-app (`manageSession` in `expo-app/src/lib/scrapers/session-manager.ts`), and the npm library
+Wired in all four clients: the CLI (`wireCliSessionRenewal` in `clients/npm-package/cli/cli.ts`), the
+desktop extension (`manageSession` in `clients/shared/mcp-server/session-manager.ts`), the Expo
+app (`manageSession` in `clients/expo-app/src/lib/scrapers/session-manager.ts`), and the npm library
 (`MyChartClient` wires it from connect args; `autoRenew: false` opts out).
 
 ## Keepalive heartbeats (`scrapers/myChart/core/sessionStore.ts`)
@@ -51,11 +54,12 @@ The single keepalive implementation — the desktop extension's, Expo app's and 
 per-entry intervals were collapsed onto it. `makeAuthenticatedRequest` auto-registers a session
 after any successful authenticated request (`sessionStore.registerForKeepalive`, idempotent); pings
 hit `/Home/KeepAlive` + `/keepalive.asp` every 30s (MyChart's own cadence); the interval is
-`unref`'d so it never holds a process open; and a heartbeat that finds the session dead proactively
-renews through the same `reauthenticate` hook before marking it expired. Call
+`unref`'d so it never holds a process open; and a heartbeat that finds the session dead only marks
+it expired — it never signs in. The next real request renews on demand
+([`scrapers/myChart/core/README.md`](../scrapers/myChart/core/README.md#only-a-real-request-logs-back-in)). Call
 `sessionStore.unregister(request)` when a client discards a session.
 
-## Capability registry (`shared/capabilities/`)
+## Capability registry (`clients/shared/capabilities/`)
 
 **The single source of truth for what OpenRecord can do with a MyChart account.** One entry per
 capability — id, title, description, `kind` (`read` / `write` / `account` / `public`), parameter
@@ -64,7 +68,7 @@ from it and none hand-maintains a list: the desktop extension registers one MCP 
 mobile app puts one agent tool per entry in its prompt, the CLI gains `--action <id>`, and the npm
 client exposes `runCapability(id, args)`. Adding an entry here ships the capability everywhere.
 
-`shared/__tests__/capability-parity.unit.test.ts` reads each client's *real* surface — the tools the
+`clients/shared/__tests__/capability-parity.unit.test.ts` reads each client's *real* surface — the tools the
 MCP server registers, the mobile catalog, the CLI's dispatch, the library's methods — and fails the
 build if any stops covering an entry.
 `scrapers/myChart/__tests__/fake-mychart/capabilities.integration.test.ts` runs every capability
@@ -120,7 +124,7 @@ not compile for any client — the enforcement for "every dispatch goes through 
   the count they held back, and `--show-all` appends the rest under their own heading.
   `executeCapability` never looks at it, every client still registers every entry, and a hidden id
   still runs as `--action <id>` with the same arguments.
-  `npm-package/cli/__tests__/help.unit.test.ts` pins that down, and `capability-parity.unit.test.ts`
+  `clients/npm-package/cli/__tests__/help.unit.test.ts` pins that down, and `capability-parity.unit.test.ts`
   asserts `--show-all` still lists the whole registry.
 - **`CapabilityContext`** carries the per-account state that isn't on the MyChart session — the
   stored password, the saved TOTP secret, and the callbacks that persist new ones. Each client wires
@@ -150,7 +154,7 @@ not compile for any client — the enforcement for "every dispatch goes through 
   `capability-parity.unit.test.ts` fails if an id check reappears. The branch decides how to render
   the payload; it sits after the dispatch, never in place of it. The CLI never prints image
   bytes: it decodes each CLO to a JPEG in `./imaging-output` (override with `--output <dir>`) and
-  prints the file paths (`writeStudyImages` in `npm-package/cli/capabilityActions.ts`). The
+  prints the file paths (`writeStudyImages` in `clients/npm-package/cli/capabilityActions.ts`). The
   download always fetches **every** instance in the study — there is deliberately no
   `max_images` knob — and instances that answer CLOERROR are skipped, never returned as images:
   real eUnity studies can lead with `SeriesSelector` pseudo-instances that carry no pixel data,
@@ -171,11 +175,12 @@ not compile for any client — the enforcement for "every dispatch goes through 
   the extension, `instance` in the mobile app. Both now emit `account`; `readAccountArg` still
   accepts `instance` for the mobile alert cards and saved chats, and the parity test checks the
   spelling matches across clients.
-- **Name → object lookup is `shared/resolveUnique.ts`**, used by `send_message` and
+- **Name → object lookup is `clients/shared/resolveUnique.ts`**, used by `send_message` and
   `request_refill`. **Exact match first, then a unique partial** — a substring-only matcher rejects a
   perfectly correct name whenever another entry contains it ("Dr. Smith" against "Dr. Smithson"),
   telling the caller to be more specific about a name that could not have been. Ambiguity is always
-  an error listing the candidates. `resolveTopic` is the deliberate exception: an unmatched topic
+  an error whose detailed message lists the candidates; its message, which reaches error reporting,
+  names none, since they are the patient's providers or medications. `resolveTopic` is the deliberate exception: an unmatched topic
   falls back to the first one, because MyChart requires a topic and the category is cosmetic — but
   `send_message` returns `topic_used` and `topic_substituted` so the substitution is never silent.
 - **`shared/base64url.ts`** is the portable codec behind `image_id` — no `Buffer`, no `atob`,
@@ -303,10 +308,9 @@ Everything on the reading side is best-effort: unreachable, 404, not JSON, malfo
 either side that isn't semver are all `null`, meaning "couldn't tell", and a client shows nothing for
 `null`. "We could not reach the site" and "you are up to date" are different facts.
 
-**It honours `MYCHART_CLI_TELEMETRY_DISABLED`** (`isTelemetryDisabled`, shared with telemetry) and
-makes no request at all when it is set. It is a request to our own server on every run, so it puts
-the caller's IP and cadence in our CloudFront logs the same way an event does; someone who opted out
-of phoning home meant this too. It is disclosed in `readme.md` and on `privacy.html`.
+The CLI prints the notice once per run. The MCPB checks at startup and daily, and appends the notice
+to every tool result while it is behind (`clients/shared/mcp-server/update-notice.ts`) — a tool
+result is the only place it can reach the user.
 
 ## Per-host rate limiting (`shared/hostConcurrency.ts`)
 
@@ -325,6 +329,22 @@ once and deadlock against its own callers. `requestConcurrency.unit.test.ts` cov
 specifically; it times out if the permit is ever moved to wrap the whole call. Keys on the host
 actually being contacted, so a cross-host redirect gets its own budget instead of spending the
 vanity hostname's.
+
+## Error messages (`shared/detailedError.ts`)
+
+An error's `message` is what error reporting sends: Sentry, Amplitude and the analytics Lambda read
+only the name, message and stack. So a message never carries chart data — a family member's name,
+a document or attachment title, a provider or medication, a local file path, text from a MyChart
+page. When the full explanation needs it, throw a `DetailedError(message, detailedMessage)`: the
+message says what went wrong with ids and counts, and the detailed message is the explanation with
+the names in it. Every place that turns an error into text for Claude or the user — the MCPB's tool
+results, the CLI, the app's agent loop — goes through `detailedMessage(err)`, so Claude gets the
+same answer it always did.
+
+The split fails safe. A client that forgets `detailedMessage` shows Claude less; nothing reaches
+error reporting that was not put in `message`. A wrapping error carries its cause's detailed message
+forward in its own (`assertProxyReadContext` does). Errors thrown by libraries — a `JSON.parse`
+quoting the start of its input, say — are outside this, and land in reporting as they are.
 
 ## Mount discovery (`scrapers/myChart/auth/login.ts`)
 
@@ -360,9 +380,9 @@ rather than requiring a looked-up id.
 **All clients expose proxy support with the CLI's semantics.** The desktop extension and the mobile
 app share `scrapers/myChart/proxy/proxyTools.ts`, a thin client layer over `proxyContext.ts`:
 `runListProxyTargets` / `runSwitchProxyTarget` back the `list_proxy_targets` /
-`switch_proxy_target` agent tools (extension: `claude-desktop-extension/src/tools.ts`; app: declared
-in `expo-app/src/lib/ai/tool-catalog.ts`, dispatched in
-`expo-app/src/lib/scrapers/session-manager.ts`), and `assertProxyReadContext` gates every other data
+`switch_proxy_target` agent tools (extension: `clients/shared/mcp-server/tools.ts`; app: declared
+in `clients/expo-app/src/lib/ai/tool-catalog.ts`, dispatched in
+`clients/expo-app/src/lib/scrapers/session-manager.ts`), and `assertProxyReadContext` gates every other data
 tool.
 
 The guard caches one proxy discovery per session in a `WeakMap` keyed on the `MyChartRequest`, so a
@@ -377,8 +397,8 @@ a one-entry list is "nothing to switch", not an error.
 
 Tests: `scrapers/myChart/proxy/__tests__/proxyTools.unit.test.ts` (mocked),
 `scrapers/myChart/__tests__/fake-mychart/proxy.integration.test.ts` (end to end),
-`claude-desktop-extension/src/__tests__/proxy-tools.unit.test.ts` (registration shape),
-`expo-app/src/lib/ai/__tests__/tool-catalog.unit.test.ts` (declarations + write gating).
+`clients/shared/mcp-server/__tests__/proxy-tools.unit.test.ts` (registration shape),
+`clients/expo-app/src/lib/ai/__tests__/tool-catalog.unit.test.ts` (declarations + write gating).
 
 ## CLO image parser (`scrapers/myChart/clo-image-parser/`)
 
@@ -417,18 +437,18 @@ and had quietly stopped matching anything.
 
 ## Client notes
 
-- **CLI + npm package** (`npm-package/`) — `--action` accepts any capability id with repeated
+- **CLI + npm package** (`clients/npm-package/`) — `--action` accepts any capability id with repeated
   `--arg name=value`; `--help` prints usage plus the capability listing and `--list-capabilities`
   prints the listing alone. Both lead with the commonly-used capabilities and hold the rest behind
   `--show-all` (see `lessFrequentlyUsed` above). That dispatch, the listing and the help text live in
-  `npm-package/cli/capabilityActions.ts` and `npm-package/cli/help.ts` rather than `cli.ts`, because
+  `clients/npm-package/cli/capabilityActions.ts` and `clients/npm-package/cli/help.ts` rather than `cli.ts`, because
   `cli.ts` runs `main()` the moment it is imported and the tests have to import them.
   `runCapabilityAction` folds `--patient` into the args *after* coercion — the registry declares
   `patient`, not each capability, so coercing it would trip the unknown-argument check. The library
   exposes the same set as
   `MyChartClient.runCapability(id, args)` plus a typed method per capability. See
-  [`docs/cli.md`](cli.md) and `npm-package/README.md`.
-- **Claude Desktop extension** (`claude-desktop-extension/`) — `registerAllTools` (`src/tools.ts`)
+  [`docs/cli.md`](cli.md) and `clients/npm-package/README.md`.
+- **Claude Desktop extension** (`clients/claude-desktop-extension/`) and **`mychart-cli mcp`** — `registerAllTools` (`clients/shared/mcp-server/tools.ts`)
   hand-writes only the account-management meta tools (`list_accounts`, `setup_account`,
   `complete_2fa`, `disconnect_account`), which manage credentials on this machine
   and have no counterpart in the other clients; everything else is one MCP tool per registry entry,
@@ -440,18 +460,18 @@ and had quietly stopped matching anything.
   replaces or deletes the first one's login data: a hostname-keyed passkey would hand the previous
   user's WebAuthn credential to whoever registered last, and silent login would then read the wrong
   patient's chart. The account id tools accept is `username@hostname`, resolved by `lookupAccount`
-  in `src/credential-store.ts` on a perfect hostname + username match or not at all — no
+  in `clients/shared/mcp-server/credential-store.ts` on a perfect hostname + username match or not at all — no
   hostname-only or fuzzy fallback. `search_mycharts` is a registry capability rather than a meta
   tool, and offers a built-in **Springfield General Hospital (test)** instance pointing at
   `fake-mychart.fanpierlabs.com` (`SANDBOX_INSTANCE` in
-  `scrapers/list-all-mycharts/searchDirectory.ts`). See `claude-desktop-extension/README.md`.
-- **Mobile app** (`expo-app/`) — tools come from `src/lib/ai/tool-catalog.ts`, derived from the
+  `scrapers/list-all-mycharts/searchDirectory.ts`). See `clients/claude-desktop-extension/README.md`.
+- **Mobile app** (`clients/expo-app/`) — tools come from `src/lib/ai/tool-catalog.ts`, derived from the
   registry and kept free of React Native imports so tests can read it;
   `src/lib/scrapers/session-manager.ts` dispatches every one through `executeCapability`, and
   `executeAccountCapability` drives the `account`-kind ones from the settings screen. **AI requires
   Google sign-in — all providers, BYO keys included**, because signing in is what unlocks the
   $50/month included credit: the free tier POSTs to the OpenRecord AI Lambda with the user's Google
-  ID token attached (`backendUrl` in `expo-app/app.config.ts`, override with
+  ID token attached (`backendUrl` in `clients/expo-app/app.config.ts`, override with
   `EXPO_PUBLIC_BACKEND_URL`), and the Lambda verifies the token server-side — the client is never
   trusted about identity. Tokens live ~1h; `getFreshIdToken()`
   (`src/lib/backend/google-signin.ts`) silently re-signs-in to refresh. BYO-key providers call

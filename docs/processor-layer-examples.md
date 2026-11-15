@@ -36,7 +36,7 @@ so this script has nothing to run them against — see [`scrapers/npi/README.md`
 | `get_message_thread` | 3828 | 1489 | 1807 | 1140 |
 | `get_message_recipients` | 983 | 862 | 597 | 277 |
 | `get_message_topics` | 259 | 239 | 188 | 188 |
-| `get_billing` | 55420 | 7494 | 8723 | 2126 |
+| `get_billing` | 59551 | 8086 | 9350 | 2649 |
 | `get_insurance` | 2002 | 2056 | 2667 | 433 |
 | `get_insurance_benefits` | 35302 | 2862 | 3564 | 1562 |
 | `get_insurance_payers` | 1613 | 1936 | 2213 | 502 |
@@ -53,6 +53,8 @@ so this script has nothing to run them against — see [`scrapers/npi/README.md`
 | `get_ehi_export` | 524 | 165 | 195 | 122 |
 | `get_linked_accounts` | 1828 | 571 | 721 | 278 |
 | `get_emergency_contacts` | 2177 | 679 | 833 | 456 |
+| `get_notification_preferences` | 7107 | 4433 | 4879 | 839 |
+| `get_account_settings` | 8485 | 1283 | 1526 | 510 |
 
 ## Examples
 
@@ -14965,7 +14967,7 @@ Topics/categories a new message can be filed under.
 Billing history and account balances.
 
 <details>
-<summary><code>mode: raw</code> (55420 chars)</summary>
+<summary><code>mode: raw</code> (59551 chars)</summary>
 
 ```json
 {
@@ -14976,15 +14978,16 @@ Billing history and account balances.
       "status": 200,
       "contentType": "text/html; charset=utf-8",
       "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\" />\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n  <title>MyChart - Billing Details</title>\n  <style>\n* { margin: 0; padding: 0; box-sizing: border-box; }\nbody { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif; background: #f0f2f5; color: #1a1a2e; }\na { color: #1a6fa5; text-decoration: none; }\na:hover { text-decoration: underline; }\n\n/* Header */\n.mc-header { background: #1a5276; color: #fff; height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: fixed; top: 0; left: 0; right: 0; z-index: 100; }\n.mc-header .logo { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }\n.mc-header .logo span { color: #5dade2; }\n.mc-header .user-info { display: flex; align-items: center; gap: 16px; font-size: 14px; }\n.mc-header .user-info a { color: #aed6f1; }\n.mc-header .user-info a:hover { color: #fff; }\n\n/* Layout */\n.mc-layout { display: flex; margin-top: 56px; min-height: calc(100vh - 56px); }\n\n/* Sidebar */\n.mc-sidebar { width: 240px; background: #fff; border-right: 1px solid #dde; padding: 16px 0; position: fixed; top: 56px; bottom: 0; overflow-y: auto; }\n.mc-sidebar .nav-group { margin-bottom: 8px; }\n.mc-sidebar .nav-group-title { font-size: 11px; font-weight: 600; text-transform: uppercase; color: #888; padding: 8px 20px 4px; letter-spacing: 0.5px; }\n.mc-sidebar a { display: flex; align-items: center; gap: 10px; padding: 8px 20px; font-size: 14px; color: #333; transition: background 0.15s; }\n.mc-sidebar a:hover { background: #e8f4fd; text-decoration: none; }\n.mc-sidebar a.active { background: #d4eaf7; color: #1a5276; font-weight: 600; border-right: 3px solid #1a5276; }\n.mc-sidebar .nav-icon { width: 18px; text-align: center; font-size: 15px; }\n\n/* Main content */\n.mc-main { margin-left: 240px; flex: 1; padding: 24px 32px; min-width: 0; }\n.mc-main h1 { font-size: 24px; font-weight: 600; margin-bottom: 20px; color: #1a1a2e; }\n.mc-main h2 { font-size: 18px; font-weight: 600; margin: 20px 0 12px; color: #333; }\n\n/* Cards */\n.card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 16px 20px; margin-bottom: 12px; }\n.card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }\n.card h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }\n.card .meta { font-size: 13px; color: #666; margin-top: 4px; }\n.card .detail { font-size: 14px; color: #444; margin-top: 4px; }\n\n/* Grid cards */\n.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 20px; }\n.card-grid .card { margin-bottom: 0; }\n\n/* Dashboard cards */\n.dash-card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 20px; text-align: center; }\n.dash-card .dash-icon { font-size: 32px; margin-bottom: 8px; }\n.dash-card .dash-value { font-size: 24px; font-weight: 700; color: #1a5276; }\n.dash-card .dash-label { font-size: 13px; color: #666; margin-top: 4px; }\n\n/* Badges */\n.badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }\n.badge-red { background: #fde8e8; color: #c0392b; }\n.badge-yellow { background: #fef9e7; color: #b7950b; }\n.badge-green { background: #e8f8f5; color: #1e8449; }\n.badge-blue { background: #d4eaf7; color: #1a5276; }\n.badge-gray { background: #eee; color: #666; }\n\n/* Tables */\ntable { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; border: 1px solid #e0e0e0; margin-bottom: 16px; }\nth { background: #f7f8fa; text-align: left; padding: 10px 16px; font-size: 13px; font-weight: 600; color: #555; border-bottom: 2px solid #e0e0e0; }\ntd { padding: 10px 16px; font-size: 14px; border-bottom: 1px solid #f0f0f0; }\ntr:last-child td { border-bottom: none; }\ntr:hover td { background: #fafbfc; }\n.abnormal { color: #c0392b; font-weight: 600; }\n\n/* Messages */\n.msg-list { display: flex; flex-direction: column; gap: 2px; }\n.msg-item { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 14px 20px; cursor: pointer; transition: background 0.15s; }\n.msg-item:hover { background: #f0f7fd; }\n.msg-item.unread { border-left: 4px solid #1a5276; }\n.msg-subject { font-weight: 600; font-size: 15px; }\n.msg-preview { font-size: 13px; color: #666; margin-top: 2px; }\n.msg-meta { font-size: 12px; color: #999; margin-top: 4px; }\n.msg-thread { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; margin-top: 16px; display: none; }\n.msg-thread.visible { display: block; }\n.msg-bubble { padding: 12px 16px; border-radius: 12px; margin-bottom: 8px; max-width: 80%; }\n.msg-bubble.provider { background: #f0f2f5; align-self: flex-start; }\n.msg-bubble.patient { background: #d4eaf7; align-self: flex-end; margin-left: auto; }\n.msg-bubble .author { font-weight: 600; font-size: 13px; margin-bottom: 4px; }\n.msg-bubble .time { font-size: 11px; color: #888; margin-top: 4px; }\n.msg-bubble .body { font-size: 14px; line-height: 1.5; }\n\n/* Tabs */\n.tabs { display: flex; gap: 0; border-bottom: 2px solid #e0e0e0; margin-bottom: 20px; }\n.tab { padding: 10px 20px; font-size: 14px; font-weight: 500; color: #666; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s; }\n.tab:hover { color: #1a5276; }\n.tab.active { color: #1a5276; font-weight: 600; border-bottom-color: #1a5276; }\n\n/* Loading */\n.loading { text-align: center; padding: 40px; color: #888; }\n\n/* Print header (scraper compat) */\n.proxy-switcher { position: relative; }\n.proxy-switcher > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; background: #12405e; border: 1px solid #2e6f9c; color: #fff; padding: 6px 12px; border-radius: 999px; font-size: 14px; }\n.proxy-switcher > summary::-webkit-details-marker { display: none; }\n.proxy-switcher > summary:hover { background: #17527a; }\n.proxy-switcher > summary .proxy-switcher-label { color: #aed6f1; font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px; }\n.proxy-switcher > summary .proxy-switcher-caret { color: #aed6f1; font-size: 11px; }\n.proxy-switcher .proxySelectorDropDown { position: absolute; right: 0; top: calc(100% + 8px); background: #fff; border: 1px solid #dde; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.18); min-width: 260px; padding: 6px; z-index: 200; }\n.proxy-switcher .proxySubjectLink { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 6px; color: #1a1a2e; text-decoration: none; }\n.proxy-switcher .proxySubjectLink:hover { background: #eef4f9; text-decoration: none; }\n.proxy-switcher .proxySubjectLink.currentContext { background: #e8f4fb; font-weight: 600; }\n.proxy-switcher .proxySubjectLink.currentContext::after { content: 'Viewing'; font-size: 11px; color: #1a6fa5; font-weight: 600; }\n.proxy-switcher .proxy-switcher-heading { padding: 8px 12px 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; color: #888; }\n.printheader { font-size: 13px; color: #666; padding: 8px 0; margin-bottom: 16px; border-bottom: 1px solid #e0e0e0; }\n\n/* Letter detail */\n.letter-body { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 24px; line-height: 1.6; }\n.letter-body h2 { margin: 0 0 12px; }\n.letter-body p { margin: 8px 0; }\n\n/* Vitals chart placeholder */\n.vital-chart { display: flex; align-items: flex-end; gap: 4px; height: 60px; margin-top: 8px; }\n.vital-bar { background: #5dade2; border-radius: 3px 3px 0 0; min-width: 24px; }\n</style>\n</head>\n<body>\n  <div class='hidden' style='display:none' id='__CSRFContainer'><input name=\"__RequestVerificationToken\" type=\"hidden\" value=\"fake-csrf-token-00000000000000000000000000000000\" /></div>\n  <script>\n(function () {\n  var originalFetch = window.fetch;\n  window.fetch = function (url, opts) {\n    opts = opts || {};\n    if ((opts.method || 'GET').toUpperCase() === 'POST') {\n      var el = document.querySelector('#__CSRFContainer input[name=__RequestVerificationToken]');\n      if (el) {\n        opts.headers = opts.headers || {};\n        if (!opts.headers['__RequestVerificationToken']) {\n          opts.headers['__RequestVerificationToken'] = el.value;\n        }\n      }\n    }\n    return originalFetch.call(this, url, opts);\n  };\n})();\n</script>\n  <header class=\"mc-header\">\n    <div class=\"logo\">My<span>Chart</span></div>\n    <div class=\"user-info\">\n      <details class=\"proxy-switcher\">\n      <summary><span class=\"proxy-switcher-label\">Viewing</span><strong>Homer Jay Simpson</strong><span class=\"proxy-switcher-caret\">▾</span></summary>\n      <div class=\"proxySelectorDropDown\">\n        <div class=\"proxy-switcher-heading\">Switch patient record</div>\n        <a class=\"proxySubjectLink currentContext\" data-id=\"WP-2KQZ8XVC5MJH4RTLN9PWY7BDF3SGA6EU1KXNQZ2RVJM8HTCBW5YLDP4FGS7AKEN3QRXZ6UVJ9MTHW1C\" href=\"/MyChart/inside.asp\" aria-label=\"Access your record\"><span class=\"proxySelectorDropDownNameEllipsis\">Homer Jay Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-7NQK4XZC2VJH8RTLM3PWY6BDF9SGA5EU1KXNQZ7RVJM2HTCBW4YLDP8FGS3AKEN6QRXZ9UVJ5MTHW2C\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-7NQK4XZC2VJH8RTLM3PWY6BDF9SGA5EU1KXNQZ7RVJM2HTCBW4YLDP8FGS3AKEN6QRXZ9UVJ5MTHW2C\" aria-label=\"Access Bart Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Bart Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-3MFTJ9WQ2XKVN7RBZ5HLC8PYDA4GSEU6KMWJ1QRXTV9NZBHFC2LPD7YSGA5EK3UNQXWRJ8MVTZ6HC4\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-3MFTJ9WQ2XKVN7RBZ5HLC8PYDA4GSEU6KMWJ1QRXTV9NZBHFC2LPD7YSGA5EK3UNQXWRJ8MVTZ6HC4\" aria-label=\"Access Lisa Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Lisa Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-9XVKZ2QM7WTNJ5RBH3LFC8PYDA6GSEU4KMWJ1QRXTV2NZBHFC9LPD5YSGA7EK3UNQXWRJ4MVTZ8HC6\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-9XVKZ2QM7WTNJ5RBH3LFC8PYDA6GSEU4KMWJ1QRXTV2NZBHFC9LPD5YSGA7EK3UNQXWRJ4MVTZ8HC6\" aria-label=\"Access Maggie Simpson's record\"><span class=\"proxySelectorDropDownNameEllipsis\">Maggie Simpson</span></a>\n        <a class=\"proxySubjectLink\" data-id=\"WP-5HCQ8NWZ3KTVJ2RBM7LFX9PYDA1GSEU4KMWJ6QRXTV8NZBHFC3LPD2YSGA9EK7UNQXWRJ5MVTZ1HC8\" href=\"/MyChart/inside.asp?mode=proxyswitch&amp;action=switchcontext&amp;src=0&amp;eid=WP-5HCQ8NWZ3KTVJ2RBM7LFX9PYDA1GSEU4KMWJ6QRXTV8NZBHFC3LPD2YSGA9EK7UNQXWRJ5MVTZ1HC8\" aria-label=\"Access Lisa (Shelbyville Clinic)'s record\"><span class=\"proxySelectorDropDownNameEllipsis\">Lisa (Shelbyville Clinic)</span></a>\n      </div>\n    </details>\n      <a href=\"/MyChart/Authentication/Login\">Sign out</a>\n    </div>\n  </header>\n  <div class=\"mc-layout\">\n    <nav class=\"mc-sidebar\">\n    <div class=\"nav-group\">\n      <div class=\"nav-group-title\">Overview</div>\n      \n        <a href=\"/MyChart/Home\" class=\"\">\n          <span class=\"nav-icon\">🏠</span>Home\n        </a>\n      \n        <a href=\"/MyChart/Messaging\" class=\"\">\n          <span class=\"nav-icon\">💬</span>Messages\n        </a>\n      \n        <a href=\"/MyChart/Visits\" class=\"\">\n          <span class=\"nav-icon\">📅</span>Visits\n        </a>\n      \n    </div>\n  \n    <div class=\"nav-group\">\n      <div class=\"nav-group-title\">Health</div>\n      \n        <a href=\"/MyChart/TestResults\" class=\"\">\n          <spa
-… (truncated; 58500 more characters)
+… (truncated; 65065 more characters)
 ```
 
 </details>
 
 <details>
-<summary><code>mode: standard</code> (8723 chars)</summary>
+<summary><code>mode: standard</code> (9350 chars)</summary>
 
 - **totalDue**: 275
+- **notice**: MyChart did not load 1 of 4 charge rows on guarantor account 742 (service dates Mar 1, 2024). They are listed under unloadedVisits and left out of visits, so the visit list is incomplete — their charges are unknown, not $0.00. The account balances come from the billing summary and are not affected. For rows marked returned_empty, MyChart answered with no detail; its own billing page can't show them either.
 
 ## accounts (1)
 
@@ -15189,6 +15192,11 @@ Billing history and account balances.
 - **ProcedureGroupList**: (none)
 - **CoverageInfoList**: (none)
 
+#### unloadedVisits (1)
+
+| category | StartDate | StartDateDisplay | BillingSystemDisplay | reason |
+| - | - | - | - | - |
+| UnifiedVisitList | 66900 | Mar 1, 2024 | Hospital Services | returned_empty |
 - **VisitListAmount**: (empty)
 - **BadDebtVisitListAmount**: (empty)
 - **PaymentPlanVisitListAmount**: (empty)
@@ -15260,9 +15268,10 @@ Billing history and account balances.
 </details>
 
 <details>
-<summary><code>mode: concise</code> (2126 chars)</summary>
+<summary><code>mode: concise</code> (2649 chars)</summary>
 
 - **totalDue**: 275
+- **notice**: MyChart did not load 1 of 4 charge rows on guarantor account 742 (service dates Mar 1, 2024). They are listed under unloadedVisits and left out of visits, so the visit list is incomplete — their charges are unknown, not $0.00. The account balances come from the billing summary and are not affected. For rows marked returned_empty, MyChart answered with no detail; its own billing page can't show them either.
 
 ## accounts (1)
 
@@ -15331,16 +15340,23 @@ Billing history and account balances.
 | - | - | - |
 | Jan 20, 2026 | MyChart Payment | $75.00 |
 | Dec 5, 2025 | MyChart Payment | $150.00 |
+
+#### unloadedVisits (1)
+
+| StartDateDisplay | reason |
+| - | - |
+| Mar 1, 2024 | returned_empty |
 - **unavailable**: (none)
 
 </details>
 
 <details>
-<summary><code>mode: json</code> (7494 chars)</summary>
+<summary><code>mode: json</code> (8086 chars)</summary>
 
 ```json
 {
   "totalDue": 275,
+  "notice": "MyChart did not load 1 of 4 charge rows on guarantor account 742 (service dates Mar 1, 2024). They are listed under unloadedVisits and left out of visits, so the visit list is incomplete — their charges are unknown, not $0.00. The account balances come from the billing summary and are not affected. For rows marked returned_empty, MyChart answered with no detail; its own billing page can't show them either.",
   "accounts": [
     {
       "guarantorNumber": "742",
@@ -15585,6 +15601,15 @@ Billing history and account balances.
           "CoverageInfoList": []
         }
       ],
+      "unloadedVisits": [
+        {
+          "category": "UnifiedVisitList",
+          "StartDate": 66900,
+          "StartDateDisplay": "Mar 1, 2024",
+          "BillingSystemDisplay": "Hospital Services",
+          "reason": "returned_empty"
+        }
+      ],
       "VisitListAmount": "",
       "BadDebtVisitListAmount": "",
       "PaymentPlanVisitListAmount": "",
@@ -15649,14 +15674,8 @@ Billing history and account balances.
           "UndistributedAmountDisplay": null,
           "Receipt": {
             "DisplayNumber": "",
-            "SerialNumber": ""
-          }
-        }
-      ],
-      "unavailable": []
-    }
-  ]
-}
+            "SerialNumber": 
+… (truncated; 69 more characters)
 ```
 
 </details>
@@ -20248,6 +20267,1402 @@ Emergency contacts on file.
       "isEmergencyContact": true
     }
   ]
+}
+```
+
+</details>
+
+---
+
+### `get_notification_preferences`
+
+Which notifications this MyChart sends and on which channels (email, text, push, phone, mail), topic by topic, as this health system arranges them — including the ones locked on — plus the email and mobile number they go to.
+
+<details>
+<summary><code>mode: raw</code> (7107 chars)</summary>
+
+```json
+{
+  "requests": [
+    {
+      "path": "/api/communicationPreferences/GetContactInformation",
+      "method": "POST",
+      "requestBody": {},
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "body": {
+        "email": "homer.simpson@springfieldnuclear.example.com",
+        "mobilePhone": "",
+        "emailPending": false,
+        "mobilePending": false,
+        "showLinkToContactInfo": true,
+        "mediaTypesMissingContactMethod": [],
+        "proxyContextName": "",
+        "mobileIsVerified": false
+      }
+    },
+    {
+      "path": "/api/communicationPreferences/GetPreferences",
+      "method": "POST",
+      "requestBody": {},
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "body": {
+        "groupers": {
+          "WP-24GRP0": {
+            "hstId": "WP-24GRP0",
+            "title": "Appointments",
+            "description": "Reminders and updates about upcoming appointments",
+            "conceptIds": [
+              "WP-24CPT0x0",
+              "WP-24CPT0x1"
+            ]
+          },
+          "WP-24GRP1": {
+            "hstId": "WP-24GRP1",
+            "title": "Messages",
+            "description": "New messages and letters",
+            "conceptIds": [
+              "WP-24CPT1x0",
+              "WP-24CPT1x1"
+            ]
+          },
+          "WP-24GRP2": {
+            "hstId": "WP-24GRP2",
+            "title": "Health",
+            "description": "Test results and prescriptions",
+            "conceptIds": [
+              "WP-24CPT2x0",
+              "WP-24CPT2x1"
+            ]
+          },
+          "WP-24GRP3": {
+            "hstId": "WP-24GRP3",
+            "title": "Billing",
+            "description": "Statements and payment reminders",
+            "conceptIds": [
+              "WP-24CPT3x0"
+            ]
+          },
+          "WP-24GRP4": {
+            "hstId": "WP-24GRP4",
+            "title": "Account Management",
+            "description": "Changes to your account",
+            "conceptIds": [
+              "WP-24CPT4x0"
+            ]
+          },
+          "WP-24GRP5": {
+            "hstId": "WP-24GRP5",
+            "title": "Care Companion",
+            "description": "Tasks in your care plan",
+            "conceptIds": [
+              "WP-24CPT5x0"
+            ],
+            "otherPreferencesLinkPath": "/app/care-companion/settings",
+            "otherPreferencesLinkText": "Care Companion Settings"
+          }
+        },
+        "concepts": {
+          "WP-24CPT0x0": {
+            "hstId": "WP-24CPT0x0",
+            "title": "Status Updates",
+            "description": "Receive a notification when an appointment changes.",
+            "mediaIds": [
+              "WP-24MED0x0x0",
+              "WP-24MED0x0x1",
+              "WP-24MED0x0x2"
+            ],
+            "additionalItemSectionId": "WP-24SEC0x0"
+          },
+          "WP-24CPT0x1": {
+            "hstId": "WP-24CPT0x1",
+            "title": "Wait List Offer",
+            "description": "Receive a notification when an earlier appointment opens up.",
+            "mediaIds": [
+              "WP-24MED0x1x0",
+              "WP-24MED0x1x1"
+            ],
+            "additionalItemSectionId": "WP-24SEC0x1"
+          },
+          "WP-24CPT1x0": {
+            "hstId": "WP-24CPT1x0",
+            "title": "New Message",
+            "description": "Receive a notification when you have a new message.",
+            "mediaIds": [
+              "WP-24MED1x0x0",
+              "WP-24MED1x0x1",
+              "WP-24MED1x0x2"
+            ],
+            "additionalItemSectionId": ""
+          },
+          "WP-24CPT1x1": {
+            "hstId": "WP-24CPT1x1",
+            "title": "Letters",
+            "description": "Receive a notification when a new letter is available.",
+            "mediaIds": [
+              "WP-24MED1x1x0",
+              "WP-24MED1x1x1"
+            ],
+            "additionalItemSectionId": ""
+          },
+          "WP-24CPT2x0": {
+            "hstId": "WP-24CPT2x0",
+            "title": "Test Result",
+            "description": "Receive a notification when a new test result is available.",
+            "mediaIds": [
+              "WP-24MED2x0x0",
+              "WP-24MED2x0x1",
+              "WP-24MED2x0x2"
+            ],
+            "additionalItemSectionId": ""
+          },
+          "WP-24CPT2x1": {
+            "hstId": "WP-24CPT2x1",
+            "title": "Prescription",
+            "description": "Receive a notification when a prescription is ready.",
+            "mediaIds": [
+              "WP-24MED2x1x0",
+              "WP-24MED2x1x1"
+            ],
+            "additionalItemSectionId": ""
+          },
+          "WP-24CPT3x0": {
+            "hstId": "WP-24CPT3x0",
+            "title": "Statement",
+            "description": "Receive a notification when a new statement is available.",
+            "mediaIds": [
+              "WP-24MED3x0x0",
+              "WP-24MED3x0x1"
+            ],
+            "additionalItemSectionId": ""
+          },
+          "WP-24CPT4x0": {
+            "hstId": "WP-24CPT4x0",
+            "title": "Password Changed",
+            "description": "Receive a notification when your password is changed.",
+            "mediaIds": [
+              "WP-24MED4x0x0",
+              "WP-24MED4x0x1"
+            ],
+            "additionalItemSectionId": ""
+          },
+          "WP-24CPT5x0": {
+            "hstId": "WP-24CPT5x0",
+            "title": "New Task",
+            "description": "Receive a notification when a new task is assigned.",
+            "mediaIds": [
+              "WP-24MED5x0x0"
+            ],
+            "additionalItemSectionId": ""
+          }
+        },
+        "medias": {
+          "WP-24MED0x0x0": {
+            "mediaId": "WP-24MED0x0x0",
+            "type": "1",
+            "toggleStatus": 1
+          },
+          "WP-24MED0x0x1": {
+            "mediaId": "WP-24MED0x0x1",
+            "type": "100",
+            "toggleStatus": 0
+          },
+          "WP-24MED0x0x2": {
+            "mediaId": "WP-24MED0x0x2",
+            "type": "6",
+            "toggleStatus": 1
+          },
+          "WP-24MED0x1x0": {
+            "mediaId": "WP-24MED0x1x0",
+            "type": "1",
+            "toggleStatus": 1
+          },
+          "WP-24MED0x1x1": {
+            "mediaId": "WP-24MED0x1x1",
+            "type": "100",
+            "toggleStatus": 0
+          },
+          "WP-24MED1x0x0": {
+            "mediaId": "WP-24MED1x0x0",
+            "type": "1",
+            "toggleStatus": 1
+          },
+          "WP-24MED1x0x1": {
+            "mediaId": "WP-24MED1x0x1",
+            "type": "100",
+            "toggleStatus": 0
+          },
+          "WP-24MED1x0x2": {
+            "mediaId": "WP-24MED1x0x2",
+            "type": "6",
+            "toggleStatus": 1
+          },
+          "WP-24MED1x1x0": {
+            "mediaId": "WP-24MED1x1x0",
+            "type": "1",
+            "toggleStatus": 0
+          },
+          "WP-24MED1x1x1": {
+            "mediaId": "WP-24MED1x1x1",
+            "type": "6",
+            "toggleStatus": 0
+          },
+          "WP-24MED2x0x0": {
+            "mediaId": "WP-24MED2x0x0",
+            "type": "1",
+            "toggleStatus": 1
+          },
+          "WP-24MED2x0x1": {
+            "mediaId": "WP-24MED2x0x1",
+            "type": "100",
+            "toggleStatus": 0
+          },
+          "WP-24MED2x0x2": {
+            "mediaId": "WP-24MED2x0x2",
+            "type": "6",
+            "toggleStatus": 1
+          },
+          "WP-24MED2x1x0": {
+            "mediaId": "WP-24MED2x1x0",
+            "type": "1",
+            "toggleStatus": 0
+          },
+          "WP-24MED2x1x1": {
+            "mediaId": "WP-24MED2x1x1",
+            "type": "100",
+            "toggleStatus": 0
+          },
+          "WP-24MED3x0x0": {
+            "mediaId": "WP-24MED3x0x0",
+            "type": "1",
+            "toggleStatus": 1
+          },
+          "WP-24MED3x0x1": {
+            "mediaId": "WP-24MED3x0x1",
+            "type": "3",
+            "toggleStatus": 0
+          },
+          "WP-24MED4x0x0": {
+            "mediaId": "WP-24MED4x0x0",
+            "type": "1",
+            "toggleStatus": 3
+          },
+          "WP-24MED4x0x1": {
+            "mediaId": "WP-24MED4x0x1",
+            "type": "100",
+            "toggleStatus": 0
+          },
+          "WP-24MED5x0x0": {
+            "mediaId": "WP-24MED5x0x0",
+            "type": "6",
+            "toggleStatus": 1
+          }
+        },
+        "additionalItemSections": {
+          "WP-24SEC0x0": {
+            "sectionType": "Checkbox",
+            "optionDescriptionMap": {
+              "WP-24OPT0x0x0": "Scheduled",
+              "WP-24OPT0x0x1": "Changed",
+              "WP-24OPT0x0x2": "Canceled",
+              "WP-24OPT0x0x3": "Missed"
+            },
+            "optionSelectionMap": {
+              "WP-24OPT0x0x0": true,
+              "WP-24OPT0x0x1": true,
+              "WP-24OPT0x0x2": true,
+              "WP-24OPT0x0x3": false
+            },
+            "optionIds": [
+              "WP-24OPT0x0x0",
+              "WP-24OPT0x0x1",
+              "WP-24OPT0x0x2",
+              "WP-24OPT0x0x3"
+            ],
+            "sectionDescription": "Receive reminders when your appointment has been: ",
+            "sectionId": "WP-24SEC0x0",
+            "dropDownAdditionalItemId": ""
+          },
+          "WP-24SEC0x1": {
+            "sectionType": "Checkbox",
+            "optionDescriptionMap": {
+              "WP-24OPT0x1x0": "Automatically sign up my appointments for earlier offers"
+            },
+            "optionSelectionMap": {
+              "WP-24OPT0x1x0": true
+            },
+            "optionIds": [
+              "WP-24OPT0x1x0"
+            ],
+            "sectionDescription": "",
+            "sectionId": "WP-24SEC0x1",
+            "dropDownAdditionalItemId": ""
+          }
+        },
+        "grouperOrder": [
+          "WP-24GRP0",
+          "WP-24GRP1",
+          "WP-24GRP2",
+          "WP-24GRP3",
+          "WP-24GRP4",
+          "WP-24GRP5"
+        ],
+        "paperlessBillingRequiredConcepts": [
+          "WP-24CPT3x0"
+        ],
+        "canApplyToAll": false,
+        "smsFlagOn": true,
+        "userAcceptsSms": false,
+        "showContactInformation": true,
+        "grouperIdToExpandOnLoad": ""
+      }
+    },
+    {
+      "path": "/app/communication-preferences",
+      "method": "GET",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "body": "<!DOCTYPE html>\n<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\"en\" dir=\"ltr\">\n<head>\n  <title>MyChart</title>\n  <meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\" />\n</head>\n<body>\n  <div class='hidden' id='__CSRFContainer'><input name=\"__RequestVerificationToken\" type=\"hidden\" value=\"fake-csrf-token-00000000000000000000000000000000\" /></div>\n  <script>\n(function () {\n  var originalFetch = window.fetch;\n  window.fetch = function (url, opts) {\n    opts = opts || {};\n    if ((opts.method || 'GET').toUpperCase() === 'POST') {\n      var el = document.querySelector('#__CSRFContainer input[name=__RequestVerificationToken]');\n      if (el) {\n        opts.headers = opts.headers || {};\n        if (!opts.headers['__RequestVerificationToken']) {\n          opts.headers['__RequestVerificationToken'] = el.value;\n        }\n      }\n    }\n    return originalFetch.call(this, url, opts);\n  };\n})();\n</script>\n  <div></div>\n</body>\n</html>",
+      "purpose": "token"
+    }
+  ]
+}
+```
+
+</details>
+
+<details>
+<summary><code>mode: standard</code> (4879 chars)</summary>
+
+## groupers (6)
+
+### groupers 1
+
+- **title**: Appointments
+- **description**: Reminders and updates about upcoming appointments
+
+#### concepts (2)
+
+##### concepts 1
+
+- **title**: Status Updates
+- **description**: Receive a notification when an appointment changes.
+
+###### medias (3)
+
+| type | channel | toggleStatus | status |
+| - | - | - | - |
+| 1 | Email | 1 | On |
+| 100 | Text | 0 | Off |
+| 6 | Push | 1 | On |
+- **channelsOn**: Email, Push
+- **requiredForPaperlessBilling**: false
+
+###### additionalItemSection
+
+- **sectionType**: Checkbox
+- **sectionDescription**: Receive reminders when your appointment has been: 
+
+###### options (4)
+
+| description | selected |
+| - | - |
+| Scheduled | true |
+| Changed | true |
+| Canceled | true |
+| Missed | false |
+
+##### concepts 2
+
+- **title**: Wait List Offer
+- **description**: Receive a notification when an earlier appointment opens up.
+
+###### medias (2)
+
+| type | channel | toggleStatus | status |
+| - | - | - | - |
+| 1 | Email | 1 | On |
+| 100 | Text | 0 | Off |
+- **channelsOn**: Email
+- **requiredForPaperlessBilling**: false
+
+###### additionalItemSection
+
+- **sectionType**: Checkbox
+- **sectionDescription**: (empty)
+
+###### options (1)
+
+| description | selected |
+| - | - |
+| Automatically sign up my appointments for earlier offers | true |
+
+- **otherPreferencesLinkText**: (none)
+
+### groupers 2
+
+- **title**: Messages
+- **description**: New messages and letters
+
+#### concepts (2)
+
+##### concepts 1
+
+- **title**: New Message
+- **description**: Receive a notification when you have a new message.
+
+###### medias (3)
+
+| type | channel | toggleStatus | status |
+| - | - | - | - |
+| 1 | Email | 1 | On |
+| 100 | Text | 0 | Off |
+| 6 | Push | 1 | On |
+- **channelsOn**: Email, Push
+- **requiredForPaperlessBilling**: false
+- **additionalItemSection**: (none)
+
+##### concepts 2
+
+- **title**: Letters
+- **description**: Receive a notification when a new letter is available.
+
+###### medias (2)
+
+| type | channel | toggleStatus | status |
+| - | - | - | - |
+| 1 | Email | 0 | Off |
+| 6 | Push | 0 | Off |
+- **channelsOn**: (none)
+- **requiredForPaperlessBilling**: false
+- **additionalItemSection**: (none)
+
+- **otherPreferencesLinkText**: (none)
+
+### groupers 3
+
+- **title**: Health
+- **description**: Test results and prescriptions
+
+#### concepts (2)
+
+##### concepts 1
+
+- **title**: Test Result
+- **description**: Receive a notification when a new test result is available.
+
+###### medias (3)
+
+| type | channel | toggleStatus | status |
+| - | - | - | - |
+| 1 | Email | 1 | On |
+| 100 | Text | 0 | Off |
+| 6 | Push | 1 | On |
+- **channelsOn**: Email, Push
+- **requiredForPaperlessBilling**: false
+- **additionalItemSection**: (none)
+
+##### concepts 2
+
+- **title**: Prescription
+- **description**: Receive a notification when a prescription is ready.
+
+###### medias (2)
+
+| type | channel | toggleStatus | status |
+| - | - | - | - |
+| 1 | Email | 0 | Off |
+| 100 | Text | 0 | Off |
+- **channelsOn**: (none)
+- **requiredForPaperlessBilling**: false
+- **additionalItemSection**: (none)
+
+- **otherPreferencesLinkText**: (none)
+
+### groupers 4
+
+- **title**: Billing
+- **description**: Statements and payment reminders
+
+#### concepts (1)
+
+##### concepts 1
+
+- **title**: Statement
+- **description**: Receive a notification when a new statement is available.
+
+###### medias (2)
+
+| type | channel | toggleStatus | status |
+| - | - | - | - |
+| 1 | Email | 1 | On |
+| 3 | Mail | 0 | Off |
+- **channelsOn**: Email
+- **requiredForPaperlessBilling**: true
+- **additionalItemSection**: (none)
+
+- **otherPreferencesLinkText**: (none)
+
+### groupers 5
+
+- **title**: Account Management
+- **description**: Changes to your account
+
+#### concepts (1)
+
+##### concepts 1
+
+- **title**: Password Changed
+- **description**: Receive a notification when your password is changed.
+
+###### medias (2)
+
+| type | channel | toggleStatus | status |
+| - | - | - | - |
+| 1 | Email | 3 | LockedOn |
+| 100 | Text | 0 | Off |
+- **channelsOn**: Email
+- **requiredForPaperlessBilling**: false
+- **additionalItemSection**: (none)
+
+- **otherPreferencesLinkText**: (none)
+
+### groupers 6
+
+- **title**: Care Companion
+- **description**: Tasks in your care plan
+
+#### concepts (1)
+
+##### concepts 1
+
+- **title**: New Task
+- **description**: Receive a notification when a new task is assigned.
+
+###### medias (1)
+
+| type | channel | toggleStatus | status |
+| - | - | - | - |
+| 6 | Push | 1 | On |
+- **channelsOn**: Push
+- **requiredForPaperlessBilling**: false
+- **additionalItemSection**: (none)
+
+- **otherPreferencesLinkText**: Care Companion Settings
+
+- **smsFlagOn**: true
+- **userAcceptsSms**: false
+
+## contactInformation
+
+- **email**: homer.simpson@springfieldnuclear.example.com
+- **mobilePhone**: (empty)
+- **emailPending**: false
+- **mobilePending**: false
+- **mobileIsVerified**: false
+- **mediaTypesMissingContactMethod**: (none)
+- **proxyContextName**: (empty)
+
+</details>
+
+<details>
+<summary><code>mode: concise</code> (839 chars)</summary>
+
+## groupers (6)
+
+### groupers 1
+
+- **title**: Appointments
+
+#### concepts (2)
+
+| title | channelsOn |
+| - | - |
+| Status Updates | Email, Push |
+| Wait List Offer | Email |
+
+### groupers 2
+
+- **title**: Messages
+
+#### concepts (2)
+
+| title | channelsOn |
+| - | - |
+| New Message | Email, Push |
+| Letters | |
+
+### groupers 3
+
+- **title**: Health
+
+#### concepts (2)
+
+| title | channelsOn |
+| - | - |
+| Test Result | Email, Push |
+| Prescription | |
+
+### groupers 4
+
+- **title**: Billing
+
+#### concepts (1)
+
+| title | channelsOn |
+| - | - |
+| Statement | Email |
+
+### groupers 5
+
+- **title**: Account Management
+
+#### concepts (1)
+
+| title | channelsOn |
+| - | - |
+| Password Changed | Email |
+
+### groupers 6
+
+- **title**: Care Companion
+
+#### concepts (1)
+
+| title | channelsOn |
+| - | - |
+| New Task | Push |
+
+- **userAcceptsSms**: false
+
+</details>
+
+<details>
+<summary><code>mode: json</code> (4433 chars)</summary>
+
+```json
+{
+  "groupers": [
+    {
+      "title": "Appointments",
+      "description": "Reminders and updates about upcoming appointments",
+      "concepts": [
+        {
+          "title": "Status Updates",
+          "description": "Receive a notification when an appointment changes.",
+          "medias": [
+            {
+              "type": "1",
+              "channel": "Email",
+              "toggleStatus": 1,
+              "status": "On"
+            },
+            {
+              "type": "100",
+              "channel": "Text",
+              "toggleStatus": 0,
+              "status": "Off"
+            },
+            {
+              "type": "6",
+              "channel": "Push",
+              "toggleStatus": 1,
+              "status": "On"
+            }
+          ],
+          "channelsOn": [
+            "Email",
+            "Push"
+          ],
+          "requiredForPaperlessBilling": false,
+          "additionalItemSection": {
+            "sectionType": "Checkbox",
+            "sectionDescription": "Receive reminders when your appointment has been: ",
+            "options": [
+              {
+                "description": "Scheduled",
+                "selected": true
+              },
+              {
+                "description": "Changed",
+                "selected": true
+              },
+              {
+                "description": "Canceled",
+                "selected": true
+              },
+              {
+                "description": "Missed",
+                "selected": false
+              }
+            ]
+          }
+        },
+        {
+          "title": "Wait List Offer",
+          "description": "Receive a notification when an earlier appointment opens up.",
+          "medias": [
+            {
+              "type": "1",
+              "channel": "Email",
+              "toggleStatus": 1,
+              "status": "On"
+            },
+            {
+              "type": "100",
+              "channel": "Text",
+              "toggleStatus": 0,
+              "status": "Off"
+            }
+          ],
+          "channelsOn": [
+            "Email"
+          ],
+          "requiredForPaperlessBilling": false,
+          "additionalItemSection": {
+            "sectionType": "Checkbox",
+            "sectionDescription": "",
+            "options": [
+              {
+                "description": "Automatically sign up my appointments for earlier offers",
+                "selected": true
+              }
+            ]
+          }
+        }
+      ],
+      "otherPreferencesLinkText": null
+    },
+    {
+      "title": "Messages",
+      "description": "New messages and letters",
+      "concepts": [
+        {
+          "title": "New Message",
+          "description": "Receive a notification when you have a new message.",
+          "medias": [
+            {
+              "type": "1",
+              "channel": "Email",
+              "toggleStatus": 1,
+              "status": "On"
+            },
+            {
+              "type": "100",
+              "channel": "Text",
+              "toggleStatus": 0,
+              "status": "Off"
+            },
+            {
+              "type": "6",
+              "channel": "Push",
+              "toggleStatus": 1,
+              "status": "On"
+            }
+          ],
+          "channelsOn": [
+            "Email",
+            "Push"
+          ],
+          "requiredForPaperlessBilling": false,
+          "additionalItemSection": null
+        },
+        {
+          "title": "Letters",
+          "description": "Receive a notification when a new letter is available.",
+          "medias": [
+            {
+              "type": "1",
+              "channel": "Email",
+              "toggleStatus": 0,
+              "status": "Off"
+            },
+            {
+              "type": "6",
+              "channel": "Push",
+              "toggleStatus": 0,
+              "status": "Off"
+            }
+          ],
+          "channelsOn": [],
+          "requiredForPaperlessBilling": false,
+          "additionalItemSection": null
+        }
+      ],
+      "otherPreferencesLinkText": null
+    },
+    {
+      "title": "Health",
+      "description": "Test results and prescriptions",
+      "concepts": [
+        {
+          "title": "Test Result",
+          "description": "Receive a notification when a new test result is available.",
+          "medias": [
+            {
+              "type": "1",
+              "channel": "Email",
+              "toggleStatus": 1,
+              "status": "On"
+            },
+            {
+              "type": "100",
+              "channel": "Text",
+              "toggleStatus": 0,
+              "status": "Off"
+            },
+            {
+              "type": "6",
+              "channel": "Push",
+              "toggleStatus": 1,
+              "status": "On"
+            }
+          ],
+          "channelsOn": [
+            "Email",
+            "Push"
+          ],
+          "requiredForPaperlessBilling": false,
+          "additionalItemSection": null
+        },
+        {
+          "title": "Prescription",
+          "description": "Receive a notification when a prescription is ready.",
+          "medias": [
+            {
+              "type": "1",
+              "channel": "Email",
+              "toggleStatus": 0,
+              "status": "Off"
+            },
+            {
+              "type": "100",
+              "channel": "Text",
+              "toggleStatus": 0,
+              "status": "Off"
+            }
+          ],
+          "channelsOn": [],
+          "requiredForPaperlessBilling": false,
+          "additionalItemSection": null
+        }
+      ],
+      "otherPreferencesLinkText": null
+    },
+    {
+      "title": "Billing",
+      "description": "Statements and payment reminders",
+      "concepts": [
+        {
+          "title": "Statement",
+          "description": "Receive a notification when a new statement is available.",
+          "medias": [
+            {
+              "type": "1",
+              "channel": "Email",
+              "toggleStatus": 1,
+              "status": "On"
+            },
+            {
+              "type": "3",
+              "channel": "Mail",
+              "toggleStatus": 0,
+              "status": "Off"
+            }
+          ],
+          "channelsOn": [
+            "Email"
+          ],
+          "requiredForPaperlessBilling": true,
+          "additionalItemSection": null
+        }
+      ],
+      "otherPreferencesLinkText": null
+    },
+    {
+      "title": "Account Management",
+      "description": "Changes to your account",
+      "concepts": [
+        {
+          "title": "Password Changed",
+          "description": "Receive a notification when your password is changed.",
+          "medias": [
+            {
+              "type": "1",
+              "channel": "Email",
+              "toggleStatus": 3,
+              "status": "LockedOn"
+            },
+            {
+              "type": "100",
+              "channel": "Text",
+              "toggleStatus": 0,
+              "status": "Off"
+            }
+          ],
+          "channelsOn": [
+            "Email"
+          ],
+          "requiredForPaperlessBilling": false,
+          "additionalItemSection": null
+        }
+      ],
+      "otherPreferencesLinkText": null
+    },
+    {
+      "title": "Care Companion",
+      "description": "Tasks in your care plan",
+      "concepts": [
+        {
+          "title": "New Task",
+          "description": "Receive a notification when a new task is assigned.",
+          "medias": [
+            {
+              "type": "6",
+              "channel": "Push",
+              "toggleStatus": 1,
+              "status": "On"
+            }
+          ],
+          "channelsOn": [
+            "Push"
+          ],
+          "requiredForPaperlessBilling": false,
+          "additionalItemSection": null
+        }
+      ],
+      "otherPreferencesLinkText": "Care Companion Settings"
+    }
+  ],
+  "smsFlagOn": true,
+  "userAcceptsSms": false,
+  "contactInformation": {
+    "email": "homer.simpson@springfieldnuclear.example.com",
+    "mobilePhone": "",
+    "emailPending": false,
+    "mobilePending": false,
+    "mobileIsVerified": false,
+    "mediaTypesMissingContactMethod": [],
+    "proxyContextName": ""
+  }
+}
+```
+
+</details>
+
+---
+
+### `get_account_settings`
+
+Paperless enrollment (statements, EOBs, invoices, after-visit summaries), when new test results are released, two-step verification and password age, text-message consent, and whether the record is shared through Care Everywhere.
+
+<details>
+<summary><code>mode: raw</code> (8485 chars)</summary>
+
+```json
+{
+  "requests": [
+    {
+      "path": "/api/care-everywhere-opt-out/GetCeConfiguration",
+      "method": "POST",
+      "requestBody": {},
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "body": {
+        "dxtId": 1001,
+        "isPatientOptedIn": true,
+        "doesPatientReqConsent": false,
+        "authorizationRequirements": 3,
+        "canSignAllOrgAuthorizations": true,
+        "hasNonStandardProspectiveAuth": false,
+        "hasAuthsOnFile": false,
+        "authNotReqReason": 0,
+        "authReqReason": 0,
+        "canAuthOverride": false,
+        "mcesAccessLevel": 0,
+        "hideMCESEduVideo": false,
+        "isThresholdMet": false,
+        "userLocale": "en-US",
+        "canChangeCeStatus": true,
+        "hasPatientRequiredAuth": false,
+        "isPayerOnly": false,
+        "orgLogo": "",
+        "orgAuthPreferences": false,
+        "needsAuthorization": false,
+        "authorizationMnemonic": false,
+        "allowToggleDXT234": true
+      }
+    },
+    {
+      "path": "/api/paperless-settings/GetCombinedPaperless",
+      "method": "POST",
+      "requestBody": {},
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "body": {
+        "billingInfo": {
+          "isLTCEnabled": false,
+          "hasAnAuthUser": false,
+          "status": 1,
+          "allowSignup": true,
+          "showNoNotifsPopup": false,
+          "allowCancel": true
+        },
+        "eobInfo": {
+          "status": -1,
+          "allowSignup": false,
+          "showNoNotifsPopup": false,
+          "allowCancel": false
+        },
+        "invoiceInfo": {
+          "status": -1,
+          "allowSignup": false,
+          "showNoNotifsPopup": false,
+          "allowCancel": false
+        },
+        "avsInfo": {
+          "status": 3,
+          "allowSignup": true,
+          "showNoNotifsPopup": false,
+          "allowCancel": false
+        },
+        "showContactInfo": true,
+        "expandID": ""
+      }
+    },
+    {
+      "path": "/api/security-settings/GetInitialSettings",
+      "method": "POST",
+      "requestBody": {},
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "body": {
+        "passwordLastUpdated": "Jan 10, 2026",
+        "twoFactorEmailSmsOn": false,
+        "twoFactorTOTPOn": false,
+        "twoFactorRequired": false,
+        "rememberWebDevices": false,
+        "rememberWebDevicesAllowed": false,
+        "isUserOptedIntoPreviewFeatures": false,
+        "arePreviewFeaturesEnabled": true,
+        "nativeLoginAllowed": true,
+        "passwordChangeAvailable": true,
+        "commPrefAvailable": true,
+        "passkeyLoginAvailable": true,
+        "systemMethodsList": [
+          1,
+          2,
+          3
+        ],
+        "allowEmailSmsToggle": true,
+        "allowTotpToggle": true,
+        "isMyChartCentral": false,
+        "isUserDoubleActivated": false,
+        "deactivateAccountAllowed": true,
+        "hasPersonalInformationSecurity": true
+      }
+    },
+    {
+      "path": "/api/test-results/GetResultsReleasePreferences",
+      "method": "POST",
+      "requestBody": {},
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "body": {
+        "options": [
+          {
+            "value": "1",
+            "titleUtf8": "Show me test results as soon as possible"
+          },
+          {
+            "value": "2",
+            "titleUtf8": "Wait to show me test results"
+          }
+        ],
+        "chosenRRPreference": ""
+      }
+    },
+    {
+      "path": "/api/textoptin/GetConsentData",
+      "method": "POST",
+      "requestBody": {},
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "body": {
+        "consentData": {
+          "phone": "",
+          "shortCodesConsent": {}
+        },
+        "primarySender": {
+          "callToAction": "Text messages about your care at Springfield General will be sent to the phone number above. Message and data rates may apply. Text STOP to opt out.",
+          "termsAndConditionsURL": "",
+          "privacyPolicyURL": "",
+          "shortCode": "55555",
+          "displayName": "",
+          "hasRcsSender": false
+        },
+        "secondarySenders": []
+      }
+    },
+    {
+      "path": "/app/care-everywhere-opt-out",
+      "method": "GET",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "body": "<!DOCTYPE html>\n<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\"en\" dir=\"ltr\">\n<head>\n  <title>MyChart</title>\n  <meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\" />\n</head>\n<body>\n  <div class='hidden' id='__CSRFContainer'><input name=\"__RequestVerificationToken\" type=\"hidden\" value=\"fake-csrf-token-00000000000000000000000000000000\" /></div>\n  <script>\n(function () {\n  var originalFetch = window.fetch;\n  window.fetch = function (url, opts) {\n    opts = opts || {};\n    if ((opts.method || 'GET').toUpperCase() === 'POST') {\n      var el = document.querySelector('#__CSRFContainer input[name=__RequestVerificationToken]');\n      if (el) {\n        opts.headers = opts.headers || {};\n        if (!opts.headers['__RequestVerificationToken']) {\n          opts.headers['__RequestVerificationToken'] = el.value;\n        }\n      }\n    }\n    return originalFetch.call(this, url, opts);\n  };\n})();\n</script>\n  <div></div>\n</body>\n</html>",
+      "purpose": "token"
+    },
+    {
+      "path": "/app/paperless-settings",
+      "method": "GET",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "body": "<!DOCTYPE html>\n<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\"en\" dir=\"ltr\">\n<head>\n  <title>MyChart</title>\n  <meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\" />\n</head>\n<body>\n  <div class='hidden' id='__CSRFContainer'><input name=\"__RequestVerificationToken\" type=\"hidden\" value=\"fake-csrf-token-00000000000000000000000000000000\" /></div>\n  <script>\n(function () {\n  var originalFetch = window.fetch;\n  window.fetch = function (url, opts) {\n    opts = opts || {};\n    if ((opts.method || 'GET').toUpperCase() === 'POST') {\n      var el = document.querySelector('#__CSRFContainer input[name=__RequestVerificationToken]');\n      if (el) {\n        opts.headers = opts.headers || {};\n        if (!opts.headers['__RequestVerificationToken']) {\n          opts.headers['__RequestVerificationToken'] = el.value;\n        }\n      }\n    }\n    return originalFetch.call(this, url, opts);\n  };\n})();\n</script>\n  <div></div>\n</body>\n</html>",
+      "purpose": "token"
+    },
+    {
+      "path": "/app/security-settings",
+      "method": "GET",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "body": "<!DOCTYPE html>\n<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\"en\" dir=\"ltr\">\n<head>\n  <title>MyChart</title>\n  <meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\" />\n</head>\n<body>\n  <div class='hidden' id='__CSRFContainer'><input name=\"__RequestVerificationToken\" type=\"hidden\" value=\"fake-csrf-token-00000000000000000000000000000000\" /></div>\n  <script>\n(function () {\n  var originalFetch = window.fetch;\n  window.fetch = function (url, opts) {\n    opts = opts || {};\n    if ((opts.method || 'GET').toUpperCase() === 'POST') {\n      var el = document.querySelector('#__CSRFContainer input[name=__RequestVerificationToken]');\n      if (el) {\n        opts.headers = opts.headers || {};\n        if (!opts.headers['__RequestVerificationToken']) {\n          opts.headers['__RequestVerificationToken'] = el.value;\n        }\n      }\n    }\n    return originalFetch.call(this, url, opts);\n  };\n})();\n</script>\n  <div></div>\n</body>\n</html>",
+      "purpose": "token"
+    },
+    {
+      "path": "/app/test-results",
+      "method": "GET",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "body": "<!DOCTYPE html>\n<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\"en\" dir=\"ltr\">\n<head>\n  <title>MyChart</title>\n  <meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\" />\n</head>\n<body>\n  <div class='hidden' id='__CSRFContainer'><input name=\"__RequestVerificationToken\" type=\"hidden\" value=\"fake-csrf-token-00000000000000000000000000000000\" /></div>\n  <script>\n(function () {\n  var originalFetch = window.fetch;\n  window.fetch = function (url, opts) {\n    opts = opts || {};\n    if ((opts.method || 'GET').toUpperCase() === 'POST') {\n      var el = document.querySelector('#__CSRFContainer input[name=__RequestVerificationToken]');\n      if (el) {\n        opts.headers = opts.headers || {};\n        if (!opts.headers['__RequestVerificationToken']) {\n          opts.headers['__RequestVerificationToken'] = el.value;\n        }\n      }\n    }\n    return originalFetch.call(this, url, opts);\n  };\n})();\n</script>\n  <div></div>\n</body>\n</html>",
+      "purpose": "token"
+    },
+    {
+      "path": "/app/text-opt-in",
+      "method": "GET",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "body": "<!DOCTYPE html>\n<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\"en\" dir=\"ltr\">\n<head>\n  <title>MyChart</title>\n  <meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\" />\n</head>\n<body>\n  <div class='hidden' id='__CSRFContainer'><input name=\"__RequestVerificationToken\" type=\"hidden\" value=\"fake-csrf-token-00000000000000000000000000000000\" /></div>\n  <script>\n(function () {\n  var originalFetch = window.fetch;\n  window.fetch = function (url, opts) {\n    opts = opts || {};\n    if ((opts.method || 'GET').toUpperCase() === 'POST') {\n      var el = document.querySelector('#__CSRFContainer input[name=__RequestVerificationToken]');\n      if (el) {\n        opts.headers = opts.headers || {};\n        if (!opts.headers['__RequestVerificationToken']) {\n          opts.headers['__RequestVerificationToken'] = el.value;\n        }\n      }\n    }\n    return originalFetch.call(this, url, opts);\n  };\n})();\n</script>\n  <div></div>\n</body>\n</html>",
+      "purpose": "token"
+    }
+  ]
+}
+```
+
+</details>
+
+<details>
+<summary><code>mode: standard</code> (1526 chars)</summary>
+
+## paperless
+
+### billingInfo
+
+- **status**: 1
+- **statusName**: SignedUp
+- **allowSignup**: true
+- **allowCancel**: true
+
+### eobInfo
+
+- **status**: -1
+- **statusName**: NotEligible
+- **allowSignup**: false
+- **allowCancel**: false
+
+### invoiceInfo
+
+- **status**: -1
+- **statusName**: NotEligible
+- **allowSignup**: false
+- **allowCancel**: false
+
+### avsInfo
+
+- **status**: 3
+- **statusName**: NoResponse
+- **allowSignup**: true
+- **allowCancel**: false
+
+## resultsRelease
+
+### options (2)
+
+| value | titleUtf8 |
+| - | - |
+| 1 | Show me test results as soon as possible |
+| 2 | Wait to show me test results |
+- **chosenRRPreference**: (empty)
+- **chosenRRPreferenceTitle**: (none)
+
+## security
+
+- **passwordLastUpdated**: Jan 10, 2026
+- **twoFactorEmailSmsOn**: false
+- **twoFactorTOTPOn**: false
+- **twoFactorRequired**: false
+- **allowEmailSmsToggle**: true
+- **allowTotpToggle**: true
+- **passkeyLoginAvailable**: true
+- **rememberWebDevices**: false
+- **rememberWebDevicesAllowed**: false
+- **passwordChangeAvailable**: true
+- **isMyChartCentral**: false
+- **deactivateAccountAllowed**: true
+
+## textMessaging
+
+### consentData
+
+- **phone**: (empty)
+
+#### shortCodesConsent
+
+(empty)
+
+### primarySender
+
+- **shortCode**: 55555
+- **displayName**: (empty)
+- **termsAndConditionsURL**: (empty)
+- **secondarySenders**: (none)
+
+## careEverywhere
+
+- **isPatientOptedIn**: true
+- **canChangeCeStatus**: true
+- **doesPatientReqConsent**: false
+- **hasAuthsOnFile**: false
+- **needsAuthorization**: false
+- **unavailable**: (none)
+
+</details>
+
+<details>
+<summary><code>mode: concise</code> (510 chars)</summary>
+
+## paperless
+
+### billingInfo
+
+- **statusName**: SignedUp
+
+### eobInfo
+
+- **statusName**: NotEligible
+
+### invoiceInfo
+
+- **statusName**: NotEligible
+
+### avsInfo
+
+- **statusName**: NoResponse
+
+## resultsRelease
+
+- **chosenRRPreferenceTitle**: (none)
+
+## security
+
+- **twoFactorEmailSmsOn**: false
+- **twoFactorTOTPOn**: false
+- **passwordLastUpdated**: Jan 10, 2026
+
+## textMessaging
+
+### consentData
+
+#### shortCodesConsent
+
+(empty)
+
+## careEverywhere
+
+- **isPatientOptedIn**: true
+- **unavailable**: (none)
+
+</details>
+
+<details>
+<summary><code>mode: json</code> (1283 chars)</summary>
+
+```json
+{
+  "paperless": {
+    "billingInfo": {
+      "status": 1,
+      "statusName": "SignedUp",
+      "allowSignup": true,
+      "allowCancel": true
+    },
+    "eobInfo": {
+      "status": -1,
+      "statusName": "NotEligible",
+      "allowSignup": false,
+      "allowCancel": false
+    },
+    "invoiceInfo": {
+      "status": -1,
+      "statusName": "NotEligible",
+      "allowSignup": false,
+      "allowCancel": false
+    },
+    "avsInfo": {
+      "status": 3,
+      "statusName": "NoResponse",
+      "allowSignup": true,
+      "allowCancel": false
+    }
+  },
+  "resultsRelease": {
+    "options": [
+      {
+        "value": "1",
+        "titleUtf8": "Show me test results as soon as possible"
+      },
+      {
+        "value": "2",
+        "titleUtf8": "Wait to show me test results"
+      }
+    ],
+    "chosenRRPreference": "",
+    "chosenRRPreferenceTitle": null
+  },
+  "security": {
+    "passwordLastUpdated": "Jan 10, 2026",
+    "twoFactorEmailSmsOn": false,
+    "twoFactorTOTPOn": false,
+    "twoFactorRequired": false,
+    "allowEmailSmsToggle": true,
+    "allowTotpToggle": true,
+    "passkeyLoginAvailable": true,
+    "rememberWebDevices": false,
+    "rememberWebDevicesAllowed": false,
+    "passwordChangeAvailable": true,
+    "isMyChartCentral": false,
+    "deactivateAccountAllowed": true
+  },
+  "textMessaging": {
+    "consentData": {
+      "phone": "",
+      "shortCodesConsent": {}
+    },
+    "primarySender": {
+      "shortCode": "55555",
+      "displayName": "",
+      "termsAndConditionsURL": ""
+    },
+    "secondarySenders": []
+  },
+  "careEverywhere": {
+    "isPatientOptedIn": true,
+    "canChangeCeStatus": true,
+    "doesPatientReqConsent": false,
+    "hasAuthsOnFile": false,
+    "needsAuthorization": false
+  },
+  "unavailable": []
 }
 ```
 

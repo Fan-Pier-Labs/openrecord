@@ -23,9 +23,9 @@ import fs from 'fs';
 const FAKE_MYCHART_HOST = process.env.CI_FAKE_MYCHART_CLI_HOST || 'localhost:4000';
 const FAKE_MYCHART_URL = process.env.CI_FAKE_MYCHART_URL || 'http://localhost:4000';
 const PROJECT_ROOT = path.resolve(__dirname, '..', '..', '..');
-// Run the BUILT binary (`npm-package/dist/cli.cjs`), not the TypeScript source.
-// CI must `cd npm-package && bun run build` before this test file runs.
-const CLI_BIN = path.join(PROJECT_ROOT, 'npm-package', 'dist', 'cli.cjs');
+// Run the BUILT binary (`clients/npm-package/dist/cli.cjs`), not the TypeScript source.
+// CI must `cd clients/npm-package && bun run build` before this test file runs.
+const CLI_BIN = path.join(PROJECT_ROOT, 'clients/npm-package', 'dist', 'cli.cjs');
 
 // Temp dirs for passkey/TOTP credential storage (avoid polluting real dirs)
 const TEMP_DIR = fs.mkdtempSync(path.join(PROJECT_ROOT, '.test-cli-passkey-'));
@@ -34,10 +34,16 @@ const TEMP_DIR = fs.mkdtempSync(path.join(PROJECT_ROOT, '.test-cli-passkey-'));
 // Helpers
 // ---------------------------------------------------------------------------
 
-function runCli(args: string[], timeoutMs = 30_000): Promise<{ code: number; stdout: string; stderr: string }> {
+// Shorter than the 60s test timeout on purpose. These runs hang intermittently
+// in CI, and when the kill and the test timeout landed together, bun reported
+// the timeout and the CLI's output was never printed — so nobody could see
+// which request it was stuck on. Killing it first lets the close handler print it.
+const CLI_TIMEOUT_MS = 45_000;
+
+function runCli(args: string[], timeoutMs = CLI_TIMEOUT_MS): Promise<{ code: number; stdout: string; stderr: string }> {
   if (!fs.existsSync(CLI_BIN)) {
     throw new Error(
-      `Built CLI binary not found at ${CLI_BIN}. Run: cd npm-package && bun run build`
+      `Built CLI binary not found at ${CLI_BIN}. Run: cd clients/npm-package && bun run build`
     );
   }
   return new Promise((resolve) => {
@@ -56,7 +62,13 @@ function runCli(args: string[], timeoutMs = 30_000): Promise<{ code: number; std
     proc.stdout.on('data', (d: Buffer) => { stdout += d.toString(); });
     proc.stderr.on('data', (d: Buffer) => { stderr += d.toString(); });
 
-    proc.on('close', (code) => {
+    proc.on('close', (code, signal) => {
+      if (signal) {
+        console.error(
+          `mychart-cli ${args.join(' ')} was killed (${signal}) after ${timeoutMs}ms. Its output:\n` +
+          `--- stdout ---\n${stdout}\n--- stderr ---\n${stderr}`,
+        );
+      }
       resolve({ code: code ?? 1, stdout, stderr });
     });
 
@@ -173,7 +185,7 @@ describe('CLI passkey operations against fake-mychart', () => {
       '--local',
       '--no-cache',
       '--set-up-passkey',
-    ], 60_000);
+    ]);
 
     // CLI should succeed
     const output = result.stdout + result.stderr;
@@ -194,7 +206,7 @@ describe('CLI passkey operations against fake-mychart', () => {
       '--local',
       '--no-cache',
       '--list-passkeys',
-    ], 60_000);
+    ]);
 
     const output = result.stdout + result.stderr;
     // The flag now routes through the list_passkeys capability, which prints
@@ -211,7 +223,7 @@ describe('CLI passkey operations against fake-mychart', () => {
       '--local',
       '--no-cache',
       '--delete-passkey',
-    ], 60_000);
+    ]);
 
     const output = result.stdout + result.stderr;
     // JSON from the delete_passkey capability: { "deleted": [...], "failed": [] }.
@@ -240,7 +252,7 @@ describe('CLI TOTP operations against fake-mychart', () => {
       '--local',
       '--no-cache',
       '--set-up-totp',
-    ], 60_000);
+    ]);
 
     const output = result.stdout + result.stderr;
     expect(output).toContain('TOTP setup complete');
@@ -260,7 +272,7 @@ describe('CLI TOTP operations against fake-mychart', () => {
       '--local',
       '--no-cache',
       '--disable-totp',
-    ], 60_000);
+    ]);
 
     const output = result.stdout + result.stderr;
     expect(output).toContain('TOTP disabled');

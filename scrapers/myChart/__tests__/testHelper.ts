@@ -17,7 +17,7 @@ import * as fs from 'fs'
 import * as path from 'path'
 import { MyChartRequest } from '../core/myChartRequest'
 import { myChartPasskeyLogin, areCookiesValid } from '../auth/login'
-import { loadPasskeyCredential } from '../../../npm-package/cli/passkeyStore'
+import { loadPasskeyCredential } from '../../../clients/npm-package/cli/passkeyStore'
 
 const TEST_HOSTNAME = 'mychart.example.org'
 const COOKIE_CACHE_DIR = path.resolve(__dirname, '../../../.cookie-cache')

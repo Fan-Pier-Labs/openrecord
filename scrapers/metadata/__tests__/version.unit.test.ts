@@ -138,13 +138,13 @@ describe('checkVersion', () => {
     expect(await checkVersion({ currentVersion: '0.0.1', target: 'cli' })).toBeNull();
   });
 
-  it('makes no request at all when the user opted out of telemetry', async () => {
-    // Same predicate, because it is the same promise: a request to our server
-    // on every run, putting the caller's IP and cadence in our logs.
+  it('still checks when the user opted out of telemetry', async () => {
+    // The opt-out covers usage events, not this: the check sends nothing but
+    // the request itself.
     const calls = serve(MANIFEST);
     process.env.MYCHART_CLI_TELEMETRY_DISABLED = '1';
-    expect(await checkVersion({ currentVersion: '1.0.0', target: 'cli' })).toBeNull();
-    expect(calls).toHaveLength(0);
+    expect((await checkVersion({ currentVersion: '1.0.0', target: 'cli' }))?.updateAvailable).toBe(true);
+    expect(calls).toHaveLength(1);
   });
 });
 

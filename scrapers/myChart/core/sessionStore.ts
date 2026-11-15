@@ -17,7 +17,6 @@
  */
 
 import type { MyChartRequest } from './myChartRequest';
-import { renewMyChartSession } from './sessionRenewal';
 import { logger } from '../../../shared/logger';
 
 const KEEPALIVE_INTERVAL_MS = 30 * 1000; // 30 seconds, matches MyChart's own JS interval
@@ -78,7 +77,7 @@ class SessionStore {
   /**
    * Remove every entry pointing at this request. Clients call this when they
    * discard a session (account removed, session cleared) so the keepalive
-   * stops pinging — and stops renewing — something nobody holds anymore.
+   * stops pinging something nobody holds anymore.
    */
   unregister(request: MyChartRequest) {
     for (const [token, entry] of this.sessions) {
@@ -208,9 +207,14 @@ class SessionStore {
       // Only trust /Home/KeepAlive — keepalive.asp returns "0" on many modern MyChart
       // instances even when the session is alive (endpoint may not exist → 404/empty).
       // If keepalive.asp also returns "0" we log it, but it doesn't drive expiry alone.
+      //
+      // A dead heartbeat never logs back in from here: that turned one
+      // instance's heartbeat into a passkey sign-in every 30s for hours. The
+      // next real request renews on demand (makeAuthenticatedRequest), and its
+      // success puts the session back in rotation.
       if (dotNetBody.trim() === '0') {
         logger.warn(`[keepalive] ${label} (${host}): EXPIRED — /Home/KeepAlive returned "0" (keepalive.asp=${aspBody.trim()})`);
-        entry.status = await this.tryRenew(entry) ? 'logged_in' : 'expired';
+        entry.status = 'expired';
         return;
       }
       if (aspBody.trim() === '0') {
@@ -229,7 +233,7 @@ class SessionStore {
         `[keepalive] ${label} (${host}): EXPIRED — neither endpoint returned 200 | ` +
         `KeepAlive: ${dotNetStatus} -> "${dotNetLocation}" | keepalive.asp: ${aspStatus} -> "${aspLocation}"`
       );
-      entry.status = await this.tryRenew(entry) ? 'logged_in' : 'expired';
+      entry.status = 'expired';
     } catch (err) {
       const errorCount = (this.keepAliveErrors.get(token) ?? 0) + 1;
       this.keepAliveErrors.set(token, errorCount);
@@ -244,23 +248,6 @@ class SessionStore {
         entry.status = 'error';
         this.keepAliveErrors.delete(token);
       }
-    }
-  }
-
-  /**
-   * When a heartbeat reports the session dead, try to renew it on the spot via
-   * the request's reauthenticate hook — keeping the session alive "as long as
-   * possible" includes logging back in when a hospital expires it despite the
-   * pings (absolute timeouts exist server-side). Single-flighted with any
-   * concurrent scraper-triggered renewal by renewMyChartSession.
-   */
-  private async tryRenew(entry: SessionEntry): Promise<boolean> {
-    if (!entry.request.reauthenticate) return false;
-    try {
-      return await renewMyChartSession(entry.request);
-    } catch (err) {
-      logger.error(`[keepalive] ${entry.hostname}: renewal attempt failed —`, err);
-      return false;
     }
   }
 }

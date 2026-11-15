@@ -41,7 +41,7 @@ open -a Simulator
 export MAESTRO_UDID="$UDID"
 
 # 4. Build + install + launch the Expo app on this exact sim.
-cd expo-app && bunx expo run:ios --device "$UDID" --port 8083 &
+cd clients/expo-app && bunx expo run:ios --device "$UDID" --port 8083 &
 ```
 
 - The UDID is CoreSimulator-assigned, not Claude-generated. Capture it from `simctl create`'s stdout.
@@ -103,6 +103,6 @@ deterministically.**
   (`.*Springfield.*`).
 - Add the `testID` in the same diff as the new screen or button. PRs that introduce untargetable UI
   should be rejected at review.
-- Enforced in CI: `expo-app/src/__tests__/testids.unit.test.ts` scans every `.tsx` under
-  `expo-app/src/app` and `expo-app/src/components` and fails on any
+- Enforced in CI: `clients/expo-app/src/__tests__/testids.unit.test.ts` scans every `.tsx` under
+  `clients/expo-app/src/app` and `clients/expo-app/src/components` and fails on any
   `Pressable`/`TextInput`/`TouchableOpacity`/`Switch`/`Button` without one.

@@ -15,6 +15,7 @@ import { describe, it, expect, beforeAll, afterEach } from 'bun:test'
 import { myChartUserPassLogin, complete2faFlow } from '../../auth/login'
 import { getMyChartProfile } from '../../chart/profile/profile'
 import { resetFakeMyChart } from './mountMode'
+import { setTestTransport } from '../../../http'
 
 const HOST = process.env.FAKE_MYCHART_HOST ?? 'localhost:4000'
 const BASE = `http://${HOST}`
@@ -100,6 +101,25 @@ describe('fake-mychart marge user + /reset', () => {
       protocol: 'http',
     })
     expect(result.state).toBe('need_2fa')
+  }, 15_000)
+
+  it("marge's 2FA posts SendCode once: the first delivery format is answered Success:true", async () => {
+    // Real MyChart answers SendCode with JSON Success, and the client stops at
+    // the first format that succeeds. An answer it can't read as success makes
+    // it try every format, which on a real account is a code per attempt.
+    let sendCodes = 0
+    setTestTransport((url, init) => {
+      if (url.includes('/SecondaryValidation/SendCode')) sendCodes++
+      return globalThis.fetch(url, init)
+    })
+    try {
+      const result = await myChartUserPassLogin({ hostname: HOST, user: 'marge', pass: 'donuts123', protocol: 'http' })
+      expect(result.state).toBe('need_2fa')
+      expect(result.twoFaDelivery).toBeDefined()
+      expect(sendCodes).toBe(1)
+    } finally {
+      setTestTransport(null)
+    }
   }, 15_000)
 
   it('marge login fails with wrong password', async () => {

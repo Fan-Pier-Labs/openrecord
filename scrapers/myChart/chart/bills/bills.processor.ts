@@ -20,7 +20,8 @@
  * and priced at a fabricated `"$0.00"`. The scraper posts each of those back
  * to `GetMoreVisits`, one per request; {@link hydratedRows} collects the
  * answers and the merge swaps each stub for its real row. No caller ever
- * sees the placeholder: if one survives, the read throws.
+ * sees the placeholder: a stub that did not load is listed in
+ * `unloadedVisits` instead, and `notice` says the visit list is incomplete.
  */
 
 import { answered, findRequest, findRequests, type RawRequestRecord, type RawResponse } from '../../core/rawResponse';
@@ -28,9 +29,9 @@ import type { Processor } from '../../processors/processor';
 import { htmlToText } from '../../processors/htmlText';
 import { boolOrNull, list, num, rec, text, textOrNull } from '../../processors/read';
 import type { BillingGetVisits, DataStatement, GetStatementList, LoadPaymentList, Statement } from './mychart.types';
-import type { BillingAccountStandard, BillingCoverageInfoStandard, BillingPaymentStandard, BillingProcedureGroupStandard, BillingProcedureStandard, BillingStandard, BillingStatementStandard, BillingVisitCategory, BillingVisitStandard } from './standardized.types';
+import type { BillingAccountStandard, BillingCoverageInfoStandard, BillingPaymentStandard, BillingProcedureGroupStandard, BillingProcedureStandard, BillingStandard, BillingStatementStandard, BillingUnloadedVisitStandard, BillingVisitCategory, BillingVisitStandard } from './standardized.types';
 
-export type { BillingAccountStandard, BillingCoverageInfoStandard, BillingPaymentStandard, BillingProcedureGroupStandard, BillingProcedureStandard, BillingStandard, BillingStatementStandard, BillingVisitCategory, BillingVisitStandard } from './standardized.types';
+export type { BillingAccountStandard, BillingCoverageInfoStandard, BillingPaymentStandard, BillingProcedureGroupStandard, BillingProcedureStandard, BillingStandard, BillingStatementStandard, BillingUnloadedReason, BillingUnloadedVisitStandard, BillingVisitCategory, BillingVisitStandard } from './standardized.types';
 import { parseBillingAccountsHtml, parsePaymentPath } from './summaryHtml';
 import type { BillingAccount } from './types';
 
@@ -84,9 +85,17 @@ export function postedHydrateKeys(requestBody: unknown): string[] {
   return indexed.sort((a, b) => a.i - b.i).map((entry) => entry.id);
 }
 
+export interface Hydration {
+  /** The hydrated row for each stub, keyed by the stub's encrypted handle. */
+  rows: Map<string, Record<string, unknown>>;
+  /** Handles whose own request succeeded and came back with no row. */
+  empty: Set<string>;
+}
+
 /**
  * The hydrated rows from every `GetMoreVisits` answer, keyed by the encrypted
- * handle of the stub each one answers.
+ * handle of the stub each one answers — and the handles MyChart answered
+ * with nothing at all.
  *
  * The answer carries nothing to join on — a stub's `HospitalAccountId` is an
  * encrypted handle (`WP-24…`), its hydrated row's is the plain account number
@@ -97,21 +106,32 @@ export function postedHydrateKeys(requestBody: unknown): string[] {
  *
  * The pairing puts real money on a row, so it is checked rather than
  * trusted: {@link hydratedFor} drops a pair whose `StartDate` disagrees.
+ *
+ * An answer that succeeded and carried no populated row is MyChart declining
+ * that stub, not a failure: one live instance answered the same two of 15
+ * stubs with `Success: true` and an empty list on every attempt, alone or
+ * batched, and Epic's own "load all" returned them as dateless placeholders.
+ * One handle per request is what lets that answer name its stub.
  */
-function hydratedRows(raw: RawResponse): Map<string, Record<string, unknown>> {
-  const byAccount = new Map<string, Record<string, unknown>>();
+function hydratedRows(raw: RawResponse): Hydration {
+  const hydration: Hydration = { rows: new Map(), empty: new Set() };
   for (const record of findRequests(raw, 'GetMoreVisits')) {
     if (!answered(record)) continue;
     const posted = postedHydrateKeys(record.requestBody);
-    const rows = list(rec(rec(record.body).Data).UnifiedVisitList);
+    const body = rec(record.body);
+    const rows = list(rec(body.Data).UnifiedVisitList);
+    if (body.Success === true && !rows.some((row) => !isStubRow(row))) {
+      for (const handle of posted) hydration.empty.add(handle);
+      continue;
+    }
     rows.forEach((row, i) => {
       const handle = posted[i];
       const r = rec(row);
       if (!handle || isStubRow(r)) return;
-      byAccount.set(handle, r);
+      hydration.rows.set(handle, r);
     });
   }
-  return byAccount;
+  return hydration;
 }
 
 /**
@@ -240,25 +260,16 @@ function visit(value: unknown, category: BillingVisitCategory): BillingVisitStan
   };
 }
 
-/**
- * MyChart paged a guarantor account's charges out and the scraper could not
- * load them all back in. Thrown rather than returned, because the only thing
- * left to return for those rows is the fabricated `"$0.00"` MyChart fills a
- * stub with, and that is indistinguishable from a settled visit — a caller
- * summing the charge column would undercount silently. A read that cannot
- * show the charges says so.
- */
-export class BillingNotFullyLoadedError extends Error {
-  constructor(guarantorNumber: string, unloaded: number, total: number) {
-    super(
-      `MyChart paged out ${unloaded} of ${total} charge rows on guarantor account ${guarantorNumber} ` +
-        'and GetMoreVisits did not return them. Those rows carry no amounts — MyChart fills them with a ' +
-        'placeholder "$0.00" that reads exactly like a settled visit — so this read would undercount the ' +
-        'account rather than visibly fail. Nothing here is an empty or zero balance. Retry later; if it ' +
-        'keeps failing the instance may be rejecting the GetMoreVisits request shape.',
-    );
-    this.name = 'BillingNotFullyLoadedError';
-  }
+function unloadedVisit(stub: Record<string, unknown>, category: BillingVisitCategory, hydration: Hydration): BillingUnloadedVisitStandard {
+  return {
+    category,
+    StartDate: num(stub.StartDate),
+    StartDateDisplay: textOrNull(stub.StartDateDisplay),
+    BillingSystemDisplay: textOrNull(stub.BillingSystemDisplay),
+    reason: hydration.empty.has(text(stub.HospitalAccountId)) || hydration.empty.has(text(stub.EmptyVisitEstimateID))
+      ? 'returned_empty'
+      : 'not_loaded',
+  };
 }
 
 /**
@@ -270,30 +281,51 @@ export class BillingNotFullyLoadedError extends Error {
  * do not look alike: the identity includes `Description` and
  * `SelfAmountDueRaw`, which are exactly the fields hydration fills in.
  *
- * Every row is hydrated or the read fails: a caller never receives a stub, so
- * it never has to ask whether an amount is real.
+ * A stub that did not load goes to `unloadedVisits`, never `visits`: its
+ * every amount is a fabricated `"$0.00"` that reads exactly like a settled
+ * visit, so a caller summing `visits` must not see it. The rows that did load
+ * are still returned — one visit MyChart will not serve is no reason to lose
+ * the rest of the account.
  */
 export function mergeVisitLists(
   data: Record<string, unknown>,
-  hydrated: Map<string, Record<string, unknown>> = new Map(),
-  guarantorNumber = '',
-): BillingVisitStandard[] {
+  hydration: Hydration = { rows: new Map(), empty: new Set() },
+): { visits: BillingVisitStandard[]; unloadedVisits: BillingUnloadedVisitStandard[] } {
   const seen = new Set<string>();
   const visits: BillingVisitStandard[] = [];
-  let unloaded = 0;
+  const unloadedVisits: BillingUnloadedVisitStandard[] = [];
   for (const category of VISIT_LIST_CATEGORIES) {
     for (const row of list(data[category])) {
       let r = rec(row);
-      if (isStubRow(r)) r = hydratedFor(r, hydrated) ?? r;
+      if (isStubRow(r)) r = hydratedFor(r, hydration.rows) ?? r;
       const identity = `${text(r.HospitalAccountId)}|${num(r.StartDate) ?? ''}|${text(r.Description)}|${num(r.SelfAmountDueRaw) ?? ''}`;
       if (seen.has(identity)) continue;
       seen.add(identity);
-      if (isStubRow(r)) unloaded += 1;
-      visits.push(visit(r, category));
+      if (isStubRow(r)) unloadedVisits.push(unloadedVisit(r, category, hydration));
+      else visits.push(visit(r, category));
     }
   }
-  if (unloaded > 0) throw new BillingNotFullyLoadedError(guarantorNumber, unloaded, visits.length);
-  return visits;
+  return { visits, unloadedVisits };
+}
+
+/** The sentence `notice` carries, or null when every account loaded every row. */
+function unloadedNotice(accounts: BillingAccountStandard[]): string | null {
+  const parts = accounts
+    .filter((a) => a.unloadedVisits.length > 0)
+    .map((a) => {
+      const dates = a.unloadedVisits.map((v) => v.StartDateDisplay ?? 'unknown date').join(', ');
+      return `${a.unloadedVisits.length} of ${a.visits.length + a.unloadedVisits.length} charge rows on guarantor account ${a.guarantorNumber} (service dates ${dates})`;
+    });
+  if (parts.length === 0) return null;
+  const declined = accounts.some((a) => a.unloadedVisits.some((v) => v.reason === 'returned_empty'));
+  const failed = accounts.some((a) => a.unloadedVisits.some((v) => v.reason === 'not_loaded'));
+  return (
+    `MyChart did not load ${parts.join('; ')}. They are listed under unloadedVisits and left out of visits, ` +
+    'so the visit list is incomplete — their charges are unknown, not $0.00. The account balances come from ' +
+    'the billing summary and are not affected.' +
+    (declined ? " For rows marked returned_empty, MyChart answered with no detail; its own billing page can't show them either." : '') +
+    (failed ? ' Rows marked not_loaded failed to load and may load on a retry.' : '')
+  );
 }
 
 /** `20251130` → `2025-11-30`; null for anything else. */
@@ -336,9 +368,9 @@ function accountRequest(raw: RawResponse, source: BillingAccount, fragment: stri
   });
 }
 
-function account(raw: RawResponse, source: BillingAccount, hydrated: Map<string, Record<string, unknown>>): BillingAccountStandard {
+function account(raw: RawResponse, source: BillingAccount, hydration: Hydration): BillingAccountStandard {
   const data = rec(rec<BillingGetVisits>(accountRequest(raw, source, 'GetVisits')?.body).Data);
-  const visits = mergeVisitLists(data, hydrated, source.guarantorNumber);
+  const { visits, unloadedVisits } = mergeVisitLists(data, hydration);
   const alert = rec(data.PartialPaymentPlanAlert);
   const banner = rec(alert.Banner);
   const agency = rec(data.SharedAgencyInformation);
@@ -359,6 +391,7 @@ function account(raw: RawResponse, source: BillingAccount, hydrated: Map<string,
     amountDueNumber: source.amountDue ?? null,
     paymentUrl: paymentPathFor(raw, source),
     visits,
+    unloadedVisits,
     VisitListAmount: textOrNull(data.VisitListAmount),
     BadDebtVisitListAmount: textOrNull(data.BadDebtVisitListAmount),
     PaymentPlanVisitListAmount: textOrNull(data.PaymentPlanVisitListAmount),
@@ -402,14 +435,15 @@ function paymentPathFor(raw: RawResponse, source: BillingAccount): string | null
 export const billingProcessor: Processor<BillingStandard> = {
   standard(raw: RawResponse): BillingStandard {
     const summary = text(findRequest(raw, '/Billing/Summary')?.body);
-    const hydrated = hydratedRows(raw);
-    const accounts = parseBillingAccountsHtml(summary).map((source) => account(raw, source, hydrated));
+    const hydration = hydratedRows(raw);
+    const accounts = parseBillingAccountsHtml(summary).map((source) => account(raw, source, hydration));
     const cents = accounts.reduce((sum, a) => sum + Math.round((a.amountDueNumber ?? 0) * 100), 0);
-    return { totalDue: cents / 100, accounts };
+    return { totalDue: cents / 100, notice: unloadedNotice(accounts), accounts };
   },
   concise(standard) {
     return {
       totalDue: standard.totalDue,
+      notice: standard.notice,
       accounts: standard.accounts.map((a) => ({
         guarantorNumber: a.guarantorNumber,
         patientName: a.patientName,
@@ -441,6 +475,7 @@ export const billingProcessor: Processor<BillingStandard> = {
           Description: p.Description,
           PaymentAmountDisplay: p.PaymentAmountDisplay,
         })),
+        unloadedVisits: a.unloadedVisits.map((v) => ({ StartDateDisplay: v.StartDateDisplay, reason: v.reason })),
         unavailable: a.unavailable,
       })),
     };

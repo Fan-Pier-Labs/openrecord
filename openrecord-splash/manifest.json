@@ -1,5 +1,5 @@
 {
-  "name": "OpenRecord — Claude ⇄ MyChart",
+  "name": "MyChart MCP",
   "short_name": "OpenRecord",
   "description": "Manage your health data with AI. Connect your MyChart portal to Claude — read records, send messages, book appointments, request refills, and more.",
   "start_url": "/",
