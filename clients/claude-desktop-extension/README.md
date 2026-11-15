@@ -93,7 +93,7 @@ so the resource is still one self-contained HTML page.
 > just the generic Epic icon.
 >
 > That host has to be named in the widget resource's `_meta.ui.csp`
-> (`SETUP_UI_RESOURCE_META` in `src/ui.ts`): the MCP Apps host builds the
+> (`SETUP_UI_RESOURCE_META` in `clients/shared/mcp-server/ui.ts`): the MCP Apps host builds the
 > sandbox CSP from that declaration and every directive defaults to `'none'`,
 > so an undeclared origin — `data:` included — renders as a broken image.
 
@@ -355,7 +355,7 @@ disagree: if the listing says a call is gone, it is holding nothing. At the
 10-minute cap an entry is dropped outright — result given up on, chart lock
 released — because a scrape that never settles would otherwise block
 `switch_proxy_target` for the life of the server process with no call able to
-clear it. The parked calls live in memory (`src/pending-call.ts`).
+clear it. The parked calls live in memory (`clients/shared/mcp-server/pending-call.ts`).
 
 ### Output modes
 
@@ -396,7 +396,7 @@ The short version, for what this extension does:
   `MYCHART_CLI_TELEMETRY_DISABLED=1`.
 - **Update check.** At startup and daily it reads
   `openrecord.fanpierlabs.com/mcpb_version.json`; when this copy is behind, every tool result
-  ends with a one-line notice (`src/update-notice.ts`). It sends nothing but the request,
+  ends with a one-line notice (`clients/shared/mcp-server/update-notice.ts`). It sends nothing but the request,
   which reveals your IP to our CDN, and it runs even with telemetry turned off.
 - **Disconnecting deletes.** `disconnect_account` removes that account's stored
   credentials, passkey, and session from this machine.
@@ -477,14 +477,16 @@ clients/claude-desktop-extension/
 ├── scripts/
 │   └── verify-native-binaries.mjs # refuses to pack without every platform's keyring binary
 └── src/
-    ├── index.ts            # stdio entry
-    ├── tools.ts            # account meta tools + one tool per shared capability
-    ├── setup-flow.ts       # elicitation-driven setup wizard
-    ├── session-manager.ts  # per-account session cache with keepalive + passkey auto-login
-    ├── credential-store.ts # ~/.openrecord-mcpb/ persistence
-    ├── secret-store.ts     # OS keystore for passkeys, with the file as fallback
-    └── imaging/            # CLO → JPEG glue, and saving a study to ~/Downloads on request
+    ├── index.ts            # stdio entry: startServer(MCPB_HOST) + the setup widget page
+    ├── host.ts             # what this extension adds to the shared server (McpHost)
+    ├── calendar-tools.ts   # connect_google_calendar / disconnect_google_calendar
+    ├── google-calendar/    # the macOS menu-bar sync app
+    └── setup-widget/       # the MCP Apps setup widget (React)
 ```
+
+The server itself — every tool, sessions, the credential and secret stores, imaging, long-call
+parking — is client-neutral and lives in
+[`clients/shared/mcp-server/`](../shared/mcp-server/).
 
 ## Development
 
