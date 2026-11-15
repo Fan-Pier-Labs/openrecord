@@ -1,0 +1,1057 @@
+// Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
+
+/**
+ * Tool registry for OpenRecord's stdio MCP server, which both the Claude Desktop
+ * extension and `mychart-cli mcp` run. What differs between them is `McpHost`.
+ *
+ * Three groups of tools:
+ *   1. Meta tools — list_accounts, get_setup_widget (hosts with the widget only),
+ *                   setup_account, import_browser_passwords,
+ *                   connect_imported_account, complete_2fa,
+ *                   disconnect_account, check_pending_call. These are not
+ *                   capabilities: most manage the credentials stored on this
+ *                   machine, get_setup_widget returns an MCP Apps UI
+ *                   resource, and check_pending_call collects a result that
+ *                   outran the client's request timeout (pending-call.ts).
+ *                   `search_mycharts` and `get_hospital_info` used to be
+ *                   meta tools and are now `public` capabilities in the
+ *                   shared registry, so every client has them.
+ *   2. Host tools — `McpHost.registerExtraTools` (the extension's Google Calendar sync).
+ *   3. Capability tools — one per entry in `clients/shared/capabilities/`, which is
+ *                   the single source of truth for what OpenRecord can do with
+ *                   a MyChart account. Nothing in this file decides what the
+ *                   extension supports; add a capability there and it appears
+ *                   here, in the CLI, in the npm client and in the mobile app.
+ *
+ * Every capability tool that touches MyChart takes an `account` parameter (the
+ * hostname returned by list_accounts). Multiple accounts can be configured and
+ * connected at once; there is no "active account" state. `public` capabilities
+ * (the NPI Registry, the MyChart directory) take no account and run with no
+ * session at all.
+ *
+ * There IS an "active patient" per account, but it lives on MyChart's server
+ * (proxy access — a parent reading a child's chart). Scraper tools take an
+ * optional `patient` and assert the active record before running; only
+ * switch_proxy_target changes it. See scrapers/myChart/proxyTools.ts.
+ *
+ * Setup is a sequence of explicit tool calls (no MCP elicitation):
+ *   list_accounts                                  // see what's already set up
+ *   import_browser_passwords()                     // optional: reuse a password the browser already has
+ *   connect_imported_account(import_id)            //   …then connect the one the user picked
+ *   search_mycharts(query="uchealth")              // otherwise, find the hostname for a new account
+ *   setup_account(hostname, username, password)    // attempt login
+ *   complete_2fa(pending_id, code)                 // only if the login said need_2fa
+ *   register_passkey(account)                      // recommended, only if the user agrees:
+ *                                                  //   skips password + 2FA on future sessions
+ */
+
+import { z, type ZodRawShape } from 'zod';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+
+import { myChartUserPassLogin, complete2faFlow } from '../../../scrapers/myChart/auth/login';
+
+import {
+  ACCOUNT_PARAM,
+  CAPABILITIES,
+  MODE_PARAM,
+  MODEL_FACING_OUTPUT_MODE,
+  PATIENT_PARAM,
+  acceptsAccountParam,
+  acceptsModeParam,
+  acceptsPatientParam,
+  describeModeParam,
+  executeCapability,
+  isPublicCapability,
+  readAccountArg,
+  type Capability,
+  type CapabilityContext,
+  type CapabilityParam,
+  type StudyImagePayload,
+  type FilePayload,
+} from '../capabilities';
+import { readLocalFile } from '../readLocalFile';
+
+import { BACKEND_DESCRIPTION } from './secret-store';
+import {
+  resolveSession,
+  isConnected,
+  clearSession,
+  adoptSession,
+  NeedsTwoFactorError,
+} from './session-manager';
+import { SessionExpiredError } from '../../../scrapers/myChart/core/makeAuthenticatedRequest';
+import {
+  accountId,
+  lookupAccount,
+  lookupIdentity,
+  readAccounts,
+  secretBackend,
+  readAccountPasskey,
+  removeAccount,
+  saveAccountPasskey,
+  saveAccountTotpSecret,
+  normalizeHostname,
+} from './credential-store';
+import { addPending, takePending } from './pending-logins';
+import { demoConflict, demoConflictMessage, saveAccount } from './demo-account';
+import { CHECK_TOOL, DEADLINE_LABEL, checkPendingCall, runGuarded, unsettledCallOnAccount } from './pending-call';
+import { releaseImportedCandidate, scanBrowserPasswords, takeImportedCandidates } from './browser-import';
+import { FULL_DISK_ACCESS_STEPS, FULL_DISK_ACCESS_STEPS_OTHER_HOST } from './full-disk-access';
+import type { McpHost } from './host';
+import { decodeStudy, encodeFullResolutionJpegs, type DecodedStudy } from './imaging/download-study';
+import { inlinePreviews } from './imaging/inline-preview';
+import { saveStudyJpegs, type SavedStudy } from './imaging/save-study';
+import { INLINE_BUDGET_BYTES } from './imaging/inline-preview';
+import { saveFilePayload, saveTextFile } from './save-file';
+import { reportToolCall } from './tool-telemetry';
+import { withUpdateNotice } from './update-notice';
+import { detailedMessage } from '../../../shared/detailedError';
+import { FEATURE_REQUEST_TOOL, runFeatureRequestTool } from '../featureRequest';
+
+// Host tools build their schemas with this zod, so the SDK sees one zod instance.
+export { z };
+
+// ── Result helpers ──────────────────────────────────────────────────────────
+
+type ToolContent =
+  | { type: 'text'; text: string }
+  | { type: 'image'; data: string; mimeType: string };
+export type ToolResult = { content: ToolContent[]; isError?: boolean };
+
+export function jsonResult(data: unknown): ToolResult {
+  return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+}
+
+function textResult(text: string): ToolResult {
+  return { content: [{ type: 'text', text }] };
+}
+
+function errorResult(message: string): ToolResult {
+  return { content: [{ type: 'text', text: `Error: ${message}` }], isError: true };
+}
+
+/** Results built from a caught error, so `guarded` can report the error itself — stack and all. */
+const caughtErrors = new WeakMap<ToolResult, unknown>();
+
+export function caughtErrorResult(err: unknown): ToolResult {
+  const result = errorResult(detailedMessage(err));
+  caughtErrors.set(result, err);
+  return result;
+}
+
+// ── Tool metadata ───────────────────────────────────────────────────────────
+
+/**
+ * The `title` + `annotations` half of a tool's registration.
+ *
+ * MCP carries a tool's human-readable label in two places: `Tool.title`, and
+ * the older `ToolAnnotations.title`. Which one a client reads is up to the
+ * client, so a tool that fills in only one shows up under its snake_case id in
+ * whichever client reads the other. Every tool here — hand-written or derived
+ * from `clients/shared/capabilities/` — goes through this so both are filled from one
+ * string and neither can be forgotten. `tool-metadata.unit.test.ts` fails the
+ * build if a registration skips it.
+ */
+export function toolMeta(
+  title: string,
+  hints: { readOnlyHint: boolean; destructiveHint?: boolean; openWorldHint: boolean },
+): { title: string; annotations: { title: string; readOnlyHint: boolean; destructiveHint?: boolean; openWorldHint: boolean } } {
+  return { title, annotations: { title, ...hints } };
+}
+
+// ── Recommending a passkey after login ─────────────────────────────────────
+
+const PASSKEY_ALREADY_SAVED_MESSAGE =
+  'Account connected. A passkey for this login is already saved, so future sessions sign in ' +
+  'without the password or a 2FA code.';
+
+/**
+ * What to say to a patient who has just logged in and has no passkey yet.
+ *
+ * Text for the model to relay, not an instruction to it: what the model should
+ * *do* — offer, and register only on a yes — is in `setup_account`'s own
+ * description, gated on `passkey_saved`. `message` fields elsewhere in
+ * this server interpolate strings that came off the portal, so a description
+ * that told the model to do what one said would make every one of them an
+ * instruction channel.
+ *
+ * `BACKEND_DESCRIPTION[secretBackend()]` is the live answer, not the ideal one:
+ * a locked keychain or a native module that failed to load downgrades storage
+ * to a 0600 file, and a recommendation that promises the Keychain in that case
+ * is a lie about where a P-256 private key to a medical record ends up.
+ */
+function recommendPasskeyMessage(id: string): string {
+  return (
+    'Account connected — nothing further is required to read this chart. ' +
+    'STRONGLY RECOMMENDED, but only with the user\'s explicit go-ahead: offer to set up a passkey now. ' +
+    'Tell them, in your own words, what it does and what it costs: every later session signs in with no ' +
+    `username, password or 2FA code; the key is stored in ${BACKEND_DESCRIPTION[secretBackend()]} and is ` +
+    'never sent to Anthropic; and it registers a new sign-in credential on their MyChart account that stays ' +
+    `valid on the portal until it is removed (\`delete_passkey\` with account "${id}", or ` +
+    'disconnect_account, which deletes the local copy). ' +
+    `If — and only if — they say yes, call register_passkey with account "${id}".`
+  );
+}
+
+/**
+ * The `logged_in` payload shared by both password routes.
+ *
+ * **No passkey is registered here.** Registering one writes a new
+ * authentication factor onto the patient's MyChart account, and its whole
+ * purpose is that future sign-ins stop asking for the password and the 2FA
+ * code — a deliberate change to the security posture of a medical record that
+ * outlives the session and stays valid on the portal until someone deletes it.
+ * That is the patient's call, not a side effect of "log me in". The payload
+ * recommends it instead, and `register_passkey` runs only once they agree.
+ */
+function loggedInResult(hostname: string, username: string): ToolResult {
+  const id = accountId({ hostname, username });
+  // Per (hostname, username): another user's passkey on the same hostname says
+  // nothing about this login.
+  const hasPasskey = !!readAccountPasskey(normalizeHostname(hostname), username);
+
+  return jsonResult({
+    state: 'logged_in',
+    account: id,
+    passkey_saved: hasPasskey,
+    passkey_storage: secretBackend(),
+    // The setup widget shows this to the patient verbatim when it offers a
+    // passkey, so it is the same live answer the model gets in `message`.
+    passkey_storage_description: BACKEND_DESCRIPTION[secretBackend()],
+    message: hasPasskey ? PASSKEY_ALREADY_SAVED_MESSAGE : recommendPasskeyMessage(id),
+  });
+}
+
+// ── Capability → MCP tool ──────────────────────────────────────────────────
+
+/**
+ * The registry declares the account selector; this client makes it required.
+ * Several accounts can be connected at once and the MCPB has no notion of a
+ * "current" one, so every call has to name its account.
+ */
+const ACCOUNT_SCHEMA = z
+  .string()
+  .describe(
+    'Which connected MyChart account to use, as `username@hostname`. Get the exact value from the `account` field of list_accounts.',
+  );
+
+/**
+ * Saving a media capability's output to disk, offered by this client only.
+ *
+ * Off by default so that looking at a scan stays read-only. The description
+ * carries the whole contract, because it is all the model has to decide with:
+ * show on request, save on a second, explicit one.
+ */
+const SAVE_PARAM = 'save_to_downloads';
+const SAVE_SCHEMA = z
+  .boolean()
+  .describe(
+    "Save the pictures to the user's Downloads folder, as full-resolution JPEGs in a folder named for the study, INSTEAD of showing them in the conversation. " +
+      'Defaults to false — reduced-size previews are shown inline. With true, the result is a short confirmation of where the files went and no images. ' +
+      'Pass true only when the user asks to save, download, export, or keep a copy.',
+  )
+  .optional();
+
+/**
+ * Putting a file capability's content into the result, offered by this
+ * client only. The mirror image of `save_to_downloads`: a file is always
+ * saved, and this asks for it to be readable here as well.
+ */
+const RETURN_PARAM = 'return_content';
+const RETURN_SCHEMA = z
+  .boolean()
+  .describe(
+    "Also put the file's content in the result so it can be read here: a text file as text (a picture is shown whenever it fits, with or without this). " +
+      "Defaults to false — the file is only saved to the user's Downloads folder and the result carries its path. " +
+      'Only a file under about 800 KB fits under the 1MB tool-result cap; a larger one is saved and the result says so. ' +
+      'A PDF, and any other type no conversation can show, is saved and the result says so however this is set. ' +
+      'Pass true when the user asks what a document says.',
+  )
+  .optional();
+
+/** Translate one registry parameter into its zod equivalent. */
+function zodForParam(param: CapabilityParam): z.ZodType {
+  let schema: z.ZodType;
+  switch (param.type) {
+    case 'number': {
+      let n = z.number();
+      if (param.min !== undefined) n = n.min(param.min);
+      if (param.max !== undefined) n = n.max(param.max);
+      schema = n;
+      break;
+    }
+    case 'boolean':
+      schema = z.boolean();
+      break;
+    case 'string[]':
+      schema = z.array(z.string());
+      break;
+    case 'object':
+      schema = z.unknown();
+      break;
+    default:
+      schema = z.string();
+  }
+  schema = schema.describe(param.description);
+  return param.required ? schema : schema.optional();
+}
+
+/**
+ * Per-account context for the capabilities that touch stored credentials
+ * (TOTP setup/disable, passkey registration). Reads the MCPB's own credential
+ * store; the registry never knows where any of it lives.
+ */
+function contextFor(ref: string): CapabilityContext {
+  const account = lookupAccount(ref);
+  if (!account) return {};
+  const { hostname, username } = account;
+  return {
+    password: account.password,
+    totpSecret: account.totpSecret,
+    saveTotpSecret: (secret: string) => { saveAccountTotpSecret(hostname, username, secret); },
+    savePasskey: (serialized: string) => saveAccountPasskey(hostname, username, serialized),
+    readFile: readLocalFile,
+  };
+}
+
+const SWITCH_PROXY_TOOL = 'switch_proxy_target';
+
+/**
+ * Register one capability as an MCP tool. `kind` controls the annotations
+ * Claude Desktop uses for grouping:
+ *   - 'read'             → readOnlyHint: true
+ *   - 'write' | 'account'→ readOnlyHint: false, destructiveHint: true
+ *
+ * `account`-kind capabilities change how the patient signs in. The MCPB's only
+ * surface is tools, so they are registered — but flagged destructive, the way
+ * disconnect_account already is.
+ *
+ * A capability with no scraper is annotated read-only whatever its `kind` says,
+ * because it changes nothing: `kind` describes the write it will be once
+ * implemented, and warning a patient that a no-op is destructive is a warning
+ * they learn to ignore.
+ */
+function registerCapabilityTool(server: McpServer, capability: Capability): void {
+  const shape: Record<string, z.ZodType> = {};
+  // Everything that touches MyChart needs to be told which account. The
+  // `public` capabilities — the NPI Registry, the MyChart directory — do not,
+  // and asking for one would stop the model looking a provider up until the
+  // user had connected a chart it has nothing to do with.
+  if (acceptsAccountParam(capability)) shape[ACCOUNT_PARAM.name] = ACCOUNT_SCHEMA;
+  // Which patient the call is about, for accounts with proxy access to family
+  // members' charts. executeCapability asserts it — or the account holder,
+  // when omitted — before the capability runs, so a read refuses rather than
+  // silently returning the wrong family member's chart.
+  if (acceptsPatientParam(capability)) shape.patient = zodForParam(PATIENT_PARAM);
+  // How the payload is rendered. This client talks to a model, so the default
+  // is the concise projection; the model asks for `standard`, `json` or `raw`
+  // by name when it needs more.
+  if (acceptsModeParam(capability)) {
+    shape[MODE_PARAM.name] = z.string().describe(describeModeParam(MODEL_FACING_OUTPUT_MODE)).optional();
+  }
+  // Saving to disk is this client's own affair, not the shared capability's:
+  // the CLI already has `--output` and the mobile app has no filesystem the
+  // user browses. Keyed off the flag, so a second media capability gets it
+  // without being named here.
+  if (capability.rendersMedia) shape[SAVE_PARAM] = SAVE_SCHEMA;
+  if (capability.returnsFile) shape[RETURN_PARAM] = RETURN_SCHEMA;
+  for (const param of capability.params) shape[param.name] = zodForParam(param);
+
+  const hints =
+    capability.kind === 'read' || capability.kind === 'public' || capability.notImplemented
+      ? { readOnlyHint: true, openWorldHint: true }
+      : { readOnlyHint: false, destructiveHint: true, openWorldHint: true };
+
+  server.registerTool(
+    capability.id,
+    {
+      ...toolMeta(capability.title, hints),
+      description: capability.description,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      inputSchema: shape as any,
+    },
+    async (args: Record<string, unknown>) => {
+      try {
+        // A public capability has no account to resolve and no credentials to
+        // read: `executeCapability` runs it with a null session.
+        const account = isPublicCapability(capability) ? '' : readAccountArg(args) ?? '';
+        // A parked read is still reading whichever patient is active; switching
+        // under it would hand the read the wrong chart.
+        const busy = capability.id === SWITCH_PROXY_TOOL ? unsettledCallOnAccount(account) : undefined;
+        if (busy) {
+          return errorResult(
+            `${busy.tool} (id "${busy.id}") is still reading this account's chart, so the active patient cannot ` +
+              `change yet. Wait for it with ${CHECK_TOOL} on that id (abandoning does not stop it), then switch. ` +
+              `${CHECK_TOOL} with no id lists everything pending.`,
+          );
+        }
+        const session = isPublicCapability(capability) ? null : await resolveSession(account);
+        // executeCapability, not capability.run, for EVERY capability: the
+        // active-patient assertion lives there. Branching to a direct
+        // `capability.run` for the imaging tool is how that one tool ended up
+        // returning a family member's X-rays.
+        const withMode =
+          acceptsModeParam(capability) && !args[MODE_PARAM.name]
+            ? { ...args, [MODE_PARAM.name]: MODEL_FACING_OUTPUT_MODE }
+            : args;
+        const payload = await executeCapability(
+          session,
+          capability.id,
+          withMode,
+          isPublicCapability(capability) ? undefined : contextFor(account),
+        );
+        // The flag, not the id — and it decides how to RENDER the payload,
+        // never whether the guard ran.
+        if (capability.rendersMedia) {
+          return await imagingResult(payload as StudyImagePayload, args[SAVE_PARAM] === true);
+        }
+        if (capability.returnsFile) {
+          return fileResult(payload as FilePayload, args[RETURN_PARAM] === true);
+        }
+        // The markdown modes come back as a string and go out as text; the
+        // data modes go out as JSON.
+        return typeof payload === 'string' ? textResult(payload) : jsonResult(payload);
+      } catch (err) {
+        if (err instanceof NeedsTwoFactorError) return needTwoFactorResult(err, capability.id);
+        if (err instanceof SessionExpiredError && !isPublicCapability(capability)) {
+          // The mid-request renewal is machine mode and never sends a code, so
+          // keeping this session would fail every later call the same way.
+          // Dropping it makes the next call sign in fresh, as a human.
+          clearSession(readAccountArg(args) ?? '');
+          const result = errorResult(
+            `${err.message} Call ${capability.id} again to sign in. If MyChart asks for a verification code, ` +
+              'that call sends one and returns a pending_id for complete_2fa.',
+          );
+          caughtErrors.set(result, err);
+          return result;
+        }
+        return caughtErrorResult(err);
+      }
+    },
+  );
+}
+
+function needTwoFactorResult(err: NeedsTwoFactorError, toolId: string): ToolResult {
+  return jsonResult({
+    state: 'need_2fa',
+    pending_id: err.pendingId,
+    account: err.account,
+    delivery: err.delivery ?? null,
+    message:
+      `To sign in, MyChart sent the user a verification code. Ask the user for it, call complete_2fa with this ` +
+      `pending_id and the code, then call ${toolId} again.`,
+  });
+}
+
+/** Image types Claude Desktop renders from an `image` content block. */
+const INLINE_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
+
+/**
+ * A `returnsFile` capability's result: the file is always written to the
+ * user's Downloads folder, and its content goes into the result as well only
+ * when a model can actually read it there — an image whenever it fits, a text
+ * file when `returnContent` asks. Whatever else the capability knew about the
+ * file (an attachment's dcsId, a statement's date) rides in the summary; the
+ * bytes never do.
+ *
+ * Takes the payload rather than running the capability, so it cannot become a
+ * second path around the active-patient assertion. `baseDir` is the test seam.
+ */
+export function fileResult(payload: FilePayload, returnContent: boolean, baseDir?: string): ToolResult {
+  const { bytes, fileName, mimeType, ...rest } = payload;
+  const savedTo = baseDir === undefined ? saveFilePayload(payload) : saveFilePayload(payload, baseDir);
+
+  const isImage = INLINE_IMAGE_TYPES.has(mimeType);
+  const isText = mimeType.startsWith('text/');
+  const base64 = isImage || (returnContent && isText) ? Buffer.from(bytes).toString('base64') : '';
+  const fits = base64.length <= INLINE_BUDGET_BYTES;
+
+  let note: string | undefined;
+  let attached: ToolContent | undefined;
+  if (isImage) {
+    if (fits) attached = { type: 'image', data: base64, mimeType };
+    else note = 'The image is too large to show in the conversation; open the saved file to view it.';
+  } else if (!isText) {
+    // Those four image types and text are the whole of what survives the trip
+    // to a model. A PDF has no content block that carries it: MCP's embedded
+    // resource is the only legal shape, and Claude Desktop drops such a
+    // resource's `blob` on the way to the API while Claude Code diverts it to
+    // a temp file of its own. Saying so beats attaching bytes that vanish.
+    note = `Unsupported file type for the conversation (${mimeType}), so it was saved to the Downloads folder instead; open the saved file to read it.`;
+  } else if (!returnContent) {
+    note = `Open the saved file to read it, or call again with ${RETURN_PARAM}: true to read it here; its content is not in this result.`;
+  } else if (!fits) {
+    note = `The file is too large to return in the conversation (the cap is about ${Math.round(INLINE_BUDGET_BYTES / 1024)} KB); open the saved file to read it.`;
+  } else {
+    attached = { type: 'text', text: Buffer.from(bytes).toString('utf8') };
+  }
+
+  const content: ToolContent[] = [
+    {
+      type: 'text',
+      text: JSON.stringify(
+        { file_name: fileName, mime_type: mimeType, size_bytes: bytes.length, saved_to: savedTo, ...rest, ...(note ? { note } : {}) },
+        null,
+        2,
+      ),
+    },
+  ];
+  if (attached) content.push(attached);
+  return { content };
+}
+
+/**
+ * `download_imaging_study` is the one capability whose payload isn't JSON: it
+ * returns raw CLO bytes that this client decodes itself. One image content
+ * block per picture, so Claude Desktop renders the actual X-ray instead of a
+ * base64 blob buried in JSON text.
+ *
+ * The inline pictures are budgeted previews (`inline-preview.ts`): Claude
+ * Desktop refuses a tool result over 1MB, and one full-size radiograph is
+ * several times that. With `save_to_downloads`, the full-resolution JPEGs are
+ * written to the user's Downloads folder instead of shown. Off by default:
+ * looking at a scan should not litter someone's disk, and the previews are
+ * what "show me my X-ray" asks for. Keeping a copy is a second, explicit request.
+ *
+ * Takes the payload rather than running the capability, so it cannot become a
+ * second path around the active-patient assertion.
+ */
+export async function imagingResult(
+  payload: StudyImagePayload,
+  saveToDownloads: boolean,
+  /** Where a save lands; the test seam. The product always saves to Downloads. */
+  baseDir?: string,
+): Promise<ToolResult> {
+  const study = decodeStudy(payload);
+  const errors = [...study.errors];
+
+  // A failed save must never cost the user the pictures themselves: a
+  // read-only Downloads folder or a full disk falls through to the previews
+  // with the error reported beside them.
+  if (saveToDownloads && study.images.length > 0) {
+    try {
+      return savedResult(study, saveStudyJpegs(encodeFullResolutionJpegs(study), baseDir), errors);
+    } catch (err) {
+      errors.push(`Downloaded the images but could not save them to disk: ${detailedMessage(err)}`);
+    }
+  }
+
+  const preview = await inlinePreviews(study);
+  errors.push(...preview.errors);
+
+  const notes: string[] = [];
+  if (preview.downscaled) {
+    notes.push('The inline images are reduced-size previews so the result fits in the conversation.');
+  }
+  if (preview.images.length < study.images.length) {
+    notes.push(`Showing ${preview.images.length} of ${study.images.length} images, spread evenly across the study.`);
+  }
+  if (notes.length && !saveToDownloads) {
+    notes.push('Pass save_to_downloads: true to write every image at full resolution to the Downloads folder.');
+  }
+
+  const content: ToolContent[] = [
+    {
+      type: 'text',
+      text: JSON.stringify(
+        {
+          study_name: study.studyName,
+          total_images: study.totalImages,
+          returned: study.images.length,
+          shown_inline: preview.images.length,
+          ...(notes.length ? { note: notes.join(' ') } : {}),
+          ...(errors.length ? { errors } : {}),
+        },
+        null,
+        2,
+      ),
+    },
+  ];
+
+  for (const img of preview.images) {
+    content.push({ type: 'image', data: img.jpegBase64, mimeType: 'image/jpeg' });
+  }
+
+  if (study.images.length === 0) {
+    content.push({
+      type: 'text',
+      text:
+        'No images could be downloaded for this study. ' +
+        (errors.length
+          ? 'See the errors above.'
+          : 'The study may not expose viewable image data, or the viewer session expired — try get_imaging_results again for a fresh image_id.'),
+    });
+  }
+
+  return { content };
+}
+
+function savedResult(study: DecodedStudy, saved: SavedStudy, errors: string[]): ToolResult {
+  const count = saved.files.length;
+  const lines = [
+    `Successfully saved ${count} full-resolution image${count === 1 ? '' : 's'} from ${study.studyName} to ${saved.directory}`,
+  ];
+  if (errors.length) lines.push('', 'Errors:', ...errors.map((e) => `- ${e}`));
+  return textResult(lines.join('\n'));
+}
+
+// ── Shared login path ───────────────────────────────────────────────────────
+
+/**
+ * Log in with a password and save the account.
+ *
+ * Shared by `setup_account` (password typed in chat) and
+ * `connect_imported_account` (password read from the browser store) so both
+ * routes get identical 2FA handling, session adoption and the same
+ * passkey recommendation — and so a fix to one is a fix to both.
+ */
+async function connectWithPassword(hostname: string, username: string, passwords: string[]): Promise<ToolResult> {
+  const conflict = demoConflict(hostname);
+  if (conflict.length) return jsonResult({ state: 'demo_conflict', accounts: conflict, message: demoConflictMessage(conflict) });
+  try {
+    // An imported login can carry one password per browser. Only a rejected
+    // password moves on to the next: 2FA or any other outcome means MyChart
+    // has accepted it or something else is wrong, and either way we stop.
+    let password = passwords[0]!;
+    let result = await myChartUserPassLogin({ hostname, user: username, pass: password });
+    for (const next of passwords.slice(1)) {
+      if (result.state !== 'invalid_login') break;
+      password = next;
+      result = await myChartUserPassLogin({ hostname, user: username, pass: password });
+    }
+
+    if (result.state === 'logged_in') {
+      saveAccount(hostname, username, password);
+      await adoptSession(hostname, username, result.mychartRequest);
+      return loggedInResult(hostname, username);
+    }
+
+    if (result.state === 'invalid_login') {
+      return jsonResult({
+        state: 'invalid_login',
+        account: normalizeHostname(hostname),
+        message: 'MyChart rejected those credentials. Double-check the username + password with the user and call setup_account again.',
+      });
+    }
+
+    if (result.state === 'need_2fa') {
+      const pending_id = addPending({
+        hostname: normalizeHostname(hostname),
+        username,
+        password,
+        mychartRequest: result.mychartRequest,
+      });
+      return jsonResult({
+        state: 'need_2fa',
+        pending_id,
+        account: normalizeHostname(hostname),
+        delivery: result.twoFaDelivery ?? null,
+        message: 'MyChart sent a 6-digit verification code. Ask the user for it, then call complete_2fa with this pending_id and the code.',
+      });
+    }
+
+    return jsonResult({
+      state: result.state,
+      account: normalizeHostname(hostname),
+      error: result.error ?? null,
+      message: `Login ended in unexpected state: ${result.state}. Tell the user and try again.`,
+    });
+  } catch (err) {
+    return caughtErrorResult(err);
+  }
+}
+
+// ── Parking long calls ─────────────────────────────────────────────────────
+
+/**
+ * A server whose every registration runs under `runGuarded`. The declared
+ * type is kept so handlers' argument types still come from their zod shapes;
+ * every tool declares an inputSchema, so the first callback argument is the
+ * arguments.
+ */
+function guarded(server: McpServer): McpServer {
+  const registerTool = (name: string, config: unknown, handler: (...a: unknown[]) => ToolResult | Promise<ToolResult>) =>
+    server.registerTool(name, config as never, (...a: unknown[]) => {
+      const args = (a[0] ?? {}) as Record<string, unknown>;
+      // Reported from inside the guarded run, so a call that outlives the
+      // deadline is still reported — with its error — when it finishes.
+      return runGuarded(name, args, async () => {
+        try {
+          const result = await handler(...a);
+          reportToolCall(name, args, caughtErrors.get(result));
+          return result;
+        } catch (err) {
+          reportToolCall(name, args, err);
+          throw err;
+        }
+      });
+    });
+  return { registerTool } as unknown as McpServer;
+}
+
+/**
+ * A server whose every result ends with the update notice, when there is one.
+ * Outermost, so a parked call's result is stored without it and gets it once,
+ * when check_pending_call hands it over.
+ */
+function noticed(server: McpServer): McpServer {
+  const registerTool = (name: string, config: unknown, handler: (...a: unknown[]) => ToolResult | Promise<ToolResult>) =>
+    server.registerTool(name, config as never, async (...a: unknown[]) => withUpdateNotice(await handler(...a)));
+  return { registerTool } as unknown as McpServer;
+}
+
+function registerCheckPendingCall(server: McpServer): void {
+  server.registerTool(
+    CHECK_TOOL,
+    {
+      description:
+        `Collect the result of a tool call that ran past ${DEADLINE_LABEL} and was parked under an id, exactly as ` +
+        'the original tool would have returned it. A result that is ready is always handed over, and handed ' +
+        'over once — including under `wait: false`, so this is a collection, never a peek. When the call is ' +
+        `still running it waits up to ${DEADLINE_LABEL} for it, or with \`wait: false\` says so at once. Omit ` +
+        '`id` to list every pending call, which is what a refusal naming an id is talking about. `abandon: ' +
+        'true` stops waiting and discards the result — it does not stop the work, and anything already sent ' +
+        'still lands, so an abandoned call is still waitable here until its read finishes. Two clocks: a call ' +
+        'that has not finished is given up on 10 minutes after it started, releasing everything it held, and ' +
+        'a finished result then waits 10 more minutes to be collected.',
+      inputSchema: {
+        id: z.string().optional().describe('The id from the parking note. Omit to list every pending call.'),
+        wait: z
+          .boolean()
+          .optional()
+          .describe(
+            `Wait up to ${DEADLINE_LABEL} for the call to finish (default true). false reports at once instead — ` +
+              'but a result that is already ready is handed over, and consumed, either way.',
+          ),
+        abandon: z.boolean().optional().describe('Stop waiting and discard the result. Does not stop the work.'),
+      } satisfies ZodRawShape,
+      // Not read-only: abandon discards a result.
+      ...toolMeta('Check a pending tool call', { readOnlyHint: false, destructiveHint: false, openWorldHint: false }),
+    },
+    ({ id, wait, abandon }) =>
+      checkPendingCall({
+        ...(id !== undefined ? { id } : {}),
+        ...(wait !== undefined ? { wait } : {}),
+        ...(abandon !== undefined ? { abandon } : {}),
+      }),
+  );
+}
+
+// ── Public: register everything on the server ──────────────────────────────
+
+export function registerAllTools(rawServer: McpServer, host: McpHost): void {
+  const withNotice = noticed(rawServer);
+  // check_pending_call collects parked results, so it is never itself parked.
+  registerCheckPendingCall(withNotice);
+  const server = guarded(withNotice);
+
+  // ── Meta tools ────────────────────────────────────────────────────────────
+
+  server.registerTool(
+    'list_accounts',
+    {
+      description: 'Returns every MyChart account whose credentials are already saved on this machine. Every entry in `accounts` is fully configured — pass its `account` id (`username@hostname`) as the `account` parameter to any data tool. NEVER ask the user for credentials again for an account that appears here, regardless of the `sessionActive` flag (sessions are created on-demand by the next tool call).',
+      inputSchema: {},
+      ...toolMeta('List configured accounts', { readOnlyHint: true, openWorldHint: false }),
+    },
+    () => {
+      const accounts = readAccounts();
+      const accountList = accounts.map(a => ({
+        account: accountId(a),
+        hostname: a.hostname,
+        username: a.username,
+        configured: true,
+        sessionActive: isConnected(accountId(a)),
+        hasPasskey: !!readAccountPasskey(a.hostname, a.username),
+        hasTotpSecret: !!a.totpSecret,
+      }));
+
+      const result: ToolResult = {
+        content: [
+          {
+            type: 'text',
+            // secretStorage says whether passwords, TOTP secrets and passkeys
+            // reached the OS keystore or fell back to a plaintext file —
+            // otherwise a locked keychain downgrades storage silently and
+            // nobody ever finds out.
+            text: JSON.stringify(
+              { count: accounts.length, secretStorage: secretBackend(), ...host.listAccountsExtra?.(), accounts: accountList },
+              null,
+              2,
+            ),
+          },
+        ],
+      };
+
+      if (accounts.length === 0) {
+        result.content.push({
+          type: 'text',
+          text: host.setupWidgetHtml
+            ? '\nNo MyChart accounts are configured yet. Call get_setup_widget to display the interactive connection widget.'
+            : '\nNo MyChart accounts are configured yet. Ask the user which health system they use, find its hostname with search_mycharts, then call setup_account.',
+        });
+      } else {
+        result.content.push({
+          type: 'text',
+          text:
+            '\nThese accounts are already configured — credentials are stored on disk. ' +
+            'Call data tools directly with `account: <the account id above>`; login + 2FA happen automatically via the saved passkey or password. ' +
+            'DO NOT re-prompt the user for username, password, or hostname. ' +
+            '`sessionActive: false` just means no in-memory session yet; the next tool call will create one transparently.',
+        });
+      }
+
+      return result;
+    },
+  );
+
+  if (host.setupWidgetHtml) server.registerTool(
+    'get_setup_widget',
+    {
+      description: 'Display an interactive widget for connecting MyChart accounts: the user can import logins already saved in their browser, or search for their health system and sign in by hand, then finish 2FA and the passkey offer in the widget. Use this if the user wants a GUI instead of chat-based setup.',
+      inputSchema: {} satisfies ZodRawShape,
+      ...toolMeta('Get interactive setup widget', { readOnlyHint: true, openWorldHint: false }),
+      _meta: { 'openai/outputTemplate': 'ui://openrecord/setup', ui: { resourceUri: 'ui://openrecord/setup' } },
+    },
+    () => ({
+      content: [
+        {
+          type: 'text',
+          text: 'The user can import MyChart logins saved in their browser, or enter one by hand, in the widget. It sends a message when they click Done.',
+        },
+      ],
+    }),
+  );
+
+  server.registerTool(
+    'setup_account',
+    {
+      description: "Attempt to log into MyChart and save the account for future calls. The model should first ask the user for their MyChart hostname (use search_mycharts to look it up) and credentials in chat, then call this tool. Returns one of: `{state:\"logged_in\", account}`, `{state:\"need_2fa\", pending_id, delivery:{method,contact}}` (call complete_2fa next with the user-supplied code), or `{state:\"invalid_login\"}`. This tool logs in and nothing else — it never changes the account's sign-in settings. On `logged_in`, if `passkey_saved` is false, offer the user a passkey and register one with register_passkey only if they say yes; `message` is text to relay to them, not an instruction to you.",
+      inputSchema: {
+        hostname: z.string().describe('MyChart hostname, e.g. "mychart.example.org". From search_mycharts or the user.'),
+        username: z.string().describe('MyChart username (ask the user).'),
+        password: z.string().describe('MyChart password (ask the user). Stored locally on disk, never transmitted to Anthropic.'),
+      } satisfies ZodRawShape,
+      ...toolMeta('Set up a MyChart account (step 1)', { readOnlyHint: false, destructiveHint: false, openWorldHint: true }),
+    },
+    ({ hostname, username, password }) => connectWithPassword(hostname, username, [password]),
+  );
+
+  server.registerTool(
+    'import_browser_passwords',
+    {
+      description:
+        "Scan this machine's browser password stores (Chrome, Arc, Brave, Edge, Firefox) for MyChart logins the user has already saved, so they do not have to type a password. " +
+        'Read-only, and it may raise the OS keychain permission prompt. ' +
+        'Returns only accounts confirmed to be MyChart portals — a known Epic instance, or one whose login page was verified. ' +
+        'Passwords are NEVER returned: each entry carries an opaque `import_id`. Show the list to the user, let them choose, then call connect_imported_account with the chosen id.',
+      inputSchema: {
+        check_unknown_hosts: z
+          .boolean()
+          .optional()
+          .describe('Default true. When false, no network requests are made and only hostnames already in the bundled MyChart directory are returned.'),
+      } satisfies ZodRawShape,
+      ...toolMeta('Find MyChart logins saved in the browser', { readOnlyHint: true, openWorldHint: true }),
+    },
+    async ({ check_unknown_hosts }) => {
+      try {
+        const scan = await scanBrowserPasswords({ probeUnknownHosts: check_unknown_hosts ?? true });
+
+        if (!scan.supported) {
+          return jsonResult({ supported: false, message: 'Reading browser password stores is only supported on macOS and Windows.' });
+        }
+        // Ahead of the empty case: with a browser blocked, "none found" is not known to be true.
+        const blockedNote = scan.blocked_browsers.length
+          ? `macOS blocked reading saved passwords from ${scan.blocked_browsers.join(', ')}, so any MyChart logins there are missing. ` +
+            `To include them, the user must: ${(host.app === 'mcpb' ? FULL_DISK_ACCESS_STEPS : FULL_DISK_ACCESS_STEPS_OTHER_HOST).join(' ')} Relay these steps to the user; you cannot change this setting for them.`
+          : '';
+        if (scan.accounts.length === 0) {
+          return jsonResult({
+            ...scan,
+            message: blockedNote ||
+              "No saved MyChart logins were confirmed in this machine's browsers. Set the account up with setup_account instead. " +
+              'If the user believes they have one saved, their portal may have been unreachable just now — this tool can be run again later.',
+          });
+        }
+
+        return jsonResult({
+          ...scan,
+          message:
+            'Show the user these accounts and ask which to connect. Call connect_imported_account with the chosen import_id. ' +
+            'Ids expire 10 minutes after the scan; run this tool again if that happens.' +
+            (blockedNote ? ` ${blockedNote}` : ''),
+        });
+      } catch (err) {
+        return caughtErrorResult(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    'connect_imported_account',
+    {
+      description:
+        'Log into a MyChart account discovered by import_browser_passwords, using the password already saved in the browser, and save it for future calls. ' +
+        'Only call this for an entry the user explicitly chose. When several browsers saved different passwords for the login, each is tried until one is accepted. ' +
+        'Same outcomes as setup_account: `logged_in`, `need_2fa` (call complete_2fa next), or `invalid_login` (every saved password is stale — ask the user for the current one and use setup_account).',
+      inputSchema: {
+        import_id: z.string().describe('The import_id of the chosen entry from import_browser_passwords.'),
+      } satisfies ZodRawShape,
+      ...toolMeta('Connect an account found in the browser', { readOnlyHint: false, destructiveHint: false, openWorldHint: true }),
+    },
+    async ({ import_id }) => {
+      const candidates = takeImportedCandidates(import_id);
+      const candidate = candidates?.[0];
+      if (!candidates || !candidate) {
+        return errorResult('That import_id is unknown or has expired (10-minute TTL). Call import_browser_passwords again.');
+      }
+      if (!candidate.user) {
+        return errorResult(`The saved credential for ${candidate.hostname} has no username. Ask the user for it and call setup_account.`);
+      }
+
+      const result = await connectWithPassword(candidate.hostname, candidate.user, candidates.map((c) => c.pass!));
+      // Keep the credential only while it is still needed: a 2FA flow has
+      // already copied it into the pending-login record.
+      releaseImportedCandidate(import_id);
+      return result;
+    },
+  );
+
+  server.registerTool(
+    'complete_2fa',
+    {
+      description: 'Finish a sign-in that returned `need_2fa` — from setup_account, connect_imported_account, or a data tool that had to sign in. Pass the `pending_id` from that response and the 6-digit code the user gave you. After a data tool\'s `need_2fa`, call that data tool again once this succeeds. On success the account is saved and immediately usable. Like setup_account it changes no sign-in settings; on `logged_in`, treat `passkey_saved` and `message` exactly as you would from setup_account.',
+      inputSchema: {
+        pending_id: z.string().describe('The pending_id from the response whose state was need_2fa.'),
+        code: z.string().describe('6-digit code the user read from email/SMS/authenticator.'),
+      } satisfies ZodRawShape,
+      ...toolMeta('Finish 2FA (step 2)', { readOnlyHint: false, destructiveHint: false, openWorldHint: true }),
+    },
+    async ({ pending_id, code }) => {
+      const pending = takePending(pending_id);
+      if (!pending) {
+        return errorResult('pending_id is unknown or has expired (10-minute TTL). Call setup_account again to start over.');
+      }
+      try {
+        const trimmed = code.trim();
+        const twoFa = await complete2faFlow({
+          mychartRequest: pending.mychartRequest,
+          code: trimmed,
+          isTOTP: false,
+        });
+        if (twoFa.state === 'logged_in') {
+          saveAccount(pending.hostname, pending.username, pending.password);
+          await adoptSession(pending.hostname, pending.username, twoFa.mychartRequest);
+          return loggedInResult(pending.hostname, pending.username);
+        }
+        if (twoFa.state === 'invalid_2fa') {
+          // Re-stash so the agent can ask the user again without restarting.
+          const newPendingId = addPending({
+            hostname: pending.hostname,
+            username: pending.username,
+            password: pending.password,
+            mychartRequest: pending.mychartRequest,
+          });
+          return jsonResult({
+            state: 'invalid_2fa',
+            pending_id: newPendingId,
+            account: pending.hostname,
+            message: 'That code was rejected. Ask the user for the code again and call complete_2fa with this new pending_id.',
+          });
+        }
+        return jsonResult({
+          state: twoFa.state,
+          account: pending.hostname,
+          message: `Unexpected 2FA result: ${twoFa.state}. Tell the user and call setup_account again.`,
+        });
+      } catch (err) {
+        return caughtErrorResult(err);
+      }
+    },
+  );
+
+  // register_passkey is NOT declared here — it is a capability
+  // (`clients/shared/capabilities/`) so the CLI and the mobile app expose the same
+  // thing, and it is registered by the loop at the bottom of this function.
+
+  server.registerTool(
+    'disconnect_account',
+    {
+      description: 'Forget a saved MyChart account. Deletes the local credentials, passkey, and cached session for this login only — other usernames saved for the same hostname are untouched.',
+      inputSchema: {
+        account: z.string().describe('Account id from list_accounts (`username@hostname`).'),
+      } satisfies ZodRawShape,
+      ...toolMeta('Forget a MyChart account', { readOnlyHint: false, destructiveHint: true, openWorldHint: false }),
+    },
+    ({ account }) => {
+      const match = lookupIdentity(account);
+      if (!match) return textResult(`No saved account for ${account}.`);
+      const id = accountId(match);
+      clearSession(id);
+      removeAccount(match.hostname, match.username);
+      return textResult(`Forgot ${id}. Credentials, passkey, and session cache have been deleted from disk.`);
+    },
+  );
+
+  // The model's own export: whatever it has written from the chart — a summary,
+  // a CSV of lab values, a timeline — as a file the user keeps. Text only, into
+  // Downloads, never overwriting; the chart reads themselves stay behind the
+  // capability tools' patient assertion.
+  server.registerTool(
+    'save_file',
+    {
+      description:
+        "Save text you have written to a file in the user's Downloads folder — use it when the user asks to export, " +
+        'download or save something: a summary of their records, a CSV of lab results, a medication list, a ' +
+        'timeline. Gather the data with the other tools first, then write the whole file content here. Any text ' +
+        'format works (.md, .csv, .txt, .json, .html); without an extension the file is saved as Markdown. An ' +
+        'existing file is never overwritten — a second copy gets `-2`. Returns the saved path.',
+      inputSchema: {
+        file_name: z.string().min(1).describe('File name with extension, e.g. "lab-history.csv". No folders.'),
+        content: z.string().describe('The complete file content.'),
+      } satisfies ZodRawShape,
+      ...toolMeta('Save a file to Downloads', { readOnlyHint: false, destructiveHint: false, openWorldHint: false }),
+    },
+    ({ file_name, content }) => {
+      try {
+        const savedTo = saveTextFile(file_name, content);
+        return jsonResult({ saved_to: savedTo, size_bytes: Buffer.byteLength(content) });
+      } catch (err) {
+        return caughtErrorResult(err);
+      }
+    },
+  );
+
+  host.registerExtraTools?.(server);
+
+  // Hand-written, not a shared capability: the npm package exports the registry
+  // for consumers to offer their own model, and this one emails us. Not
+  // read-only, so Claude Desktop never groups it with the reads a user may have
+  // set to "always allow"; not destructive, because it changes nothing that exists.
+  server.registerTool(
+    FEATURE_REQUEST_TOOL.name,
+    {
+      description: FEATURE_REQUEST_TOOL.description,
+      inputSchema: Object.fromEntries(FEATURE_REQUEST_TOOL.params.map((p) => [p.name, zodForParam(p)])),
+      ...toolMeta(FEATURE_REQUEST_TOOL.title, { readOnlyHint: false, destructiveHint: false, openWorldHint: true }),
+    },
+    async (args: Record<string, unknown>) => {
+      try {
+        return jsonResult(await runFeatureRequestTool(args));
+      } catch (err) {
+        return caughtErrorResult(err);
+      }
+    },
+  );
+
+  // ── Capability tools ──────────────────────────────────────────────────────
+  //
+  // Derived, not listed. `clients/shared/capabilities/` is the single source of
+  // truth for what OpenRecord can do with a MyChart account; every entry there
+  // becomes a tool here automatically, so this extension can never quietly
+  // support less than the CLI or the mobile app does.
+
+  for (const capability of CAPABILITIES) {
+    registerCapabilityTool(server, capability);
+  }
+}

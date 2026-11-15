@@ -3,7 +3,7 @@
 /**
  * The demo's agent loop.
  *
- * This is a faithful port of `expo-app/src/lib/ai/claude-client.ts`: the model
+ * This is a faithful port of `clients/expo-app/src/lib/ai/claude-client.ts`: the model
  * never gets a provider-native tool schema. It is prompted to emit JSON objects
  * of the shape `{"tool": "<name>", "args": {...}}`, we parse them out of the raw
  * text, run them, and feed the results back as a user turn. `respond` ends the
@@ -62,7 +62,7 @@ const MAX_TURNS = 8;
 const MAX_CONSECUTIVE_PARSE_FAILURES = 3;
 
 /* ------------------------------------------------------------------ *
- * Tool-call parsing — ported from expo-app/src/lib/ai/tool-call-parser.ts
+ * Tool-call parsing — ported from clients/expo-app/src/lib/ai/tool-call-parser.ts
  * ------------------------------------------------------------------ */
 
 /**

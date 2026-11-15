@@ -3,7 +3,7 @@
 /**
  * Every capability in the shared registry, executed against fake-mychart.
  *
- * The parity tests in `shared/__tests__/` prove the four clients all *expose*
+ * The parity tests in `clients/shared/__tests__/` prove the four clients all *expose*
  * the same list. This one proves the list actually works: each entry is
  * dispatched by id through `executeCapability`, exactly as the MCP server, the
  * mobile agent and `mychart-cli --action` do, and has to come back with real
@@ -34,7 +34,7 @@ import {
   type StudyImagePayload,
   type MessageAttachmentFile,
   type DocumentFile,
-} from '../../../../shared/capabilities'
+} from '../../../../clients/shared/capabilities'
 
 const HOST = process.env.FAKE_MYCHART_HOST ?? 'localhost:4000'
 
@@ -684,7 +684,7 @@ describe('capability registry against fake-mychart', () => {
     const suites = [
       'scrapers/npi/__tests__/npiRegistry.integration.test.ts',
       'scrapers/list-all-mycharts/__tests__/directory.integration.test.ts',
-      'shared/__tests__/hospitalInfo.integration.test.ts',
+      'clients/shared/__tests__/hospitalInfo.integration.test.ts',
     ]
     const sources = await Promise.all(
       suites.map((path) => Bun.file(new URL(`../../../../${path}`, import.meta.url)).text()),
