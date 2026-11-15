@@ -33,6 +33,13 @@ Downloading the pixels is [`../../eunity/`](../../eunity/); decoding them is
   costs nothing; **both** failing is the payload failing and throws
   ([#406](https://github.com/Fan-Pier-Labs/openrecord/pull/406)). A rejected speculative
   probe is expected and is never an error.
+- **One order failing costs only that order.** Each `GetDetails` and `LoadReportContent` is
+  tolerated: an order whose details didn't load is left out of `orders` and named in
+  `unloadedOrders` (its result names and date, from `GetList`), a result whose report didn't
+  load stays and is named in `unloadedReports`, and `notice` says the list is incomplete. The
+  gaps are read off what `GetList` promised rather than off failed requests, because a thrown
+  transport error is never recorded. Only every order failing throws. One order failing alone
+  hasn't been observed on a real instance; this guards against it rather than modelling it.
 - **`maxResults` is a hard cap on how many orders come back**, so it is sent at 1000. There
   is no "all", and a low value returns a short list that looks like a complete one.
 - **MyChart gives no abnormality verdict.** Checked across 175 components in 39 results on
@@ -115,6 +122,14 @@ back onto a result by all three. Joining on `reportID` alone gave every such
 result the first one's report — an old procedure note standing in for a recent
 scan, with `resultStatus: Final` and no other sign — and, for imaging, would
 have minted one order's `image_id` from another's report.
+
+Top level:
+
+| Field | What it is | Derived | Standard / JSON | Concise | Reasoning |
+| --- | --- | :-: | :-: | :-: | --- |
+| `notice` | Sentences when anything did not load; null otherwise | ✓ | ✓ | ✓ | Derived. Tells the reader the list is incomplete, so a missing order is not read as a test with no results. |
+| `unloadedOrders[]` | Orders whose `GetDetails` failed: `key`, `names` (from `GetList`'s `newResults`), `formattedDate` | ✓ | ✓ | `names`, `formattedDate` | Derived. Only what `GetList` carries truthfully. |
+| `unloadedReports[]` | Results in `orders` whose `LoadReportContent` failed: `orderName`, `name` | ✓ | ✓ | ✓ | Derived. Those results have no `reportContentText` because it failed, not because there is none. |
 
 The `GetDetails` body, per order:
 
@@ -200,7 +215,9 @@ the client's (the Expo alert code makes it, on its own).
 The same requests as labs, filtered to imaging orders, plus per imaging result
 with an FDI context a `POST` to the FdiData endpoint for the SAML URL. The
 filter, the narrative lifting and the `image_id` encoding are processor work.
-The table lists only what imaging adds to the lab table.
+The table lists only what imaging adds to the lab table. `notice`, `unloadedOrders` and
+`unloadedReports` are the lab read's, unfiltered: an order that never loaded can't be told
+apart as imaging or lab.
 
 | Field | What it is | Derived | Standard / JSON | Concise | Reasoning |
 | --- | --- | :-: | :-: | :-: | --- |
