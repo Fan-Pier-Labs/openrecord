@@ -8,7 +8,7 @@ import {
   runSwitchProxyTarget,
 } from '../proxyTools'
 import type { RequestConfig } from '../../core/types'
-import { CAPABILITIES, executeCapability, isPublicCapability } from '../../../../shared/capabilities'
+import { CAPABILITIES, executeCapability, isPublicCapability } from '../../../../clients/shared/capabilities'
 import { resetLogSink, silenceLogger } from '../../../../shared/logger'
 
 beforeAll(() => {

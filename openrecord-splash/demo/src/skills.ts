@@ -1,7 +1,7 @@
 // Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
 
 /**
- * Skill playbooks, ported from `expo-app/src/lib/skills/catalog.ts`.
+ * Skill playbooks, ported from `clients/expo-app/src/lib/skills/catalog.ts`.
  *
  * A skill is a multi-step playbook appended to the system prompt for the rest
  * of the conversation. The model still drives — the playbook just tells it
@@ -87,7 +87,7 @@ export const SKILLS: Skill[] = [
  * The "things to review" cards on the app's home screen.
  *
  * The real app derives these locally from billing, medications, and labs
- * (`expo-app/src/lib/alerts/generator.ts`). The demo derives them the same way
+ * (`clients/expo-app/src/lib/alerts/generator.ts`). The demo derives them the same way
  * so the list reacts to what you do — pay attention to `resolvedWhen`, which
  * hides a card once the session state makes it moot.
  */

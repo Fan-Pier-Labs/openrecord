@@ -15,7 +15,7 @@ import { myChartPasskeyLogin } from '../scrapers/myChart/auth/login';
 import { passkeyLoginWithCounterRetry } from '../scrapers/myChart/auth/passkeyLoginRetry';
 import { serializeCredential, deserializeCredential } from '../scrapers/myChart/auth/softwareAuthenticator';
 import { initEunitySession } from '../scrapers/myChart/eunity/imagingDirectDownload';
-import { decodeImageId } from '../shared/capabilities';
+import { decodeImageId } from '../clients/shared/capabilities';
 import { scraperFetch } from '../scrapers/http';
 
 async function main() {

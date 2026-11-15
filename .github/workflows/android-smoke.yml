@@ -1,7 +1,7 @@
 name: Android smoke
 # Two tiers, split by cost:
 #
-#   bundle (~2-4 min)  — every PR/push touching expo-app: prebuild the Android
+#   bundle (~2-4 min)  — every PR/push touching clients/expo-app: prebuild the Android
 #                        project (validates the config-plugin pipeline) and
 #                        compile the exact JS bundle gradle would embed, down
 #                        to Hermes bytecode. Catches Node-only imports, bad
@@ -18,11 +18,11 @@ on:
   push:
     branches: [main]
     paths:
-      - "expo-app/**"
+      - "clients/expo-app/**"
       - ".github/workflows/android-smoke.yml"
   pull_request:
     paths:
-      - "expo-app/**"
+      - "clients/expo-app/**"
       - ".github/workflows/android-smoke.yml"
   schedule:
     - cron: "17 6 * * 1" # Mondays 06:17 UTC
@@ -61,16 +61,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      # Root deps too, not just expo-app's: Metro watches the repo root so the
+      # Root deps too, not just clients/expo-app's: Metro watches the repo root so the
       # bundle reaches into scrapers/ and shared/, which resolve some packages
       # from the root node_modules.
       - run: bun install
       - name: Install Expo app deps
-        run: cd expo-app && bun install
+        run: cd clients/expo-app && bun install
       - name: Prebuild Android project
-        run: cd expo-app && bunx expo prebuild --platform android --no-install
+        run: cd clients/expo-app && bunx expo prebuild --platform android --no-install
       - name: Bundle JS for Android (Metro + Hermes bytecode)
-        run: cd expo-app && bunx expo export --platform android --output-dir /tmp/android-export
+        run: cd clients/expo-app && bunx expo export --platform android --output-dir /tmp/android-export
 
   emulator:
     name: Android emulator smoke test
@@ -107,15 +107,15 @@ jobs:
           node-version: 22
       - run: bun install
       - name: Install Expo app deps
-        run: cd expo-app && bun install
+        run: cd clients/expo-app && bun install
       - name: Prebuild Android project
-        run: cd expo-app && bunx expo prebuild --platform android --no-install
+        run: cd clients/expo-app && bunx expo prebuild --platform android --no-install
       - uses: gradle/actions/setup-gradle@v4
       # Release variant on purpose: it embeds the JS bundle, so the emulator
       # needs no Metro dev server, and it strips the __DEV__-only onboarding
       # skip button the smoke flow relies on NOT being able to pass.
       - name: Build release APK
-        run: cd expo-app/android && ./gradlew assembleRelease
+        run: cd clients/expo-app/android && ./gradlew assembleRelease
       - name: Install Maestro
         run: |
           curl -fsSL https://get.maestro.mobile.dev | bash
@@ -149,14 +149,14 @@ jobs:
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
           script: |
-            adb install expo-app/android/app/build/outputs/apk/release/app-release.apk
-            cd expo-app && maestro test e2e/android-smoke.yaml
+            adb install clients/expo-app/android/app/build/outputs/apk/release/app-release.apk
+            cd clients/expo-app && maestro test e2e/android-smoke.yaml
       - name: Upload Maestro artifacts on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: android-smoke-artifacts
           path: |
-            expo-app/e2e-*.png
+            clients/expo-app/e2e-*.png
             ~/.maestro/tests/
           if-no-files-found: ignore
