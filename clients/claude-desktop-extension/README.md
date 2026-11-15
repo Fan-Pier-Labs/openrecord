@@ -485,7 +485,7 @@ clients/claude-desktop-extension/
 ```
 
 The server itself — every tool, sessions, the credential and secret stores, imaging, long-call
-parking — is client-neutral and lives in
+parking — is shared with `mychart-cli mcp` and lives in
 [`clients/shared/mcp-server/`](../shared/mcp-server/).
 
 ## Development

@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — `mychart-cli mcp`: OpenRecord's MCP server for any MCP client
+
+`npx -y mychart-cli mcp` runs the same stdio MCP server as the Claude Desktop extension — every
+capability as a tool, plus in-chat sign-in, 2FA and passkeys — so Claude Code, Cursor, VS Code and
+other MCP clients can use it. Saved accounts are shared with the extension. See
+[docs/mcp.md](docs/mcp.md). Adds `@napi-rs/keyring` (native) as a dependency, for the OS keystore.
+
 ## Unreleased — `hospital-info` is a registry capability (breaking for its CLI flags)
 
 `get_hospital_info` is now a `public` capability, so `--action get_hospital_info` works like any

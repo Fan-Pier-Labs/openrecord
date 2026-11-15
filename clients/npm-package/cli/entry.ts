@@ -4,13 +4,19 @@
 // is built from (see tsup.config.ts).
 // Usage:
 //   bun run cli mychart [flags]   — MyChart scraper (default if no subcommand)
+//   bun run cli mcp               — the MCP server over stdio
+
+import { runCli } from './cli';
+import { runMcp } from './mcp';
 
 const subcommand = process.argv[2];
 
-// Default: run the MyChart CLI (pass all args through)
-// If the user typed "bun run cli mychart ...", strip "mychart" from argv
-if (subcommand === 'mychart') {
-  process.argv.splice(2, 1);
+if (subcommand === 'mcp') {
+  runMcp();
+} else {
+  // If the user typed "bun run cli mychart ...", strip "mychart" before runCli parses argv.
+  if (subcommand === 'mychart') {
+    process.argv.splice(2, 1);
+  }
+  void runCli();
 }
-// eslint-disable-next-line no-restricted-syntax -- must stay dynamic: cli.ts parses argv at import time, and the argv splice above has to happen first (a static import would hoist past it)
-void import('./cli').then(({ runCli }) => runCli());
