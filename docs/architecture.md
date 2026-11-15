@@ -448,7 +448,7 @@ and had quietly stopped matching anything.
   exposes the same set as
   `MyChartClient.runCapability(id, args)` plus a typed method per capability. See
   [`docs/cli.md`](cli.md) and `clients/npm-package/README.md`.
-- **Claude Desktop extension** (`clients/claude-desktop-extension/`) — `registerAllTools` (`clients/shared/mcp-server/tools.ts`)
+- **Claude Desktop extension** (`clients/claude-desktop-extension/`) and **`mychart-cli mcp`** — `registerAllTools` (`clients/shared/mcp-server/tools.ts`)
   hand-writes only the account-management meta tools (`list_accounts`, `setup_account`,
   `complete_2fa`, `disconnect_account`), which manage credentials on this machine
   and have no counterpart in the other clients; everything else is one MCP tool per registry entry,
