@@ -30,6 +30,7 @@ export function renderCliHelp(options: CapabilityListOptions = {}): string {
     '    mychart-cli --host <hostname> --action <capability>   Run one capability, print JSON',
     '    mychart-cli --help [--show-all]                       This text',
     '    mychart-cli --list-capabilities [--show-all]          Just the capability listing',
+    '    mychart-cli mcp                                       Run the MCP server over stdio (docs/mcp.md)',
     '',
     '  Signing in:',
     '    --host <hostname>          MyChart hostname, e.g. mychart.example.org',
