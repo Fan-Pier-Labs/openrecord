@@ -92,7 +92,10 @@
     },
     "clients/cli": {
       "entry": ["examples/*.ts"],
+      // @napi-rs/keyring is imported by clients/shared/mcp-server (`mychart-cli
+      // mcp`); it is native, so it ships as a real dependency, not in the bundle.
       "ignoreDependencies": [
+        "@napi-rs/keyring",
         "cheerio",
         "compare-versions",
         "date-fns",

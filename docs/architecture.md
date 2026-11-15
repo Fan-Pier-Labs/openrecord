@@ -448,7 +448,7 @@ and had quietly stopped matching anything.
   exposes the same set as
   `MyChartClient.runCapability(id, args)` plus a typed method per capability. See
   [`docs/cli.md`](cli.md) and `clients/cli/README.md`.
-- **Claude Desktop extension** (`clients/claude-desktop-extension/`) — `registerAllTools` (`src/tools.ts`)
+- **Claude Desktop extension** (`clients/claude-desktop-extension/`) and **`mychart-cli mcp`** — `registerAllTools` (`clients/shared/mcp-server/tools.ts`)
   hand-writes only the account-management meta tools (`list_accounts`, `setup_account`,
   `complete_2fa`, `disconnect_account`), which manage credentials on this machine
   and have no counterpart in the other clients; everything else is one MCP tool per registry entry,
@@ -460,7 +460,7 @@ and had quietly stopped matching anything.
   replaces or deletes the first one's login data: a hostname-keyed passkey would hand the previous
   user's WebAuthn credential to whoever registered last, and silent login would then read the wrong
   patient's chart. The account id tools accept is `username@hostname`, resolved by `lookupAccount`
-  in `src/credential-store.ts` on a perfect hostname + username match or not at all — no
+  in `clients/shared/mcp-server/credential-store.ts` on a perfect hostname + username match or not at all — no
   hostname-only or fuzzy fallback. `search_mycharts` is a registry capability rather than a meta
   tool, and offers a built-in **Springfield General Hospital (test)** instance pointing at
   `fake-mychart.fanpierlabs.com` (`SANDBOX_INSTANCE` in

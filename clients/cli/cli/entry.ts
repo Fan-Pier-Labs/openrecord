@@ -4,13 +4,21 @@
 // is built from (see tsup.config.ts).
 // Usage:
 //   bun run cli mychart [flags]   — MyChart scraper (default if no subcommand)
+//   bun run cli mcp               — the MCP server over stdio
 
 const subcommand = process.argv[2];
 
-// Default: run the MyChart CLI (pass all args through)
-// If the user typed "bun run cli mychart ...", strip "mychart" from argv
-if (subcommand === 'mychart') {
-  process.argv.splice(2, 1);
+if (subcommand === 'mcp') {
+  // Dynamic so a plain CLI run never evaluates the MCP server and its SDK;
+  // esbuild keeps a dynamically imported module lazy inside the bundle.
+  // eslint-disable-next-line no-restricted-syntax -- see above
+  void import('./mcp').then(({ runMcp }) => runMcp());
+} else {
+  // Default: run the MyChart CLI (pass all args through)
+  // If the user typed "bun run cli mychart ...", strip "mychart" from argv
+  if (subcommand === 'mychart') {
+    process.argv.splice(2, 1);
+  }
+  // eslint-disable-next-line no-restricted-syntax -- must stay dynamic: cli.ts parses argv at import time, and the argv splice above has to happen first (a static import would hoist past it)
+  void import('./cli').then(({ runCli }) => runCli());
 }
-// eslint-disable-next-line no-restricted-syntax -- must stay dynamic: cli.ts parses argv at import time, and the argv splice above has to happen first (a static import would hoist past it)
-void import('./cli').then(({ runCli }) => runCli());

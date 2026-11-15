@@ -1,9 +1,7 @@
 # CLAUDE.md
 
 Health data platform that connects to Epic MyChart portals to scrape and consolidate a patient's
-medical records (30+ data categories). Four clients on one shared scraper core: a Claude Desktop
-extension (`.mcpb`), an Expo/React Native iOS app, a headless CLI published as the `mychart-cli` npm
-package, and that package's importable library.
+medical records (30+ data categories). Every client (see the repo map) runs on one shared scraper core.
 
 Proprietary source-available license (see `LICENSE`) — personal/educational use only; no commercial
 use, redistribution, or SaaS offerings without written permission from Fan Pier Labs.
@@ -15,15 +13,15 @@ short and put detail in `docs/` or the relevant `README.md`. See [Keeping this f
 
 | Path | What it is |
 | --- | --- |
-| `scrapers/` | Shared scraper core — every client calls into this. **Every folder holds the `README.md` documenting that scraper**; the map is [`scrapers/README.md`](scrapers/README.md) |
-| `shared/` | Capability registry, common types, host concurrency limiter, small codecs |
-| `clients/cli/` | The `mychart-cli` CLI and importable library |
-| `clients/claude-desktop-extension/` | `.mcpb` MCP server for Claude Desktop |
+| `scrapers/` | Shared scraper core — knows little about clients. **Every folder holds the `README.md` documenting that scraper**; the map is [`scrapers/README.md`](scrapers/README.md) |
+| `shared/` | Used by scrapers and clients: logger, `DetailedError`, telemetry, host limiter, codecs |
+| `clients/shared/` | Client-only: capability registry, MCP server (`mcp-server/`), browser password reader (`read-local-passwords/`) |
+| `clients/cli/` | The `mychart-cli` CLI, its importable library, and `mychart-cli mcp` |
+| `clients/claude-desktop-extension/` | `.mcpb` for Claude Desktop: shared MCP server + setup widget + calendar sync |
 | `clients/expo-app/` | Expo/React Native iOS app (scrapers run on-device, plus an agent loop) |
 | `fake-mychart/` | Next.js stand-in for real MyChart — dev + all integration tests |
 | `openrecord-splash/` | Static splash site + the browser demo |
 | `openrecord-demo-lambda/` | AI proxy behind the demo and the app's free tier |
-| `clients/shared/read-local-passwords/` | Browser password store extraction (Chromium + Firefox) — used by the CLI and the MCPB's import flow. Read-only, macOS/Windows |
 | `dev-scripts/` | Run-it-yourself diagnostics (never `import.meta.main` blocks in product code) |
 
 ## Simplicity First
