@@ -12,7 +12,7 @@ import type { PendingWrite, Session, Skill, TurnCallbacks } from '../types';
 /**
  * The iOS app surface.
  *
- * A React re-creation of `expo-app/` — the onboarding flow, the chat screen
+ * A React re-creation of `clients/expo-app/` — the onboarding flow, the chat screen
  * with its tool-call indicator, the alerts card, the skills sheet, the insights
  * screen, the chat drawer, and settings. Close enough to the real thing to be
  * worth clicking through; not a pixel-perfect clone, and the page says so.

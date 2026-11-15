@@ -113,8 +113,8 @@ wasn't written for.
 ## The demo (`demo/`)
 
 A complete OpenRecord session in the browser, against a fictional patient. It re-creates
-both clients — the iOS app (`expo-app/`) and the Claude Desktop extension
-(`claude-desktop-extension/`) — sharing one session, so a refill requested on the phone
+both clients — the iOS app (`clients/expo-app/`) and the Claude Desktop extension
+(`clients/claude-desktop-extension/`) — sharing one session, so a refill requested on the phone
 shows up in the desktop chat.
 
 React 19 + TypeScript, built with Vite. Everything is `strict`, and `bun run typecheck`
@@ -123,7 +123,7 @@ is part of `build`, so the demo cannot ship with a type error.
 The demo shares no code with the scraper core, so how closely it has to track the real product
 is a judgement call. [`docs/demo.md`](../docs/demo.md) draws that line: which divergences are
 accepted simplifications, and which are drift to fix. The tool surface itself is no longer a
-judgement call — `shared/__tests__/capability-parity.unit.test.ts` holds it to the registry.
+judgement call — `clients/shared/__tests__/capability-parity.unit.test.ts` holds it to the registry.
 
 ### Logic (framework-free, fully unit-tested)
 
@@ -133,10 +133,10 @@ judgement call — `shared/__tests__/capability-parity.unit.test.ts` holds it to
 | `src/bartRecord.ts` | The second chart the account reaches by proxy access — a different patient, not a relabelled copy. |
 | `src/patients.ts` | The patient roster the proxy tools list and switch between. |
 | `src/types.ts` | Shared types for the record, the tool layer, and the agent loop. |
-| `src/tools.ts` | Every MyChart tool in `shared/capabilities/`, plus the extension's account-setup tools, over those records. Write tools genuinely mutate session state, and reads assert which patient they are about. Coverage is enforced by `shared/__tests__/capability-parity.unit.test.ts`. |
-| `src/agent.ts` | The agent loop — a faithful port of `expo-app/src/lib/ai/claude-client.ts`, including the JSON tool-call protocol, read batching, and exclusive write tools. |
+| `src/tools.ts` | Every MyChart tool in `clients/shared/capabilities/`, plus the extension's account-setup tools, over those records. Write tools genuinely mutate session state, and reads assert which patient they are about. Coverage is enforced by `clients/shared/__tests__/capability-parity.unit.test.ts`. |
+| `src/agent.ts` | The agent loop — a faithful port of `clients/expo-app/src/lib/ai/claude-client.ts`, including the JSON tool-call protocol, read batching, and exclusive write tools. |
 | `src/stream.ts` | Reveals a finished reply at the pace a model would have produced it. |
-| `src/skills.ts` | The three skill playbooks, ported from `expo-app/src/lib/skills/catalog.ts`, plus the home-screen alert cards. |
+| `src/skills.ts` | The three skill playbooks, ported from `clients/expo-app/src/lib/skills/catalog.ts`, plus the home-screen alert cards. |
 | `src/markdown.ts` | Parses assistant replies into a typed tree. Produces no HTML. |
 | `src/display.ts` | Formatting helpers for the activity panel and tool disclosures. |
 | `src/config.ts` | `AI_ENDPOINT`. Required — without it the demo cannot answer and says so. |

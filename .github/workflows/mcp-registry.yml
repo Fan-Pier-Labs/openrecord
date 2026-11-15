@@ -33,7 +33,7 @@ jobs:
       # install a bundle whose bytes don't match, so it has to come from the
       # asset actually attached to the release.
       - name: Point server.json at this release
-        working-directory: claude-desktop-extension
+        working-directory: clients/claude-desktop-extension
         run: |
           gh release download "$TAG" --pattern openrecord.mcpb --dir "$RUNNER_TEMP"
           jq --arg v "${TAG#mcpb-v}" \
@@ -44,7 +44,7 @@ jobs:
           mv "$RUNNER_TEMP/server.json" server.json
           cat server.json
       - name: Publish
-        working-directory: claude-desktop-extension
+        working-directory: clients/claude-desktop-extension
         run: |
-          ../mcp-publisher login github-oidc
-          ../mcp-publisher publish
+          ../../mcp-publisher login github-oidc
+          ../../mcp-publisher publish

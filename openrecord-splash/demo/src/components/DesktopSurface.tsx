@@ -12,7 +12,7 @@ import type { PendingWrite, ToolGroup, ToolRecord, TurnCallbacks } from '../type
 /**
  * The Claude Desktop surface.
  *
- * A React re-creation of what `claude-desktop-extension/` looks like once
+ * A React re-creation of what `clients/claude-desktop-extension/` looks like once
  * installed: the extension card, the inline setup widget, the connector's tool
  * list, and a chat where each tool call appears as a collapsible "Ran <tool>"
  * disclosure the way Claude Desktop renders MCP calls.

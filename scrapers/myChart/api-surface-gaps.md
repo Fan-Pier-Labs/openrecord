@@ -537,5 +537,5 @@ POST /Insurance/Coverages/GetPayors            form-encoded: encounterCsn=&encou
 6. **Implants, then To Do** (Tier 1.2, 1.3) — two self-contained reads with no overlap.
 7. Tier 2 leftovers, opportunistically, whenever a probe session is already open.
 
-Anything added lands in `shared/capabilities/` with a matching fake-mychart route and a `realShapes.ts`
+Anything added lands in `clients/shared/capabilities/` with a matching fake-mychart route and a `realShapes.ts`
 skeleton generated from a live capture, per the fake's faithful-stand-in rule.
