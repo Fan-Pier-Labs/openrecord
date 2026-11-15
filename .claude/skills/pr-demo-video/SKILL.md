@@ -181,13 +181,13 @@ not involved.
 
 ## CLI and MCPB demos (terminal transcripts, not video)
 
-When the PR's user-visible surface is the CLI (`clients/cli/`) or the desktop extension
+When the PR's user-visible surface is the CLI (`clients/npm-package/`) or the desktop extension
 (`clients/claude-desktop-extension/`), a video would just show a wall of text. Post a terminal
 transcript instead: the real command and its real output in a `console` code block.
 It embeds better, it's searchable, and it's honest in a way a video can't be — anyone
 can rerun the command.
 
-- **CLI**: build it (`cd clients/cli && bun run build`), start fake-mychart, then run
+- **CLI**: build it (`cd clients/npm-package && bun run build`), start fake-mychart, then run
   the actual command the PR affects, e.g.
   `bun run cli --host localhost:4000 --action <capability-id> --arg name=value`.
 - **MCPB**: build it (`cd clients/claude-desktop-extension && bun run pack`), then drive

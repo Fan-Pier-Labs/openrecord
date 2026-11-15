@@ -69,7 +69,7 @@ describe("mcpb_version.json", () => {
         .version;
 
     expect(manifest.versions.scrapers).toBe(pkgVersion("scrapers/package.json"));
-    expect(manifest.versions.cli).toBe(pkgVersion("clients/cli/package.json"));
+    expect(manifest.versions.cli).toBe(pkgVersion("clients/npm-package/package.json"));
     expect(manifest.versions.mcpb).toBe(pkgVersion("clients/claude-desktop-extension/manifest.json"));
     expect(manifest.versions.app).toBe(pkgVersion("clients/expo-app/package.json"));
   });

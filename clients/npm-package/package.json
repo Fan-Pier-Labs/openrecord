@@ -8,9 +8,9 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Fan-Pier-Labs/openrecord.git",
-    "directory": "clients/cli"
+    "directory": "clients/npm-package"
   },
-  "homepage": "https://github.com/Fan-Pier-Labs/openrecord/tree/main/clients/cli",
+  "homepage": "https://github.com/Fan-Pier-Labs/openrecord/tree/main/clients/npm-package",
   "keywords": [
     "mychart",
     "epic",

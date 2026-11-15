@@ -80,7 +80,7 @@ through whole and answer empty honestly. Those belong in the table above.
 Done in the implementation PR: the MCPB and the Expo agent default to `concise` and expose
 `mode` on every read tool; the CLI takes `--mode` (default `json`); the library's typed methods
 return the standard object and `runCapability(id, { mode })` picks any mode; `docs/cli.md`,
-`clients/claude-desktop-extension/README.md` and `clients/cli/README.md` describe it. Remaining:
+`clients/claude-desktop-extension/README.md` and `clients/npm-package/README.md` describe it. Remaining:
 
 - `docs/processor-layer-examples.md` is generated and CI fails when it is stale (the fake-mychart
   job regenerates it and diffs). Regenerate with `bun dev-scripts/generate-processor-examples.ts`

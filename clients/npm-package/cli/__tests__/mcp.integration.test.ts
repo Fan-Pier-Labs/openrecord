@@ -4,7 +4,7 @@
  * `mychart-cli mcp` end to end: the BUILT binary, spawned the way an MCP client
  * spawns it, driven over stdio by the SDK's own client.
  *
- * Requires `cd clients/cli && bun run build` and the docker-compose.ci.yaml
+ * Requires `cd clients/npm-package && bun run build` and the docker-compose.ci.yaml
  * fake-mychart on localhost:4000. The child runs with a temporary HOME and the
  * file secret backend, so it never touches the real ~/.openrecord-mcpb or the
  * OS keystore.
@@ -32,7 +32,7 @@ async function call(name: string, args: Record<string, unknown> = {}): Promise<T
 
 beforeAll(async () => {
   if (!fs.existsSync(CLI_BIN)) {
-    throw new Error(`Built CLI binary not found at ${CLI_BIN}. Run: cd clients/cli && bun run build`);
+    throw new Error(`Built CLI binary not found at ${CLI_BIN}. Run: cd clients/npm-package && bun run build`);
   }
   await resetFakeMyChart(HOST);
   await client.connect(new StdioClientTransport({

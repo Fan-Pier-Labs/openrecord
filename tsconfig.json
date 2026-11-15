@@ -37,7 +37,7 @@
   },
   "include": [
     "scrapers/**/*.ts",
-    "clients/cli/cli/**/*.ts",
+    "clients/npm-package/cli/**/*.ts",
     "shared/**/*.ts",
     "clients/shared/**/*.ts",
     "dev-scripts/**/*.ts",

@@ -1,8 +1,8 @@
 # CLI — contributor notes
 
-**The user-facing reference is [`clients/cli/docs/cli.md`](../npm-package/docs/cli.md)**. It
+**The user-facing reference is [`clients/npm-package/docs/cli.md`](../npm-package/docs/cli.md)**. It
 covers every flag, sign-in, output, family records, files and exit codes. Capabilities are in
-[`clients/cli/docs/capabilities.md`](../npm-package/docs/capabilities.md). This page only covers
+[`clients/npm-package/docs/capabilities.md`](../npm-package/docs/capabilities.md). This page only covers
 what you need when working on the CLI itself.
 
 ## Running from a checkout
@@ -11,9 +11,9 @@ what you need when working on the CLI itself.
 bun run cli mychart --host <hostname> [flags]
 ```
 
-`clients/cli/cli/entry.ts` strips the optional `mychart` subcommand and imports
-`clients/cli/cli/cli.ts`, which is also what the published binary is built from
-(`cd clients/cli && bun run build` → `dist/cli.cjs`). Against a local fake-mychart, add `--local`
+`clients/npm-package/cli/entry.ts` strips the optional `mychart` subcommand and imports
+`clients/npm-package/cli/cli.ts`, which is also what the published binary is built from
+(`cd clients/npm-package && bun run build` → `dist/cli.cjs`). Against a local fake-mychart, add `--local`
 (HTTP) and sign in as `homer` / `donuts123`:
 
 ```bash
@@ -28,10 +28,10 @@ bun run cli mychart --local --host localhost:4000 --user homer --pass donuts123 
 
 | Concern | File |
 | --- | --- |
-| Argument parsing, credential resolution, login, the patient guard, dispatch | `clients/cli/cli/cli.ts` |
-| `--action <id>` dispatch, `--arg` coercion, the default full-scrape set, file/image writing | `clients/cli/cli/capabilityActions.ts` |
-| `--help` text | `clients/cli/cli/help.ts` |
-| Passkey / TOTP stores (`MYCHART_PASSKEY_DIR`, `MYCHART_TOTP_DIR`) | `clients/cli/cli/passkeyStore.ts`, `totpStore.ts` |
+| Argument parsing, credential resolution, login, the patient guard, dispatch | `clients/npm-package/cli/cli.ts` |
+| `--action <id>` dispatch, `--arg` coercion, the default full-scrape set, file/image writing | `clients/npm-package/cli/capabilityActions.ts` |
+| `--help` text | `clients/npm-package/cli/help.ts` |
+| Passkey / TOTP stores (`MYCHART_PASSKEY_DIR`, `MYCHART_TOTP_DIR`) | `clients/npm-package/cli/passkeyStore.ts`, `totpStore.ts` |
 | Session (de)serialization | `MyChartRequest.serialize()` / `unserialize()` in `scrapers/myChart/core/myChartRequest.ts` |
 
 The cookie cache is `tryLoadCachedSession()` / `saveCachedSession()` in `cli.ts`. It is

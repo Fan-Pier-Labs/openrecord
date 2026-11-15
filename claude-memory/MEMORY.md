@@ -34,7 +34,7 @@ scraper.
 
 ## Monorepo Structure (slimmed 2026-08 to three clients: CLI, desktop extension, mobile)
 - `scrapers/` — shared scraper code (myChart)
-- `clients/cli/` — `mychart-cli` npm package (CLI entry at `clients/cli/cli/cli.ts`) + resend 2FA
+- `clients/npm-package/` — `mychart-cli` npm package (CLI entry at `clients/npm-package/cli/cli.ts`) + resend 2FA
 - `clients/claude-desktop-extension/` — Claude Desktop `.mcpb` extension
 - `clients/expo-app/` — Expo/React Native mobile app
 - `shared/` — the capability registry, logger, host concurrency limiter and other cross-package helpers

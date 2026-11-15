@@ -90,7 +90,7 @@
       // Invoked as a python module by `bun run deploy`, not imported.
       "ignoreDependencies": ["deploy"]
     },
-    "clients/cli": {
+    "clients/npm-package": {
       "entry": ["examples/*.ts"],
       // @napi-rs/keyring is imported by clients/shared/mcp-server (`mychart-cli
       // mcp`); it is native, so it ships as a real dependency, not in the bundle.

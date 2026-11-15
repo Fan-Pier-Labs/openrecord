@@ -13,7 +13,7 @@ OpenRecord ships as three clients, all built on the same scraper core:
 
 1. **Claude Desktop extension** (`clients/claude-desktop-extension/`) — a `.mcpb` bundle that runs entirely on your machine. Install it, say "Set up my MyChart", and Claude handles the rest.
 2. **Mobile app** (`clients/expo-app/`) — an Expo/React Native iOS app with an on-device agent, skills, and alerts.
-3. **CLI + npm package** (`clients/cli/`) — the `mychart-cli` npm package: a headless CLI for scripting and testing, plus an importable library.
+3. **CLI + npm package** (`clients/npm-package/`) — the `mychart-cli` npm package: a headless CLI for scripting and testing, plus an importable library.
 
 ## Documentation
 
@@ -23,13 +23,13 @@ OpenRecord ships as three clients, all built on the same scraper core:
 | --- | --- |
 | [Claude Desktop extension](clients/claude-desktop-extension/README.md) | Install, setup, tools, privacy, development |
 | [Mobile app](clients/expo-app/README.md) | What the app does, AI providers, building and running it |
-| [`mychart-cli` overview](clients/cli/README.md) | Install, quick starts for the CLI and the library |
-| [CLI reference](clients/cli/docs/cli.md) | Every flag, sign-in, output, family records, files, exit codes |
-| [Library API reference](clients/cli/docs/api.md) | `MyChartClient`, every method and type, errors, imaging, raw scrapers, the capability registry |
-| [Capabilities](clients/cli/docs/capabilities.md) | Every action across all clients, with arguments, output modes and id chaining |
-| [Authentication](clients/cli/docs/authentication.md) | Passkeys, TOTP, 2FA codes, sessions, family records |
-| [Recipes](clients/cli/docs/recipes.md) | Export a chart, clinical notes, imaging, messaging, unattended runs, AI agents |
-| [Troubleshooting](clients/cli/docs/troubleshooting.md) | Sign-in failures, refused reads, empty categories |
+| [`mychart-cli` overview](clients/npm-package/README.md) | Install, quick starts for the CLI and the library |
+| [CLI reference](clients/npm-package/docs/cli.md) | Every flag, sign-in, output, family records, files, exit codes |
+| [Library API reference](clients/npm-package/docs/api.md) | `MyChartClient`, every method and type, errors, imaging, raw scrapers, the capability registry |
+| [Capabilities](clients/npm-package/docs/capabilities.md) | Every action across all clients, with arguments, output modes and id chaining |
+| [Authentication](clients/npm-package/docs/authentication.md) | Passkeys, TOTP, 2FA codes, sessions, family records |
+| [Recipes](clients/npm-package/docs/recipes.md) | Export a chart, clinical notes, imaging, messaging, unattended runs, AI agents |
+| [Troubleshooting](clients/npm-package/docs/troubleshooting.md) | Sign-in failures, refused reads, empty categories |
 | [Privacy policy](https://openrecord.fanpierlabs.com/privacy.html) | What stays on your device and what leaves it |
 
 **Working on OpenRecord**
@@ -108,7 +108,7 @@ mychart-cli --action search_mycharts --arg query="your health system"   # find y
 mychart-cli --host mychart.example.org                                   # sign in and print your chart
 ```
 
-Or from a checkout: `bun run cli mychart [flags]`. Start with the [`mychart-cli` README](clients/cli/README.md), then the [CLI reference](clients/cli/docs/cli.md) or the [library API reference](clients/cli/docs/api.md).
+Or from a checkout: `bun run cli mychart [flags]`. Start with the [`mychart-cli` README](clients/npm-package/README.md), then the [CLI reference](clients/npm-package/docs/cli.md) or the [library API reference](clients/npm-package/docs/api.md).
 
 ## Architecture
 
@@ -118,7 +118,7 @@ openrecord/
   shared/                    # Capability registry (what every client can do), common types, host limiter
   clients/claude-desktop-extension/  # Claude Desktop .mcpb extension
   clients/expo-app/                  # Expo/React Native mobile app
-  clients/cli/               # mychart-cli npm package (CLI + library)
+  clients/npm-package/               # mychart-cli npm package (CLI + library)
   clients/shared/read-local-passwords/      # Browser password store extraction (used by the CLI)
   fake-mychart/              # Fake MyChart server for development and CI
   openrecord-splash/         # Static splash site + in-browser interactive demo
@@ -155,7 +155,7 @@ usage events (event name, MyChart portal hostname, OS platform / arch /
 version, runtime version, plus a per-machine random UUID for dedupe).
 No public IP, OS hostname, OS username, git identity, or scraped chart
 content is ever collected. Set
-`MYCHART_CLI_TELEMETRY_DISABLED=1` to opt out. Details: [`mychart-cli` telemetry](clients/cli/README.md#telemetry).
+`MYCHART_CLI_TELEMETRY_DISABLED=1` to opt out. Details: [`mychart-cli` telemetry](clients/npm-package/README.md#telemetry).
 
 On start the CLI also fetches a small version manifest from
 `openrecord.fanpierlabs.com` to tell you if a newer release exists. That request

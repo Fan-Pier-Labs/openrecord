@@ -43,7 +43,7 @@ renewal time so credential stores are re-read fresh, and success adopts the fres
 SAME request object via `MyChartRequest.adoptStateFrom` — login functions construct a new instance,
 and everything holding a reference mid-scrape has to keep working.
 
-Wired in all four clients: the CLI (`wireCliSessionRenewal` in `clients/cli/cli/cli.ts`), the
+Wired in all four clients: the CLI (`wireCliSessionRenewal` in `clients/npm-package/cli/cli.ts`), the
 desktop extension (`manageSession` in `clients/shared/mcp-server/session-manager.ts`), the Expo
 app (`manageSession` in `clients/expo-app/src/lib/scrapers/session-manager.ts`), and the npm library
 (`MyChartClient` wires it from connect args; `autoRenew: false` opts out).
@@ -124,7 +124,7 @@ not compile for any client — the enforcement for "every dispatch goes through 
   the count they held back, and `--show-all` appends the rest under their own heading.
   `executeCapability` never looks at it, every client still registers every entry, and a hidden id
   still runs as `--action <id>` with the same arguments.
-  `clients/cli/cli/__tests__/help.unit.test.ts` pins that down, and `capability-parity.unit.test.ts`
+  `clients/npm-package/cli/__tests__/help.unit.test.ts` pins that down, and `capability-parity.unit.test.ts`
   asserts `--show-all` still lists the whole registry.
 - **`CapabilityContext`** carries the per-account state that isn't on the MyChart session — the
   stored password, the saved TOTP secret, and the callbacks that persist new ones. Each client wires
@@ -154,7 +154,7 @@ not compile for any client — the enforcement for "every dispatch goes through 
   `capability-parity.unit.test.ts` fails if an id check reappears. The branch decides how to render
   the payload; it sits after the dispatch, never in place of it. The CLI never prints image
   bytes: it decodes each CLO to a JPEG in `./imaging-output` (override with `--output <dir>`) and
-  prints the file paths (`writeStudyImages` in `clients/cli/cli/capabilityActions.ts`). The
+  prints the file paths (`writeStudyImages` in `clients/npm-package/cli/capabilityActions.ts`). The
   download always fetches **every** instance in the study — there is deliberately no
   `max_images` knob — and instances that answer CLOERROR are skipped, never returned as images:
   real eUnity studies can lead with `SeriesSelector` pseudo-instances that carry no pixel data,
@@ -437,17 +437,17 @@ and had quietly stopped matching anything.
 
 ## Client notes
 
-- **CLI + npm package** (`clients/cli/`) — `--action` accepts any capability id with repeated
+- **CLI + npm package** (`clients/npm-package/`) — `--action` accepts any capability id with repeated
   `--arg name=value`; `--help` prints usage plus the capability listing and `--list-capabilities`
   prints the listing alone. Both lead with the commonly-used capabilities and hold the rest behind
   `--show-all` (see `lessFrequentlyUsed` above). That dispatch, the listing and the help text live in
-  `clients/cli/cli/capabilityActions.ts` and `clients/cli/cli/help.ts` rather than `cli.ts`, because
+  `clients/npm-package/cli/capabilityActions.ts` and `clients/npm-package/cli/help.ts` rather than `cli.ts`, because
   `cli.ts` runs `main()` the moment it is imported and the tests have to import them.
   `runCapabilityAction` folds `--patient` into the args *after* coercion — the registry declares
   `patient`, not each capability, so coercing it would trip the unknown-argument check. The library
   exposes the same set as
   `MyChartClient.runCapability(id, args)` plus a typed method per capability. See
-  [`docs/cli.md`](cli.md) and `clients/cli/README.md`.
+  [`docs/cli.md`](cli.md) and `clients/npm-package/README.md`.
 - **Claude Desktop extension** (`clients/claude-desktop-extension/`) and **`mychart-cli mcp`** — `registerAllTools` (`clients/shared/mcp-server/tools.ts`)
   hand-writes only the account-management meta tools (`list_accounts`, `setup_account`,
   `complete_2fa`, `disconnect_account`), which manage credentials on this machine

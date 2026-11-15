@@ -62,7 +62,7 @@ Known anchors in this repo (verify each before deciding the target — these con
   - Get the canonical pinned versions: `bunx expo install --check` (run inside `clients/expo-app/`) — it will tell you what each Expo-managed package should be on for the installed SDK.
   - If you bump the Expo SDK major (e.g. 55 → 56), follow Expo's upgrade guide and accept whatever React/RN versions that SDK pins, even if newer ones exist on npm.
 - **TypeScript + `@types/*` + ESLint plugins**
-  - Keep `typescript` and `@types/node` aligned with the Node engines field (`"node": ">=18"` in `clients/cli/`).
+  - Keep `typescript` and `@types/node` aligned with the Node engines field (`"node": ">=18"` in `clients/npm-package/`).
   - `@typescript-eslint/*` packages must be on the same minor version as each other.
 - **AWS SDK v3 (`@aws-sdk/*`)** — bump all `@aws-sdk/*` packages to the same version in lockstep.
 - **Sentry (`@sentry/*`)** — bump all `@sentry/*` packages to the same version in lockstep.
@@ -76,7 +76,7 @@ Edit each `package.json` with the new versions. Then reinstall in each workspace
 
 ```bash
 bun install                              # root
-cd clients/cli && bun install && cd ..
+cd clients/npm-package && bun install && cd ..
 cd fake-mychart && bun install && cd ..
 cd clients/expo-app && bun install && cd ..
 cd clients/claude-desktop-extension && bun install && cd ..
