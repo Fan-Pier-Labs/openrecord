@@ -64,7 +64,7 @@ describe('mychart-cli mcp', () => {
     const { tools } = await client.listTools();
     const names = new Set(tools.map((t) => t.name));
     for (const capability of CAPABILITIES) expect(names).toContain(capability.id);
-    for (const meta of ['list_accounts', 'setup_account', 'complete_2fa', 'check_pending_call']) {
+    for (const meta of ['list_accounts', 'setup_account', 'complete_2fa', 'check_pending_call', 'send_feature_request']) {
       expect(names).toContain(meta);
     }
     for (const extensionOnly of ['get_setup_widget', 'connect_google_calendar', 'disconnect_google_calendar']) {
