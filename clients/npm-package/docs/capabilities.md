@@ -55,8 +55,8 @@ const md = await client.runCapability('get_lab_results', { mode: 'concise' });
 
 `mode` is ignored by writes, account settings, `search_mycharts`, and the capabilities that
 return files or images. Field-by-field decisions for each capability are in
-[`docs/processor-layer-proposal.md`](../../docs/processor-layer-proposal.md), and example output
-in every mode is in [`docs/processor-layer-examples.md`](../../docs/processor-layer-examples.md).
+[`docs/processor-layer-proposal.md`](../../../docs/processor-layer-proposal.md), and example output
+in every mode is in [`docs/processor-layer-examples.md`](../../../docs/processor-layer-examples.md).
 
 ## Chaining ids
 
