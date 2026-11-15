@@ -3,7 +3,7 @@
 /**
  * Every capability in the shared registry, executed against fake-mychart.
  *
- * The parity tests in `shared/__tests__/` prove the four clients all *expose*
+ * The parity tests in `clients/shared/__tests__/` prove the four clients all *expose*
  * the same list. This one proves the list actually works: each entry is
  * dispatched by id through `executeCapability`, exactly as the MCP server, the
  * mobile agent and `mychart-cli --action` do, and has to come back with real
@@ -27,14 +27,17 @@ import { getVerificationToken } from '../../chart/messages/communicationCenterTo
 import {
   CAPABILITIES,
   CAPABILITY_IDS,
-  PUBLIC_CAPABILITY_IDS,
   executeCapability,
+  isPublicCapability,
   getCapability,
   type FilePayload,
   type StudyImagePayload,
   type MessageAttachmentFile,
   type DocumentFile,
-} from '../../../../shared/capabilities'
+} from '../../../../clients/shared/capabilities'
+
+/** Everything that runs with no account: the `public` lookups and the `accountFree` writes. */
+const NO_ACCOUNT_IDS = CAPABILITIES.filter(isPublicCapability).map((c) => c.id)
 
 const HOST = process.env.FAKE_MYCHART_HOST ?? 'localhost:4000'
 
@@ -254,7 +257,12 @@ describe('capability registry against fake-mychart', () => {
     // An id off this conversation is refused, naming what it does have.
     await expect(
       executeCapability(session, 'get_message_attachment', { conversation_id: conversation!.hthId, attachment_id: 'WP-DCS-NOPE' }),
-    ).rejects.toThrow(/No attachment WP-DCS-NOPE .* proof of coverage\.pdf \(attachment_id WP-DCS-COVERAGE\)/)
+    ).rejects.toThrow(
+      expect.objectContaining({
+        message: expect.stringMatching(/No attachment WP-DCS-NOPE .*attachment_ids on that conversation are: [^.]*WP-DCS-COVERAGE/),
+        detailedMessage: expect.stringMatching(/No attachment WP-DCS-NOPE .* proof of coverage\.pdf \(attachment_id WP-DCS-COVERAGE\)/),
+      }),
+    )
   }, 60_000)
 
   // ── Documents ─────────────────────────────────────────────────────────────
@@ -509,7 +517,7 @@ describe('capability registry against fake-mychart', () => {
       subject: 'x',
       message: 'y',
     })
-    await expect(promise).rejects.toThrow(/No recipient matching/)
+    await expect(promise).rejects.toThrow(/No recipient matches that name/)
   }, 30_000)
 
   it('adds, updates and removes an emergency contact — the writes mobile never had', async () => {
@@ -663,11 +671,11 @@ describe('capability registry against fake-mychart', () => {
       'setup_totp',
       'disable_totp',
     ])
-    // The `public` capabilities are not in this suite's reach: they read CMS's
-    // NPI Registry and Epic's instance directory, neither of which this server
-    // is. They have their own integration suites, named below.
+    // The `public` capabilities are not in this suite's reach: they talk to CMS's
+    // NPI Registry, Epic's instance directory and our forms Lambda, none of
+    // which this server is. They have their own integration suites, named below.
     const untested = CAPABILITY_IDS.filter(
-      (id) => !exercised.has(id) && !PUBLIC_CAPABILITY_IDS.includes(id),
+      (id) => !exercised.has(id) && !NO_ACCOUNT_IDS.includes(id),
     )
     expect(untested).toEqual([])
   })
@@ -679,12 +687,14 @@ describe('capability registry against fake-mychart', () => {
     const suites = [
       'scrapers/npi/__tests__/npiRegistry.integration.test.ts',
       'scrapers/list-all-mycharts/__tests__/directory.integration.test.ts',
+      'clients/shared/__tests__/hospitalInfo.integration.test.ts',
+      'clients/shared/__tests__/featureRequest.integration.test.ts',
     ]
     const sources = await Promise.all(
       suites.map((path) => Bun.file(new URL(`../../../../${path}`, import.meta.url)).text()),
     )
     const joined = sources.join('\n')
-    for (const id of PUBLIC_CAPABILITY_IDS) expect(joined).toContain(id)
+    for (const id of NO_ACCOUNT_IDS) expect(joined).toContain(id)
   })
 
   // send_reply / delete_message / delete_passkey need a thread and a passkey

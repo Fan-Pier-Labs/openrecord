@@ -8,7 +8,7 @@ The demo shares **no code** with the scraper core. It imports nothing from `shar
 scraper, and ships as a static Vite bundle with a fictional record behind it. That independence is
 deliberate, and the price of it is drift.
 
-One part of that price is now paid automatically: `shared/__tests__/capability-parity.unit.test.ts`
+One part of that price is now paid automatically: `clients/shared/__tests__/capability-parity.unit.test.ts`
 checks the demo's catalogue against the registry the way it checks the other four clients — every
 read and write capability has a tool, writes are gated as writes, required parameters are named,
 and the demo-only extras are an explicit list. Everything below the tool surface — behaviour,
@@ -47,7 +47,7 @@ claim**. It is a bug when the demo shows a capability the product doesn't have, 
 does — that turns the demo into a promise nobody has to keep.
 
 So: the tool set, the write-confirmation set, and the account/patient model are held to
-`shared/capabilities/`. Presentation, playbook copy, and loop economics are not.
+`clients/shared/capabilities/`. Presentation, playbook copy, and loop economics are not.
 
 ## Accepted divergences
 
@@ -73,7 +73,7 @@ sees an X-ray appear inline, which is the part that matters.
 Six of them are account setup — `list_accounts`, `setup_account`, `connect_instance`,
 `check_session`, `complete_2fa`, `disconnect_account`. They mirror the Claude Desktop extension's
 meta tools, which manage credentials on one machine and are deliberately outside
-`shared/capabilities/`. The demo implements them (a visitor can watch a login, a 2FA prompt, and a
+`clients/shared/capabilities/`. The demo implements them (a visitor can watch a login, a 2FA prompt, and a
 disconnect play out) but never lists them in the model's prompt, because the session starts
 connected. `search_mycharts` used to be the seventh; it is a `public` capability now, so the demo's
 copy is held to the registry like any other tool.
@@ -87,7 +87,7 @@ without someone deciding to add it.
 ### The skill playbooks are abridged
 
 `demo/src/skills.ts` carries the same three skills as
-[`expo-app/src/lib/skills/catalog.ts`](../expo-app/src/lib/skills/catalog.ts) — same ids, titles,
+[`clients/expo-app/src/lib/skills/catalog.ts`](../clients/expo-app/src/lib/skills/catalog.ts) — same ids, titles,
 kickoff messages, and closing lines — with shorter playbooks. Each one drops its
 sparse-data terminator (`analyze_history`'s "don't fabricate observations", `bill_itemization`'s
 "zero bills … say so plainly and stop", `recommend_insurance`'s "too thin to estimate … don't
@@ -101,7 +101,7 @@ does not, which covers the same failure mode more broadly.
 ### The agent loop is bounded by turns, not by a clock
 
 Real: no turn cap and a ten-minute wall-clock deadline (`TOOL_LOOP_DEADLINE_MS` in
-`expo-app/src/lib/ai/claude-client.ts`). Demo: `MAX_TURNS = 8` and no deadline.
+`clients/expo-app/src/lib/ai/claude-client.ts`). Demo: `MAX_TURNS = 8` and no deadline.
 
 The demo is anonymous, rate-limited by IP at [`openrecord-demo-lambda`](../openrecord-demo-lambda),
 and pays for every turn. A turn cap is the cheaper backstop, and it fails inside a single
@@ -111,6 +111,6 @@ page-view rather than after ten minutes of a stranger's patience.
 
 If you find the demo offering a tool the registry doesn't have, missing one it does, gating a
 different set of writes, or spelling a shared parameter differently — that's a bug, not a
-simplification. `shared/capabilities/` is the source of truth, and the parity test now says so
+simplification. `clients/shared/capabilities/` is the source of truth, and the parity test now says so
 for the catalogue. It cannot check what a tool *does*, so a tool that exists but answers nothing
 like the real one is still drift a person has to catch.

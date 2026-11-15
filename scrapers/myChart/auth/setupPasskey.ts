@@ -149,7 +149,8 @@ export async function listPasskeys(mychartRequest: MyChartRequest): Promise<unkn
   }
 
   const result = await resp.json();
-  return result.passkeys || result.Passkeys || [];
+  // Some instances wrap the list: { success, data: { passkeys, lastAuthentication } }.
+  return result.passkeys || result.Passkeys || result.data?.passkeys || [];
 }
 
 /**

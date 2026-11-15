@@ -23,6 +23,7 @@
  *      anonymous scheduling workflow in `POST_PUBLIC` clears the antiforgery
  *      gate and skips only the session one, and everything else takes both.
  */
+import { accountSettingsPost } from './accountSettings';
 import { activityFeedPost } from './activityFeed';
 import { allergiesGet, allergiesPost } from './allergies';
 import { authGet, authGetPatterns, authPost, authPostPatterns } from './auth';
@@ -47,6 +48,7 @@ import { medicalHistoryGet, medicalHistoryPost } from './medicalHistory';
 import { medicationsGet, medicationsPost } from './medications';
 import { messagesGet, messagesPost } from './messages';
 import { notesPost } from './notes';
+import { notificationPreferencesPost } from './notificationPreferences';
 import { otherMyChartsPostPatterns } from './otherMyCharts';
 import { passkeysPost } from './passkeys';
 import { decisionTreePostPublic, preloginGetPublic, preloginPostPublic } from './prelogin';
@@ -109,6 +111,7 @@ export const POST_PUBLIC: ExactRoutes = mergeExact(preloginPostPublic, decisionT
 
 export const POST_ROUTES: ExactRoutes = mergeExact(
   authPost,
+  accountSettingsPost,
   allergiesPost,
   activityFeedPost,
   billsPost,
@@ -130,6 +133,7 @@ export const POST_ROUTES: ExactRoutes = mergeExact(
   medicationsPost,
   messagesPost,
   notesPost,
+  notificationPreferencesPost,
   passkeysPost,
   preventiveCarePost,
   questionnairesPost,

@@ -30,8 +30,8 @@ export const MAX_SIGN_COUNT_BUMPS = 10;
  * `credential` is mutated in place (its `signCount` is advanced); callers
  * should persist it after a successful return.
  *
- * Shared by the CLI (`npm-package/cli/cli.ts`) and the Expo app
- * (`expo-app/src/lib/scrapers/session-manager.ts`) — both auto-login with a
+ * Shared by the CLI (`clients/npm-package/cli/cli.ts`) and the Expo app
+ * (`clients/expo-app/src/lib/scrapers/session-manager.ts`) — both auto-login with a
  * locally-stored passkey credential and hit the same desync.
  */
 export async function passkeyLoginWithCounterRetry(

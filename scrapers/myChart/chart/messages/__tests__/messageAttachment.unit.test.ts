@@ -152,10 +152,14 @@ describe('downloadMessageAttachment', () => {
     expect(calls).toHaveLength(2)
   })
 
-  it('names the attachments the thread does have when the id matches none of them', async () => {
+  it('names the attachments the thread does have when the id matches none of them — in the detailed message only', async () => {
     const { req, calls } = mockRequest([page(), json(thread())])
     await expect(downloadMessageAttachment(req, 'CONV-1', 'WP-DCS-9')).rejects.toThrow(
-      'No attachment WP-DCS-9 on conversation CONV-1. The attachments on that conversation are: insurance card.jpg (attachment_id WP-DCS-1).',
+      expect.objectContaining({
+        message: 'No attachment WP-DCS-9 on conversation CONV-1. The attachment_ids on that conversation are: WP-DCS-1.',
+        detailedMessage:
+          'No attachment WP-DCS-9 on conversation CONV-1. The attachments on that conversation are: insurance card.jpg (attachment_id WP-DCS-1).',
+      }),
     )
     expect(calls).toHaveLength(2)
   })

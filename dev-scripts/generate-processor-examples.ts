@@ -39,7 +39,7 @@ import { join } from 'path';
 import { myChartUserPassLogin } from '../scrapers/myChart/auth/login';
 import type { MyChartRequest } from '../scrapers/myChart/core/myChartRequest';
 import { OUTPUT_MODES, type OutputMode } from '../scrapers/myChart/processors/processor';
-import { CAPABILITIES, acceptsModeParam, executeCapability, isPublicCapability } from '../shared/capabilities';
+import { CAPABILITIES, acceptsModeParam, executeCapability, isPublicCapability } from '../clients/shared/capabilities';
 
 const HOST = process.env.FAKE_MYCHART_HOST ?? 'localhost:4000';
 

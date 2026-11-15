@@ -70,10 +70,9 @@ Every URL carries `noCache=<random>`.
   encrypted `HospitalAccountId`, plus `EncPBSerID` when the stub carries a `ProviderId`
   (`IsPes: true` instead, for a standalone estimate keyed by `EmptyVisitEstimateID`). The
   answer is whole replacement rows with `LevelOfDetailLoaded: 2`, under
-  `Data.UnifiedVisitList`. The scraper posts every stub at once, loops on whatever is still
-  missing (the server may cap a batch), and the processor swaps each stub for its real row
-  before de-duplication — a stub and its hydrated self do not look alike, because the
-  identity includes exactly the fields hydration fills in.
+  `Data.UnifiedVisitList`. The processor swaps each stub for its real row before
+  de-duplication — a stub and its hydrated self do not look alike, because the identity
+  includes exactly the fields hydration fills in.
 - **The scraper posts one stub per `GetMoreVisits` request, because a batched answer cannot be
   joined.** This is the trap: the stub's `HospitalAccountId` is the encrypted handle (`WP-24…`)
   it was posted under, but the hydrated row's is the **plain account number** (`4820015507`),
@@ -88,15 +87,26 @@ Every URL carries `noCache=<random>`.
   back. Each answer is still checked against its stub on `StartDate` before the swap, since the
   service date is the one field a stub already has right; a row that disagrees is dropped
   rather than attaching one visit's charges to another.
-- **Every row is hydrated or the read fails.** The details page is fetched **first**, because
-  it carries the antiforgery token Epic's own client sends on this call (a token-less POST was
-  never tried, so whether the server refuses one is unverified — the scraper simply sends what
-  the client sends). If any row is still a stub once the answers are merged, the processor
-  throws `BillingNotFullyLoadedError` instead of returning it: a stub's every amount is the
-  fabricated `"$0.00"`, indistinguishable from a settled visit, so a caller summing the charge
-  column would undercount silently rather than visibly fail. `raw` mode still returns the
-  envelope. `LevelOfDetailLoaded` is `0` on every stub and `2` on every populated row; no other
+- **A stub that does not load is listed, never priced.** The details page is fetched
+  **first**, because it carries the antiforgery token Epic's own client sends on this call (a
+  token-less POST was never tried, so whether the server refuses one is unverified — the
+  scraper simply sends what the client sends). A row still a stub once the answers are merged
+  goes to the account's `unloadedVisits` (service date, billing system, why) and never to
+  `visits`: a stub's every amount is the fabricated `"$0.00"`, indistinguishable from a
+  settled visit, so a caller summing the charge column would undercount silently. Everything
+  that did load is still returned, and the top-level `notice` says how many rows are missing
+  and that the balances — which come from the summary cards, not the visit rows — still
+  stand. `LevelOfDetailLoaded` is `0` on every stub and `2` on every populated row; no other
   value has been observed. Verified on the wire against 1 real instance.
+- **MyChart declines some stubs outright.** One live instance answered 2 of its 15 stubs'
+  `GetMoreVisits` with `200`, `Success: true` and an empty `UnifiedVisitList` — on every
+  attempt, alone or batched — and Epic's own "load all" returned the same two as level-0
+  placeholders with `StartDate: 0`, so its page cannot show them either. The two looked like
+  the 13 that loaded (same `BillingSystem`, `IsHar`, no `ProviderId`). Because each request
+  carries one handle, such an answer names its stub, and the processor marks it
+  `returned_empty` (retrying will not help, so the scraper doesn't) as distinct from `not_loaded`
+  (the request failed twice — the scraper retries a failure or an answer without
+  `Success: true` once — was never sent, or answered for a different date). Seen on 1 instance (issue #558).
 - **The UI's default filter is not the scraper's.** The billing activity sends
   `filterOption=` empty (and empty dates), which on the captured account returned
   `HasVisits: false` — nothing at all. The scraper's `filterOption=1` with a 100-year window
@@ -152,6 +162,9 @@ Account (from the summary HTML and the join):
 | `paymentUrl` | The pay-online path from the summary page's inline config, relative to the instance root | ✓ | ✓ | — | Derived. How a patient pays from the app (rule 4). It lives on the summary page: `GetVisits`' own `URLMakePayment` is null on every live instance checked. |
 | `id`, `context`, `encBillingId` | Account keys the detail calls take | — | — | — | Internal; visible in `raw` as request bodies. |
 | `totalDue` | Sum across accounts | ✓ | ✓ | ✓ | Derived. The one number most readers want. |
+| `notice` | One sentence when any account has `unloadedVisits`; null otherwise | ✓ | ✓ | ✓ | Derived. Tells the reader the visit list is incomplete and that the balances still stand, so a missing row is not read as a paid one. |
+| `unloadedVisits[]` | Paged-out rows that never loaded: `category`, `StartDate`, `StartDateDisplay`, `BillingSystemDisplay`, `reason` (`returned_empty` / `not_loaded`) | ✓ | ✓ | `StartDateDisplay`, `reason` | Derived. A stub's description and amounts are fabricated, so only the fields it carries truthfully are kept. |
+| `unavailable[]` | Best-effort endpoints that did not answer | ✓ | ✓ | ✓ | Derived. A list here is unknown, not empty. |
 
 `GetVisits` (`Data.*`):
 

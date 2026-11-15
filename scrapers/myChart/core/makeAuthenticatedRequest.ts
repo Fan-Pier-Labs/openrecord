@@ -33,6 +33,7 @@ import type { RequestConfig } from './types';
 import { looksLikeSignedOutPage } from './signedOutPage';
 import { sessionStore } from './sessionStore';
 import { renewMyChartSession } from './sessionRenewal';
+import { sendTelemetryEvent } from '../../../shared/telemetry';
 
 // Re-exported for callers that treat this module as the session-expiry
 // surface (the npm package's index, tests). The implementation lives in
@@ -157,6 +158,14 @@ export async function makeAuthenticatedRequest(
   }
 
   const renewed = await renewMyChartSession(mychartRequest);
+  // How often each host needs a re-login, and which request found the session
+  // dead — a host that re-logs-in on most requests isn't keeping its sessions.
+  // The query string is dropped: it can carry record ids.
+  sendTelemetryEvent('scraper_relogin', {
+    hostname: mychartRequest.hostname,
+    path: config.path?.split('?')[0] ?? (config.url ? new URL(config.url).pathname : ''),
+    renewed,
+  }, 'scraper');
   if (!renewed) {
     throw new SessionExpiredError();
   }

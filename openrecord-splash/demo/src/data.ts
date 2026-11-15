@@ -496,6 +496,102 @@ export const insurancePayers = {
   ],
 };
 
+// Account settings, in the shape `get_notification_preferences` and
+// `get_account_settings` return (json mode). Fictional, like everything here.
+const media = (channel: 'Email' | 'Text' | 'Push' | 'Mail', status: 'On' | 'Off' | 'LockedOn') => ({
+  type: { Email: '1', Mail: '3', Push: '6', Text: '100' }[channel],
+  channel,
+  toggleStatus: { Off: 0, On: 1, LockedOn: 3 }[status],
+  status,
+});
+const topic = (title: string, medias: ReturnType<typeof media>[]) => ({
+  title,
+  description: '',
+  medias,
+  channelsOn: medias.filter((m) => m.status !== 'Off').map((m) => m.channel),
+  requiredForPaperlessBilling: title === 'Statement',
+  additionalItemSection: null,
+});
+
+export const notificationPreferences = {
+  groupers: [
+    { title: 'Appointments', description: 'Reminders and updates about upcoming appointments', otherPreferencesLinkText: null, concepts: [
+      topic('Reminders', [media('Email', 'On'), media('Text', 'On'), media('Push', 'On')]),
+      topic('Wait List Offer', [media('Email', 'On'), media('Text', 'Off')]),
+    ] },
+    { title: 'Messages', description: 'New messages and letters', otherPreferencesLinkText: null, concepts: [
+      topic('New Message', [media('Email', 'On'), media('Text', 'Off'), media('Push', 'On')]),
+    ] },
+    { title: 'Health', description: 'Test results and prescriptions', otherPreferencesLinkText: null, concepts: [
+      topic('Test Result', [media('Email', 'On'), media('Text', 'On'), media('Push', 'On')]),
+      topic('Prescription', [media('Email', 'Off'), media('Text', 'On')]),
+    ] },
+    { title: 'Billing', description: 'Statements and payment reminders', otherPreferencesLinkText: null, concepts: [
+      topic('Statement', [media('Email', 'On'), media('Mail', 'Off')]),
+    ] },
+    { title: 'Account Management', description: 'Changes to your account', otherPreferencesLinkText: null, concepts: [
+      topic('Password Changed', [media('Email', 'LockedOn'), media('Text', 'Off')]),
+    ] },
+  ],
+  smsFlagOn: true,
+  userAcceptsSms: true,
+  contactInformation: {
+    email: 'homer.simpson@example.com',
+    mobilePhone: '(555) 636-7663',
+    emailPending: false,
+    mobilePending: false,
+    mobileIsVerified: true,
+    mediaTypesMissingContactMethod: [],
+    proxyContextName: '',
+  },
+};
+
+const paperless = (status: number, statusName: string, allowSignup: boolean, allowCancel: boolean) => ({ status, statusName, allowSignup, allowCancel });
+
+export const accountSettings = {
+  paperless: {
+    billingInfo: paperless(1, 'SignedUp', true, true),
+    eobInfo: paperless(-1, 'NotEligible', false, false),
+    invoiceInfo: paperless(-1, 'NotEligible', false, false),
+    avsInfo: paperless(3, 'NoResponse', true, false),
+  },
+  resultsRelease: {
+    options: [
+      { value: '1', titleUtf8: 'Show me test results as soon as possible' },
+      { value: '2', titleUtf8: 'Wait to show me test results' },
+    ],
+    chosenRRPreference: '',
+    chosenRRPreferenceTitle: null,
+  },
+  security: {
+    passwordLastUpdated: 'Mar 3, 2026',
+    twoFactorEmailSmsOn: true,
+    twoFactorTOTPOn: false,
+    twoFactorRequired: true,
+    allowEmailSmsToggle: false,
+    allowTotpToggle: true,
+    passkeyLoginAvailable: true,
+    rememberWebDevices: false,
+    rememberWebDevicesAllowed: false,
+    passwordChangeAvailable: true,
+    isMyChartCentral: false,
+    deactivateAccountAllowed: true,
+  },
+  textMessaging: {
+    consentData: { phone: '(555) 636-7663', shortCodesConsent: { '55555': true } },
+    primarySender: { shortCode: '55555', displayName: '', termsAndConditionsURL: '' },
+    secondarySenders: [],
+  },
+  careEverywhere: {
+    isPatientOptedIn: true,
+    canChangeCeStatus: true,
+    doesPatientReqConsent: false,
+    hasAuthsOnFile: false,
+    needsAuthorization: false,
+  },
+  unavailable: [] as string[],
+};
+
 const immunizations = [
   { vaccine: 'Influenza (Flu)', date: '2025-10-15', site: 'Left arm', provider: 'Springfield General Hospital' },
   { vaccine: 'COVID-19 Booster (Pfizer)', date: '2025-09-20', site: 'Left arm', provider: 'Springfield General Hospital' },

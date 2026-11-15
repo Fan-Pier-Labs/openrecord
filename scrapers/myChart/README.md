@@ -23,6 +23,7 @@ token, then `POST` the endpoint(s) below it.
 
 | Folder | Capabilities | Activity |
 | --- | --- | --- |
+| [`accountSettings/`](chart/accountSettings/) | `get_account_settings` | React `/app/paperless-settings`, `/app/test-results`, `/app/security-settings`, `/app/text-opt-in`, `/app/care-everywhere-opt-out` |
 | [`activityFeed/`](chart/activityFeed/) | `get_activity_feed` | React `/app/home` |
 | [`allergies/`](chart/allergies/) | `get_allergies` | legacy `/Clinical/Allergies` |
 | [`bills/`](chart/bills/) | `get_billing`, `download_billing_statement` | legacy `/Billing/*` |
@@ -45,6 +46,7 @@ token, then `POST` the endpoint(s) below it.
 | [`medications/`](chart/medications/) | `get_medications` (`request_refill` is declared, not implemented) | legacy `/Clinical/Medications` |
 | [`messages/`](chart/messages/) | five reads and three writes | React `/app/communication-center` |
 | [`notes/`](chart/notes/) | `get_visit_notes`, `get_note_content`, `get_visit_avs` | legacy `/Visits/VisitsList` |
+| [`notificationPreferences/`](chart/notificationPreferences/) | `get_notification_preferences` | React `/app/communication-preferences` |
 | [`otherMyCharts/`](chart/otherMyCharts/) | `get_linked_accounts` | legacy `/Community/Manage` |
 | [`preventiveCare/`](chart/preventiveCare/) | `get_preventive_care` | legacy `HealthAdvisories/GetTopics` |
 | [`profile/`](chart/profile/) | `get_profile` | `/Home` + legacy `/PersonalInformation` |

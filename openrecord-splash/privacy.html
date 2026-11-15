@@ -103,7 +103,7 @@
     <header>
       <a class="back" href="/">← OpenRecord</a>
       <h1>Privacy Policy</h1>
-      <p class="updated">Last updated 14 August 2026</p>
+      <p class="updated">Last updated 12 November 2026</p>
     </header>
 
     <main>
@@ -111,8 +111,10 @@
         OpenRecord is software you run yourself. It signs in to your Epic MyChart patient portal from
         your own device and reads your records there. Fan Pier Labs does not operate a server that
         holds your medical records, and there is no OpenRecord account containing a copy of them.
-        Two things do leave your device: the question you send to an AI model, and — on the desktop
-        tools only — anonymous usage data. Both are described in full below.
+        Two things leave your device on their own: the question you send to an AI model, and — on the
+        desktop tools only — usage data, which from the Claude Desktop extension includes who you are.
+        A third, a feature request, leaves only when you choose to send one. All three are described
+        in full below.
       </p>
 
       <h2>Who this covers</h2>
@@ -240,7 +242,7 @@
         The site is static files on Amazon S3 served through Amazon CloudFront. AWS records standard
         request logs, which include IP addresses. There are no analytics services, advertising
         networks, or third-party tracking scripts on the site itself. The desktop clients do report
-        anonymous usage, which is the next section.
+        usage, which is the next section.
       </p>
       <p>
         If you enter your email address in the waitlist form, we store it and use it to tell you when
@@ -249,7 +251,7 @@
 
       <h2>Usage analytics</h2>
       <p>
-        The command-line tool and the Claude Desktop extension report anonymous usage, so we can see
+        The command-line tool and the Claude Desktop extension report usage, so we can see
         how much OpenRecord is being used and which health systems to look at when logins start
         failing. <strong>The iPhone app reports none of it</strong> — that code is replaced with an
         empty stub in the app's build.
@@ -257,8 +259,9 @@
       <p>An event is sent when the tool starts, and when a login begins. Each one carries:</p>
       <ul>
         <li>
-          A random identifier created the first time you run it and kept in a cache folder. It is not
-          derived from your name, your account, or anything about your machine.
+          A random identifier created the first time you run it and kept in
+          <code>~/.openrecord.json</code>, one per computer, shared by the command-line tool and the
+          extension. It is not derived from your name, your account, or anything about your machine.
         </li>
         <li>
           The event name, and for login events <strong>the hostname of the MyChart portal you are
@@ -268,20 +271,57 @@
         <li>Your operating system and its version, the processor architecture, and the Node or Bun version.</li>
       </ul>
       <p>
+        The Claude Desktop extension also sends an event <strong>every time Claude uses one of its
+        tools</strong>, and that event is not anonymous. It carries the tool's name (for example, that
+        lab results were read), the hostname of the MyChart portal it used, <strong>your email
+        address</strong> — the one on your MyChart profile, or your MyChart username if that is an
+        email — <strong>your MyChart username</strong>, and <strong>your IP address</strong>. Never your password or anything else from your
+        record.
+      </p>
+      <p>
+        When one of those tools fails, the extension also sends <strong>the error: its message and
+        stack trace</strong>, with the same tool, portal, email, username and IP address. Error
+        messages are written to leave out anything from your record — a family member's name, a file
+        name, what a MyChart page said. Claude is shown those details; we are not. The exception is an
+        error raised inside a third-party library the tool uses, which can quote part of what MyChart
+        sent. Errors go to <strong>Sentry</strong>, a third-party error-tracking service, as well as to
+        the two places below.
+      </p>
+      <p>
         These go to Amplitude, a third-party analytics product, and to our own logging endpoint on AWS.
         Naming the health system you are a patient of is more than we would want a tool to send about
         us without saying so, which is why it is written out here. To send none of it, set
         <code>MYCHART_CLI_TELEMETRY_DISABLED=1</code> in the environment the tool runs in.
       </p>
 
+      <h2>Feature requests</h2>
+      <p>
+        When you ask for something OpenRecord cannot do, the AI may offer to tell us about it. Nothing
+        is sent unless you say so, and you choose what goes with it:
+      </p>
+      <ul>
+        <li><strong>With your details:</strong> your description, plus the name, email address and
+          health system you give it, so we can reply.</li>
+        <li><strong>Without them:</strong> your description only.</li>
+        <li><strong>Nothing:</strong> nothing is sent.</li>
+      </ul>
+      <p>
+        A request is emailed to us through <strong>Resend</strong>, an email delivery service, and
+        logged on our AWS account together with <strong>the IP address it came from</strong>. Sending
+        it without your details leaves out your name, email and health system, but the IP address is
+        still recorded, and from the Claude Desktop extension the usage event for the same call can
+        be matched to it.
+      </p>
+
       <h2>The update check</h2>
       <p>
-        On start, the command-line tool fetches a small file from this site listing the current
-        version of each thing we publish, so it can tell you when you are running an old one. It
+        The command-line tool and the Claude Desktop extension fetch a small file from this site
+        listing the current version of each thing we publish, so they can tell you when you are
+        running an old one — the command-line tool on start, the extension about once a day. It
         sends no information about you. Like any web request it reveals <strong>your IP address to
-        our CDN, and how often you run the tool</strong> — never your username, the health system
-        you use, or anything from your record. The same
-        <code>MYCHART_CLI_TELEMETRY_DISABLED=1</code> turns it off.
+        our CDN, and how often you use the tool</strong> — never your username, the health system
+        you use, or anything from your record. It always runs, including when you have turned off
+        the usage events above, so that you hear about fixes.
       </p>
 
       <h2>What we never do</h2>

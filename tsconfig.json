@@ -37,11 +37,12 @@
   },
   "include": [
     "scrapers/**/*.ts",
-    "npm-package/cli/**/*.ts",
+    "clients/npm-package/cli/**/*.ts",
     "shared/**/*.ts",
-    "read-local-passwords/**/*.ts",
+    "clients/shared/**/*.ts",
     "dev-scripts/**/*.ts",
     "openrecord-demo-lambda/**/*.ts",
+    "github-stats-lambda/**/*.ts",
     "openrecord-splash/*.ts",
     "openrecord-splash/__tests__/**/*.ts",
     "tests/**/*.ts"
