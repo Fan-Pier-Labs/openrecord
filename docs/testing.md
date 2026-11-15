@@ -3,28 +3,28 @@
 ## Lint
 
 `bun run lint` is **type-aware** (typescript-eslint `projectService`): each file is resolved against
-its package's tsconfig, so every package's deps must be installed first (`clients/expo-app`, `clients/cli`,
-`clients/claude-desktop-extension`) **and `clients/cli` must be built** — its integration test imports its
+its package's tsconfig, so every package's deps must be installed first (`clients/expo-app`, `clients/npm-package`,
+`clients/claude-desktop-extension`) **and `clients/npm-package` must be built** — its integration test imports its
 types from `../../dist/index.js`, so without `dist/` those types don't resolve. Everything lint
 needs, from a clean checkout:
 
 ```bash
 bun install && (cd clients/expo-app && bun install) && (cd clients/claude-desktop-extension && bun install) \
-  && (cd clients/cli && bun install && bun run build) && bun run lint
+  && (cd clients/npm-package && bun install && bun run build) && bun run lint
 ```
 
 Skip a step and the unresolved imports degrade to `any`, which breaks lint in both directions: the
 type-aware rules silently stop seeing those imports (lint passes while checking less), *and* they
 invent errors. With no `dist/`, `no-unnecessary-type-assertion` reports the `!`s in
-`clients/cli/src/__tests__/fake-mychart.integration.test.ts` as unnecessary — removing them fails
-`bun run typecheck`, which is why CI builds clients/cli before eslint.
+`clients/npm-package/src/__tests__/fake-mychart.integration.test.ts` as unnecessary — removing them fails
+`bun run typecheck`, which is why CI builds clients/npm-package before eslint.
 
 **Every TS file in the repo belongs to a tsconfig project — there is deliberately no
 `allowDefaultProject` escape hatch.** A new file outside every tsconfig fails lint with a "not
 found by the project service" error; the fix is to put it in a project (root tsconfig's `include`
 or a package tsconfig), never to exempt it — an exempted file resolves without its package's
 `paths` and silently loses type-aware linting. The same projects back `bun run typecheck`, so
-nothing is excluded from typechecking either: clients/expo-app checks its `__tests__`, clients/cli checks
+nothing is excluded from typechecking either: clients/expo-app checks its `__tests__`, clients/npm-package checks
 `examples/` and `tsup.config.ts` (build `dist/` first — examples import the published package
 name), and the lambdas' tests, `dev-scripts/` and all of `tests/` (playwright suites included) ride the
 root tsconfig.
@@ -92,9 +92,9 @@ still leaves the first suite of a run trusting the previous `bun test` invocatio
 Integration tests in `tests/integration/ci/` run against the dockerized fake-mychart from
 `docker-compose.ci.yaml` (served on `localhost:4000`):
 
-- `cli-passkey.integration.test.ts` — spawns the built CLI (`clients/cli/dist/cli.cjs`) to exercise
+- `cli-passkey.integration.test.ts` — spawns the built CLI (`clients/npm-package/dist/cli.cjs`) to exercise
   passkey setup, passkey auto-login, and passkey removal end to end. Build the CLI first
-  (`cd clients/cli && bun run build`).
+  (`cd clients/npm-package && bun run build`).
 - `fake-mychart-passkey-ui.integration.test.ts` — Playwright-driven browser test of the fake-mychart
   passkey UI using Chromium's WebAuthn virtual authenticator (a CDP feature plain `fetch` can't
   replicate). `playwright` rides the root install, but the Chromium binary is a separate download
@@ -103,7 +103,7 @@ Integration tests in `tests/integration/ci/` run against the dockerized fake-myc
   the workflow fails loudly instead of quietly covering nothing.
 
 The `integration` CI job runs the whole suffix at once, so this directory, the scraper suites, the
-desktop extension's imaging download and clients/cli's built-bundle test all share one server. That
+desktop extension's imaging download and clients/npm-package's built-bundle test all share one server. That
 includes `scrapers/myChart/__tests__/fake-mychart/credential-setup.integration.test.ts`, which
 drives `setupTotp`/`disableTotp` and `setupPasskey`/`listPasskeys`/`deletePasskey` **directly**
 rather than through the CLI, so a scraper break reports as a scraper failure instead of a CLI-output
@@ -168,10 +168,10 @@ a *mode* over the two CI kinds, not a fourth suite. It cannot be folded into eit
 measuring the unit suite alone counts every scraper that is only covered end-to-end as untested, and
 measuring the integration suite alone does the reverse. Coverage has to see both at once.
 
-**It needs everything the integration suite needs** — the compose service, clients/cli's `dist/`
+**It needs everything the integration suite needs** — the compose service, clients/npm-package's `dist/`
 built, and every package's deps installed — so the CI step lives in the `integration` job, the only
 one with all of that. Locally: `docker compose -f docker-compose.ci.yaml up -d --build --wait`, then
-`cd clients/cli && bun install && bun run build`.
+`cd clients/npm-package && bun install && bun run build`.
 
 Three things to know before touching it:
 
@@ -219,7 +219,7 @@ Not blockers, but where to spend the next test-writing effort: `eunity/imagingDi
 `clients/shared/mcp-server/tools.ts` (each needs its scraper mocked; only the shared error path is
 covered today). All three files in `clo-image-parser/` now run.
 
-`clients/cli/cli/capabilityActions.ts` came off the waiver list at 82% lines / 96% functions, once
+`clients/npm-package/cli/capabilityActions.ts` came off the waiver list at 82% lines / 96% functions, once
 `--action` dispatch grew tests that drive it without `cli.ts` in front.
 
 **Check what a waived file actually still calls before writing tests for it.**

@@ -297,7 +297,7 @@ describe('public capabilities', () => {
   });
 
   it('are run by the CLI before it asks for a single credential', async () => {
-    const source = await Bun.file(new URL('../../cli/cli/cli.ts', import.meta.url)).text();
+    const source = await Bun.file(new URL('../../npm-package/cli/cli.ts', import.meta.url)).text();
     const publicBranch = source.indexOf('runPublicCapabilityAction(');
     const login = source.indexOf('header(\'Logging In\')');
     expect(publicBranch).toBeGreaterThan(-1);
@@ -342,7 +342,7 @@ describe('returnsFile', () => {
 
     for (const client of [
       '../mcp-server/tools.ts',
-      '../../cli/cli/capabilityActions.ts',
+      '../../npm-package/cli/capabilityActions.ts',
       '../../expo-app/src/lib/scrapers/session-manager.ts',
     ]) {
       const source = await Bun.file(new URL(client, import.meta.url).pathname).text();
@@ -376,7 +376,7 @@ describe('capability dispatch', () => {
   const CLIENT_SOURCES = [
     'clients/shared/mcp-server/tools.ts',
     'clients/expo-app/src/lib/scrapers/session-manager.ts',
-    'clients/cli/cli/capabilityActions.ts',
+    'clients/npm-package/cli/capabilityActions.ts',
   ];
 
   for (const relativePath of CLIENT_SOURCES) {
@@ -393,7 +393,7 @@ describe('capability dispatch', () => {
 
 describe('CLI', () => {
   it('lists every capability under --list-capabilities --show-all', async () => {
-    const { renderCapabilityList } = await import('../../cli/cli/capabilityActions');
+    const { renderCapabilityList } = await import('../../npm-package/cli/capabilityActions');
     const listing = renderCapabilityList({ showAll: true });
     for (const id of PACKAGE_IDS) {
       expect(listing).toContain(id);
@@ -401,7 +401,7 @@ describe('CLI', () => {
   });
 
   it('neither lists nor runs the model-only capabilities', async () => {
-    const { renderCapabilityList, resolveCliAction } = await import('../../cli/cli/capabilityActions');
+    const { renderCapabilityList, resolveCliAction } = await import('../../npm-package/cli/capabilityActions');
     expect(MODEL_ONLY_IDS.length).toBeGreaterThan(0);
     const listing = renderCapabilityList({ showAll: true });
     for (const id of MODEL_ONLY_IDS) {
@@ -411,7 +411,7 @@ describe('CLI', () => {
   });
 
   it('documents every argument each capability accepts', async () => {
-    const { renderCapabilityList } = await import('../../cli/cli/capabilityActions');
+    const { renderCapabilityList } = await import('../../npm-package/cli/capabilityActions');
     const listing = renderCapabilityList({ showAll: true });
     for (const capability of PACKAGE_CAPABILITIES) {
       for (const param of capability.params) {
@@ -424,7 +424,7 @@ describe('CLI', () => {
   // presentation choice and nothing more — `--action` still runs it, which the
   // "resolves every capability id" case below covers for the whole registry.
   it('leads with the commonly-used capabilities and holds the rest back', async () => {
-    const { renderCapabilityList } = await import('../../cli/cli/capabilityActions');
+    const { renderCapabilityList } = await import('../../npm-package/cli/capabilityActions');
     const listing = renderCapabilityList();
     for (const capability of COMMON_CAPABILITIES) {
       expect(listing).toContain(capability.id);
@@ -445,7 +445,7 @@ describe('CLI', () => {
     // These used to be hand-written handlers that fetched around
     // executeCapability — the same second-dispatch-path bug this whole
     // describe block exists to prevent. Now they are aliases.
-    const { CLI_ACTION_ALIASES, resolveCliAction } = await import('../../cli/cli/capabilityActions');
+    const { CLI_ACTION_ALIASES, resolveCliAction } = await import('../../npm-package/cli/capabilityActions');
     for (const [dashed, id] of Object.entries(CLI_ACTION_ALIASES)) {
       expect(resolveCliAction(dashed)?.id).toBe(id);
     }
@@ -455,7 +455,7 @@ describe('CLI', () => {
   });
 
   it('derives the default full scrape from the registry', async () => {
-    const { FULL_SCRAPE_CAPABILITIES } = await import('../../cli/cli/capabilityActions');
+    const { FULL_SCRAPE_CAPABILITIES } = await import('../../npm-package/cli/capabilityActions');
     const ids = FULL_SCRAPE_CAPABILITIES.map((c) => c.id);
 
     // The reads a chart is connected for are all in the default scrape…
@@ -489,39 +489,39 @@ describe('CLI', () => {
   });
 
   it('coerces --arg values to the types the capability declared', async () => {
-    const { coerceCapabilityArgs } = await import('../../cli/cli/capabilityActions');
+    const { coerceCapabilityArgs } = await import('../../npm-package/cli/capabilityActions');
     const npi = CAPABILITIES.find((c) => c.id === 'search_npi_registry')!;
     expect(coerceCapabilityArgs(npi, { limit: '5' })).toEqual({ limit: 5 });
   });
 
   it('splits a list argument on commas', async () => {
-    const { coerceCapabilityArgs } = await import('../../cli/cli/capabilityActions');
+    const { coerceCapabilityArgs } = await import('../../npm-package/cli/capabilityActions');
     const reply = CAPABILITIES.find((c) => c.id === 'send_reply')!;
     expect(coerceCapabilityArgs(reply, { conversation_id: 'c', message: 'm', attachments: 'a.pdf, b.png,' }))
       .toEqual({ conversation_id: 'c', message: 'm', attachments: ['a.pdf', 'b.png'] });
   });
 
   it('rejects a typo instead of silently ignoring it', async () => {
-    const { coerceCapabilityArgs } = await import('../../cli/cli/capabilityActions');
+    const { coerceCapabilityArgs } = await import('../../npm-package/cli/capabilityActions');
     const notes = CAPABILITIES.find((c) => c.id === 'get_visit_notes')!;
     expect(() => coerceCapabilityArgs(notes, { csnn: '123' })).toThrow(/has no argument "csnn"/);
   });
 
   it('refuses to run a capability without its required arguments', async () => {
-    const { coerceCapabilityArgs } = await import('../../cli/cli/capabilityActions');
+    const { coerceCapabilityArgs } = await import('../../npm-package/cli/capabilityActions');
     const notes = CAPABILITIES.find((c) => c.id === 'get_visit_notes')!;
     expect(() => coerceCapabilityArgs(notes, {})).toThrow(/requires --arg csn/);
   });
 
   it('enforces the declared numeric bounds', async () => {
-    const { coerceCapabilityArgs } = await import('../../cli/cli/capabilityActions');
+    const { coerceCapabilityArgs } = await import('../../npm-package/cli/capabilityActions');
     const npi = CAPABILITIES.find((c) => c.id === 'search_npi_registry')!;
     expect(() => coerceCapabilityArgs(npi, { limit: '9999' })).toThrow(/at most 200/);
     expect(() => coerceCapabilityArgs(npi, { limit: 'lots' })).toThrow(/expects a number/);
   });
 
   it('summarizes image bytes rather than dumping them into the terminal', async () => {
-    const { jsonSafeReplacer } = await import('../../cli/cli/capabilityActions');
+    const { jsonSafeReplacer } = await import('../../npm-package/cli/capabilityActions');
     const json = JSON.stringify({ pixelData: new Uint8Array(2048) }, jsonSafeReplacer);
     expect(json).toBe('{"pixelData":"<2048 bytes>"}');
 
@@ -539,27 +539,27 @@ describe('CLI', () => {
 
 describe('npm library', () => {
   it('exposes the registry and a dynamic runner on the client', async () => {
-    const { MyChartClient } = await import('../../cli/src/client');
+    const { MyChartClient } = await import('../../npm-package/src/client');
     expect(MyChartClient.capabilities().map((c) => c.id).sort()).toEqual(PACKAGE_IDS);
     expect(typeof MyChartClient.prototype.runCapability).toBe('function');
   });
 
   it('refuses to run the model-only capabilities', async () => {
-    const { MyChartClient } = await import('../../cli/src/client');
+    const { MyChartClient } = await import('../../npm-package/src/client');
     for (const id of MODEL_ONLY_IDS) {
       expect(() => MyChartClient.runPublicCapability(id, { request: 'x' })).toThrow(/Unknown capability/);
     }
   });
 
   it('re-exports the registry from the package entry point', async () => {
-    const pkg = await import('../../cli/src/index');
+    const pkg = await import('../../npm-package/src/index');
     expect(pkg.CAPABILITY_IDS).toEqual(CAPABILITY_IDS);
     expect(typeof pkg.executeCapability).toBe('function');
     expect(typeof pkg.getCapability).toBe('function');
   });
 
   it('has a typed method for every capability, not just the dynamic runner', async () => {
-    const { MyChartClient } = await import('../../cli/src/client');
+    const { MyChartClient } = await import('../../npm-package/src/client');
     const methods = Object.getOwnPropertyNames(MyChartClient.prototype);
 
     // The library is the one client whose surface is hand-written method
@@ -771,9 +771,9 @@ describe('the output mode', () => {
   });
 
   it('is accepted by the CLI as --mode and as --arg mode=', async () => {
-    const source = await Bun.file(new URL('../../cli/cli/cli.ts', import.meta.url)).text();
+    const source = await Bun.file(new URL('../../npm-package/cli/cli.ts', import.meta.url)).text();
     expect(source).toContain("'--mode'");
-    const actions = await Bun.file(new URL('../../cli/cli/capabilityActions.ts', import.meta.url)).text();
+    const actions = await Bun.file(new URL('../../npm-package/cli/capabilityActions.ts', import.meta.url)).text();
     expect(actions).toContain('acceptsModeParam(capability)');
   });
 

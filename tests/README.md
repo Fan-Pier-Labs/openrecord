@@ -42,7 +42,7 @@ tests/
 Runs against the fake-mychart service defined in `docker-compose.ci.yaml`
 (served on `localhost:4000`) — the same one every other integration suite uses.
 `cli-passkey.integration.test.ts` also needs the CLI binary built first
-(`cd clients/cli && bun run build`).
+(`cd clients/npm-package && bun run build`).
 
 There is no script scoped to this directory. `bun run test:integration` runs it
 with everything else; that was the point of merging the two suites, and the
@@ -62,7 +62,7 @@ reasons that look nothing like the cause.
 docker compose -f docker-compose.ci.yaml up -d --build --wait
 
 # Build the CLI binary the passkey test spawns
-cd clients/cli && bun run build && cd ..
+cd clients/npm-package && bun run build && cd ..
 
 # Chromium for the passkey UI test — without it that one suite skips
 bunx playwright install chromium

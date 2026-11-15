@@ -129,7 +129,7 @@ export class MyChartRequest {
     };
   }
 
-  // Promise-typed for API stability (clients/cli exposes it); the work is synchronous.
+  // Promise-typed for API stability (clients/npm-package exposes it); the work is synchronous.
   serialize(): Promise<string> {
     return Promise.resolve(JSON.stringify({
       firstPathPart: this.firstPathPart,

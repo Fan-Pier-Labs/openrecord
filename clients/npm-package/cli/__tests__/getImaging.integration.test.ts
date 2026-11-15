@@ -8,7 +8,7 @@
  * runs the real capability chain and the real decoder, so the shape the CLI
  * reads is the shape the processor actually returns.
  *
- * Requires `cd clients/cli && bun run build` and the docker-compose.ci.yaml
+ * Requires `cd clients/npm-package && bun run build` and the docker-compose.ci.yaml
  * fake-mychart on port 4000.
  */
 
@@ -26,7 +26,7 @@ const OUTPUT_DIR = path.join(TEMP_DIR, 'imaging-output');
 
 beforeAll(async () => {
   if (!fs.existsSync(CLI_BIN)) {
-    throw new Error(`Built CLI binary not found at ${CLI_BIN}. Run: cd clients/cli && bun run build`);
+    throw new Error(`Built CLI binary not found at ${CLI_BIN}. Run: cd clients/npm-package && bun run build`);
   }
   await resetFakeMyChart(HOST);
 });

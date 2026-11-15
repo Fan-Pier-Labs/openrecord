@@ -36,7 +36,7 @@ export const VERSION_MANIFEST_PATH = join(import.meta.dir, 'mcpb_version.json');
 /** Which `package.json` states the shipping version of each target. */
 const VERSION_SOURCES: Record<VersionTarget, string> = {
   scrapers: 'scrapers/package.json',
-  cli: 'clients/cli/package.json',
+  cli: 'clients/npm-package/package.json',
   // manifest.json, not package.json: it is the one Claude Desktop reads.
   // Nothing enforces that the two agree, so the test asserts it.
   mcpb: 'clients/claude-desktop-extension/manifest.json',

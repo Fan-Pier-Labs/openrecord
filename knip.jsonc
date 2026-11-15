@@ -90,7 +90,7 @@
       // Invoked as a python module by `bun run deploy`, not imported.
       "ignoreDependencies": ["deploy"]
     },
-    "clients/cli": {
+    "clients/npm-package": {
       "entry": ["examples/*.ts"],
       "ignoreDependencies": [
         "cheerio",

@@ -45,8 +45,8 @@ jobs:
       # and the type-aware rules silently stop seeing them.
       - name: Install Expo app deps
         run: cd clients/expo-app && bun install
-      - name: Install clients/cli deps
-        run: cd clients/cli && bun install
+      - name: Install clients/npm-package deps
+        run: cd clients/npm-package && bun install
       # Knip loads each workspace's config through its framework plugins
       # (Expo's app.config.ts, Next's for fake-mychart), so a workspace without
       # its node_modules reports its whole tree as unused files and deps.
@@ -54,23 +54,23 @@ jobs:
         run: |
           cd fake-mychart && bun install && cd ..
           bun run knip
-      # Built before eslint on purpose: clients/cli's bundle test imports
+      # Built before eslint on purpose: clients/npm-package's bundle test imports
       # dist/index.js, and without it the import degrades to `any` — the
       # type-aware rules then misjudge that file (e.g. flagging non-null
       # assertions as vacuous because everything is already `any`).
-      - name: Build clients/cli (lint needs dist types)
-        run: cd clients/cli && bun run build
+      - name: Build clients/npm-package (lint needs dist types)
+        run: cd clients/npm-package && bun run build
       # mychart-cli is published, so its package.json exports map is a public
       # contract that nothing else here checks: tsc only ever sees the source.
       # publint validates the map, attw resolves the package the way a consumer
       # would in all four module modes. This caught the types resolving as ESM
       # for CJS consumers while the JavaScript they got was CJS.
       - name: Check the published package surface (publint + attw)
-        run: cd clients/cli && bun run check:publish
+        run: cd clients/npm-package && bun run check:publish
       - run: npx eslint .
         env:
           NODE_OPTIONS: '--max-old-space-size=8192'
-      # Root tsconfig covers scrapers/, shared/, clients/cli/cli/, clients/shared/ and
+      # Root tsconfig covers scrapers/, shared/, clients/npm-package/cli/, clients/shared/ and
       # the rest — the shared scraper core no other package's
       # typecheck reaches.
       - name: Typecheck scrapers, shared and CLI
@@ -140,7 +140,7 @@ jobs:
         run: |
           cd clients/shared && bun install && cd ../..
           cd clients/claude-desktop-extension && bun install && cd ../..
-          cd clients/cli && bun install && cd ../..
+          cd clients/npm-package && bun install && cd ../..
       # `playwright` itself rides the root install; this fetches the browser it
       # drives. The passkey UI suite skips without it everywhere but CI, where
       # $CI forces it to run so a broken install step fails loudly.
@@ -154,15 +154,15 @@ jobs:
         run: |
           sudo rm -f /etc/apt/sources.list.d/google-chrome*
           bunx playwright install --with-deps chromium
-      # clients/cli's integration suite imports the BUILT `dist/index.js` on
+      # clients/npm-package's integration suite imports the BUILT `dist/index.js` on
       # purpose — it exists to test what consumers actually install — so the
       # build has to happen before anything runs.
-      - name: Build clients/cli CLI binary
-        run: cd clients/cli && bun run build
-      # After the build on purpose: clients/cli's integration test imports the
+      - name: Build clients/npm-package CLI binary
+        run: cd clients/npm-package && bun run build
+      # After the build on purpose: clients/npm-package's integration test imports the
       # built dist/ bundle, so the typecheck needs it to exist.
-      - name: Typecheck clients/cli
-        run: cd clients/cli && bun run typecheck
+      - name: Typecheck clients/npm-package
+        run: cd clients/npm-package && bun run typecheck
       # The backgrounded compose exit code is lost with its shell, so wait for
       # the process to finish, show its log, then re-run the same command in the
       # foreground: a no-op returning in seconds when the background run

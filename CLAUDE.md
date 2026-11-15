@@ -17,7 +17,7 @@ short and put detail in `docs/` or the relevant `README.md`. See [Keeping this f
 | --- | --- |
 | `scrapers/` | Shared scraper core — every client calls into this. **Every folder holds the `README.md` documenting that scraper**; the map is [`scrapers/README.md`](scrapers/README.md) |
 | `shared/` | Capability registry, common types, host concurrency limiter, small codecs |
-| `clients/cli/` | The `mychart-cli` CLI and importable library |
+| `clients/npm-package/` | The `mychart-cli` CLI and importable library |
 | `clients/claude-desktop-extension/` | `.mcpb` MCP server for Claude Desktop |
 | `clients/expo-app/` | Expo/React Native iOS app (scrapers run on-device, plus an agent loop) |
 | `fake-mychart/` | Next.js stand-in for real MyChart — dev + all integration tests |
@@ -88,16 +88,16 @@ fake server. **Never take an action that could trigger a 2FA SMS to the user wit
 
 | Command | What it does |
 | --- | --- |
-| `bun run lint` | ESLint — **type-aware**: install every package's deps and build `clients/cli` first, or it lints the wrong thing. See [`docs/testing.md`](docs/testing.md#lint) |
-| `bun run typecheck` | Typecheck the shared core (strict). CI also runs `clients/expo-app` and `clients/cli` (the latter needs `bun run build` first) |
+| `bun run lint` | ESLint — **type-aware**: install every package's deps and build `clients/npm-package` first, or it lints the wrong thing. See [`docs/testing.md`](docs/testing.md#lint) |
+| `bun run typecheck` | Typecheck the shared core (strict). CI also runs `clients/expo-app` and `clients/npm-package` (the latter needs `bun run build` first) |
 | `bun run test` | Every `*.unit.test.ts`. **Needs `cd clients/claude-desktop-extension && bun install` first** — the parity test imports the extension's real tools |
 | `bun run test:integration` | Every `*.integration.test.ts` (needs the compose service + built CLI) |
 | `bun run test:coverage` | Unit + integration with the 75%-per-file gate — see [`docs/testing.md`](docs/testing.md) |
 | `bun run test:real-mychart` | Every `*.real-mychart.test.ts`, against a real account. By hand only |
-| `bun run cli mychart [flags]` | Run the CLI scraper. `--help`, `--list-capabilities` (both take `--show-all`) and `--host <host> --action <id> --arg k=v` are self-documenting — [reference](clients/cli/docs/cli.md) |
+| `bun run cli mychart [flags]` | Run the CLI scraper. `--help`, `--list-capabilities` (both take `--show-all`) and `--host <host> --action <id> --arg k=v` are self-documenting — [reference](clients/npm-package/docs/cli.md) |
 | `bun run fake-mychart` | Fake MyChart dev server on a **random port in 4000-5000**, printed at startup, so parallel worktrees don't collide. `PORT=4000` pins it — needed by anything defaulting to `localhost:4000`. Sign in as `homer`/`donuts123` (`marge` for 2FA) |
 | `cd clients/claude-desktop-extension && bun run pack` | Build `openrecord.mcpb`. `./deploy.sh` there releases it — never sign it, Claude Desktop can't open a signed bundle |
-| `cd clients/cli && bun run build` | Build the CLI binary at `clients/cli/dist/cli.cjs` |
+| `cd clients/npm-package && bun run build` | Build the CLI binary at `clients/npm-package/dist/cli.cjs` |
 | `docker compose -f docker-compose.ci.yaml up -d --build --wait` | Start the CI fake-mychart (port 4000); `down -v` to stop |
 | `bun scrapers/list-all-mycharts/probes/probe-mount-discovery.ts` | Mount discovery against all ~750 directory hosts. Run after touching discovery |
 
@@ -201,10 +201,10 @@ adding, editing, *and deleting*** — it reached 65KB by only ever being appende
 - [Testing](docs/testing.md) — suites, CI integration, the coverage gate
 - [Infrastructure](docs/infrastructure.md) — AWS, deployments, splash + demo, lambdas, S3, secrets
 - [iOS simulator](docs/ios-simulator.md) — `maestro-cli`, sim sessions, testID rules
-- [CLI](clients/cli/docs/cli.md) and [library API](clients/cli/docs/api.md) references
+- [CLI](clients/npm-package/docs/cli.md) and [library API](clients/npm-package/docs/api.md) references
 - [Scrapers](scrapers/README.md) — the map; each scraper's own README is its documentation
 - [Scraping guide](scrapers/SCRAPING.md) — finding the request the web UI sends, and the traps
-- Package READMEs: `fake-mychart/`, `clients/claude-desktop-extension/`, `clients/cli/`,
+- Package READMEs: `fake-mychart/`, `clients/claude-desktop-extension/`, `clients/npm-package/`,
   `openrecord-demo-lambda/`, `openrecord-splash/`
 
 ## Memory

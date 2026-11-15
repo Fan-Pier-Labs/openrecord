@@ -8,7 +8,7 @@ import reactHooks from "eslint-plugin-react-hooks";
 
 
 export default [
-  {ignores: ["dist/**", "**/node_modules/**", ".claude/**", "out/**", "scrapers/myChart/clo-to-jpg-converter/**", "scrapers/myChart/clo-image-parser/**", "sample_data/**", "pdfs/**", "fake-mychart/**", "clients/cli/dist/**", "clients/claude-desktop-extension/dist/**", "*.config.*", "**/*.js"]},
+  {ignores: ["dist/**", "**/node_modules/**", ".claude/**", "out/**", "scrapers/myChart/clo-to-jpg-converter/**", "scrapers/myChart/clo-image-parser/**", "sample_data/**", "pdfs/**", "fake-mychart/**", "clients/npm-package/dist/**", "clients/claude-desktop-extension/dist/**", "*.config.*", "**/*.js"]},
   {files: ["**/*.{ts}"]},
   {languageOptions: { globals: globals.node }},
   pluginJs.configs.recommended,
@@ -96,7 +96,7 @@ export default [
       // load-bearing for bundlers. `inline-type-imports` merges into one
       // statement instead of splitting every import in two.
       // `disallowTypeAnnotations: false` keeps `typeof import(...)` legal —
-      // clients/cli's built-bundle test types a runtime dynamic import with it.
+      // clients/npm-package's built-bundle test types a runtime dynamic import with it.
       "@typescript-eslint/consistent-type-imports": ["error", {
         fixStyle: "inline-type-imports",
         disallowTypeAnnotations: false,
