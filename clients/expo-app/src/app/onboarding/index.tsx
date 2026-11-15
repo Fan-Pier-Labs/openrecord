@@ -17,7 +17,7 @@ import { PickerStep } from "@/components/onboarding/steps/picker-step";
 import { MyChartStep } from "@/components/onboarding/steps/mychart-step";
 import { TwoFaStep } from "@/components/onboarding/steps/twofa-step";
 import { PasskeyStep } from "@/components/onboarding/steps/passkey-step";
-import { supportsPasskeyAndTotp } from "../../../../scrapers/myChart/auth/customPortals";
+import { supportsPasskeyAndTotp } from "../../../../../scrapers/myChart/auth/customPortals";
 
 type Step = "welcome" | "google" | "ai" | "picker" | "mychart" | "twofa" | "passkey";
 

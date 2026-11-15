@@ -43,7 +43,7 @@ import * as os from 'os';
 import * as path from 'path';
 
 import { clearSecret, readSecret, writeSecret, activeBackend, type BackendName, type FileSlot } from './secret-store';
-import { canonicalHostname } from '../../scrapers/myChart/auth/customPortals';
+import { canonicalHostname } from '../../../scrapers/myChart/auth/customPortals';
 
 const ROOT = path.join(os.homedir(), '.openrecord-mcpb');
 const ACCOUNTS_PATH = path.join(ROOT, 'accounts.json');
