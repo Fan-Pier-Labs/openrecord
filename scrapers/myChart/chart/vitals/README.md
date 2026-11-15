@@ -36,6 +36,15 @@ they are worth knowing before changing anything here.
   readings.** At 200 that is roughly 693 readings across 7 vital types — enough to look
   like a full history while silently truncating it. It is 1000 here, with a 100-page bound.
 
+- **One flowsheet failing costs only that flowsheet.** A failed page ends that flowsheet's
+  paging. If no page answered, the flowsheet is left out of `flowsheets` and named in
+  `unloadedFlowsheets`, never shown as one with no readings. If an older page failed, it is
+  kept and named in `truncatedFlowsheets` with the oldest reading that loaded. `notice` says
+  both, and only every flowsheet failing on its first page throws. The state is read off each
+  flowsheet's own page chain: a last page that still reached further back with no next page
+  recorded means that request threw before anything was recorded. One flowsheet failing alone
+  hasn't been observed on a real instance; this guards against it.
+
 - **A reading's value is in one of two fields, and the other one is present but empty.**
   Pulse and Weight carry the number in `numericValue` beside an **empty** `stringValue`;
   Blood Pressure fills `stringValue` with `"145/95"`. Take the first field that actually
@@ -92,6 +101,9 @@ scraper.
 
 | Field | What it is | Derived | Standard / JSON | Concise | Reasoning |
 | --- | --- | :-: | :-: | :-: | --- |
+| `notice` | Sentences when a flowsheet did not fully load; null otherwise | ✓ | ✓ | ✓ | Derived. A missing flowsheet or a cut-off history is not read as "no readings". |
+| `unloadedFlowsheets[]` | Flowsheets whose readings never loaded: `name` | ✓ | ✓ | ✓ | Derived. Left out of `flowsheets` so an empty reading list is never a guess. |
+| `truncatedFlowsheets[]` | Flowsheets whose older pages failed: `name`, `oldestLoadedIso` | ✓ | ✓ | ✓ | Derived. Readings before `oldestLoadedIso` may exist. |
 | `flowsheets[].name` | Episode name ("Blood pressure monitoring") | — | ✓ | ✓ | What the readings are for. |
 | `flowsheets[].status`, `.startDateIso`, `.endDateIso`, `.instructions` | Episode state and care instructions | — | ✓ | — | The instructions are care instructions; detail. |
 | `flowsheets[].episodeId`, `.templateId`, `.entryType`, `.entryMode`, `.hasEpisodeData` | Episode plumbing | — | — | — | Internal. |
