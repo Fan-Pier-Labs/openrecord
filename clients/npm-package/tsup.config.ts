@@ -2,6 +2,7 @@
 
 import { defineConfig } from 'tsup';
 import { chmod } from 'node:fs/promises';
+import { copySqliteWasm } from '../shared/copySqliteWasm';
 
 // Two builds:
 // 1. The library (`src/index.ts` → ESM + CJS + .d.ts).
@@ -39,10 +40,14 @@ export default defineConfig([
       options.logOverride = { ...(options.logOverride ?? {}), 'empty-import-meta': 'silent' };
     },
     banner: { js: '#!/usr/bin/env node' },
-    // Bundle the scraper sources + the CLI helper modules.
+    // Bundle the scraper sources + the CLI helper modules. `mychart-cli mcp`
+    // (clients/shared/mcp-server) rides in the same file; its
+    // one native dependency, @napi-rs/keyring, stays external as a real
+    // dependency in package.json.
     noExternal: [/scrapers[\\/]myChart/, /cli[\\/]/, /shared[\\/]/, /read-local-passwords/],
-    // chmod the output so it's executable as a bin.
+    // chmod the output so it's executable as a bin; the sqlite .wasm goes beside it.
     onSuccess: async () => {
+      copySqliteWasm(__dirname);
       try {
         await chmod('dist/cli.cjs', 0o755);
       } catch {

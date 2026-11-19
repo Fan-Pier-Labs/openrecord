@@ -109,7 +109,7 @@ Browser lookup is read-only and works on macOS and Windows. On macOS it reads th
 from the Keychain, which raises the system's own permission prompt. Only logins on a confirmed
 MyChart host are used. That means a host in the bundled MyChart directory, or one whose redirects
 land on an Epic login page. Details are in
-[`clients/shared/read-local-passwords/README.md`](../../read-local-passwords/README.md).
+[`clients/shared/read-local-passwords/README.md`](../../shared/read-local-passwords/README.md).
 
 ### Two-factor authentication
 

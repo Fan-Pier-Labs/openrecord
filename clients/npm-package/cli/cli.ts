@@ -168,7 +168,8 @@ function parseArgs(): CliArgs {
   return parsed;
 }
 
-const cliArgs = parseArgs();
+// Parsed when the CLI runs, not when this module loads, so importing it reads no argv.
+let cliArgs: CliArgs;
 
 // If --host provided, try to find creds from browser password stores (read-only)
 async function resolveCredsFromBrowsers(host: string): Promise<{ user: string; pass: string } | null> {
@@ -1094,6 +1095,7 @@ async function main() {
  */
 export async function runCli(): Promise<void> {
   try {
+    cliArgs = parseArgs();
     await main();
     // Exit rather than return. The update check is fire-and-forget, and an
     // in-flight fetch keeps the event loop alive on its own — so a hung request
