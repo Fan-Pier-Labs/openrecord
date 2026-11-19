@@ -146,6 +146,16 @@ What counts as a failed answer:
 - an F5 Volterra block page (200, `text/html`, "Request Rejected");
 - an unfollowed redirect whose `Location` is the error page.
 
+The error's `message` names the method, path and reason and quotes nothing from the answer.
+Its `detailedMessage` adds what the answer said: an HTML page's `<title>`, or the first 160
+characters of a body that is not markup. **It never quotes a page's body text.** A signed-in
+page, error pages included, opens with the print header, so the start of the body is the
+patient's name, date of birth and MRN rather than the error — reported from 1 real account,
+whose feature-disabled page was quoted that way
+([#601 review](https://github.com/Fan-Pier-Labs/openrecord/pull/601#pullrequestreview-5944042251)).
+The title is the page's own name: the public `/Home/Error?code=14` is titled `MyChart - Oops!`
+on the 2 real instances probed.
+
 A genuinely best-effort request opts out per call with `tolerateFailure`, and its processor
 then reports the gap by name — `externalProvidersUnavailable`, `contactInformationUnavailable`,
 a per-account billing `unavailable` list. **Nothing tolerates a failure on its payload
