@@ -14,7 +14,7 @@ import {
 } from '@/lib/proxy';
 import { getRequireTerms, setRequireTerms } from '@/lib/terms';
 import { getEpicVersion, setEpicVersion, EPIC_VERSIONS, type EpicVersion } from '@/lib/epicVersion';
-import { getFailingEndpoints, setFailingEndpoints, getResponseDelaySeconds, setResponseDelaySeconds } from '@/lib/outage';
+import { getFailingEndpoints, setFailingEndpoints, getResponseDelaySeconds, setResponseDelaySeconds, type FailingEndpoint } from '@/lib/outage';
 
 /**
  * Test-control endpoint (not part of MyChart's API surface, same as /reset).
@@ -56,6 +56,7 @@ import { getFailingEndpoints, setFailingEndpoints, getResponseDelaySeconds, setR
  *   POST /mode {"proxyDiscovery":"script"}  → proxy records only in the script payload
  *   POST /mode {"requireTerms":true}        → login lands on the T&C page first
  *   POST /mode {"failingEndpoints":["api/allergies/LoadAllergies"]}  → that endpoint 500s; [] restores it
+ *   POST /mode {"failingEndpoints":[{"path":"api/test-results/GetDetails","contains":"ORD-2"}]}  → only requests carrying that text 500
  *   POST /mode {"responseDelaySeconds":110}  → every post-login request takes 110 s; 0 restores it
  *   POST /mode {"mode":"root","discovery":"meta-refresh"}  → several at once
  *
@@ -86,6 +87,12 @@ function currentSettings() {
     failingEndpoints: getFailingEndpoints(),
     responseDelaySeconds: getResponseDelaySeconds(),
   };
+}
+
+function isFailingEndpointEntry(entry: unknown): boolean {
+  if (typeof entry === 'string') return true;
+  const e = entry as { path?: unknown; contains?: unknown } | null;
+  return typeof e === 'object' && e !== null && typeof e.path === 'string' && typeof e.contains === 'string';
 }
 
 export async function GET() {
@@ -155,10 +162,10 @@ export async function POST(request: NextRequest) {
 
   if (
     failingEndpoints !== undefined
-    && (!Array.isArray(failingEndpoints) || !failingEndpoints.every(p => typeof p === 'string'))
+    && (!Array.isArray(failingEndpoints) || !failingEndpoints.every(isFailingEndpointEntry))
   ) {
     return NextResponse.json(
-      { error: 'failingEndpoints must be an array of path strings below the mount, e.g. ["api/allergies/LoadAllergies"]; [] clears it', received: failingEndpoints },
+      { error: 'failingEndpoints must be an array of path strings below the mount, or {"path","contains"} objects that fail only requests whose query or body contains the text, e.g. ["api/allergies/LoadAllergies", {"path":"api/test-results/GetDetails","contains":"ORD-2"}]; [] clears it', received: failingEndpoints },
       { status: 400 },
     );
   }
@@ -200,7 +207,7 @@ export async function POST(request: NextRequest) {
   if (proxyDiscovery !== undefined) setProxyDiscoveryMode(proxyDiscovery as ProxyDiscoveryMode);
   if (requireTerms !== undefined) setRequireTerms(requireTerms);
   if (epicVersion !== undefined) setEpicVersion(epicVersion as EpicVersion);
-  if (failingEndpoints !== undefined) setFailingEndpoints(failingEndpoints as string[]);
+  if (failingEndpoints !== undefined) setFailingEndpoints(failingEndpoints as FailingEndpoint[]);
   if (responseDelaySeconds !== undefined) setResponseDelaySeconds(responseDelaySeconds);
 
   return NextResponse.json({ ok: true, ...currentSettings() });
