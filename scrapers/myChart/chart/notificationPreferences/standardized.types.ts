@@ -39,7 +39,10 @@ export interface NotificationConceptStandard {
   description: string | null;
   /** Derived: `mediaIds` resolved through `medias`, in MyChart's order. */
   medias: NotificationMediaStandard[];
-  /** Derived: the channels whose `status` is not Off. */
+  /**
+   * Derived: the channels whose `status` is not Off. One whose `toggleStatus` is not in the
+   * table is listed with the code — `Email (toggleStatus 2)` — so unknown never reads as off.
+   */
   channelsOn: string[];
   /** Derived: this topic is in `paperlessBillingRequiredConcepts` — paperless billing needs it on by email or text. */
   requiredForPaperlessBilling: boolean;

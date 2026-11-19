@@ -156,12 +156,18 @@ describe('notificationPreferencesProcessor', () => {
   it('names an unknown code instead of dropping the channel', () => {
     const odd = structuredClone(PREFERENCES)
     odd.medias['WP-M4'] = { mediaId: 'WP-M4', type: '7', toggleStatus: 2 }
+    odd.medias['WP-M5'] = { mediaId: 'WP-M5', type: '1', toggleStatus: 2 }
     const s = notificationPreferencesProcessor.standard({
       requests: [{ path: '/api/communicationPreferences/GetPreferences', method: 'POST', status: 200, contentType: 'application/json', body: odd }],
     })
     const m = s.groupers[0]!.concepts[1]!
     expect(m.medias[0]).toEqual({ type: '7', channel: null, toggleStatus: 2, status: null })
-    expect(m.channelsOn).toEqual([])
+    expect(m.channelsOn).toEqual(['type 7 (toggleStatus 2)'])
+    // Mail is Off and stays out; Email's state is unknown, which is not the same thing.
+    expect(s.groupers[1]!.concepts[0]!.channelsOn).toEqual(['Email (toggleStatus 2)'])
+    expect(notificationPreferencesProcessor.concise(s)).toMatchObject({
+      groupers: [{}, { concepts: [{ title: 'Statement', channelsOn: ['Email (toggleStatus 2)'] }] }],
+    })
   })
 
   it('resolves sub-options in optionIds order', () => {
