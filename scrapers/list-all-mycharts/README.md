@@ -48,12 +48,16 @@ record, and `phone` / `email` / `faq` (present on 958 / 390 / 1,271 of 1,414 org
   `www.ucsfhealth.org/ucsfmychart/`, which redirects to an information page; the portal
   is `ucsfmychart.ucsfmedicalcenter.org`. A refresh checks every one — see
   [Checking login URLs](#checking-login-urls).
-- **A duplicate is the same name *and* the same portal.** Epic lists Cleveland Clinic twice
-  (`320` for the US, `320-1` for Canada) and Ziekenhuis Amstelland twice; `mergeDuplicates`
-  keeps the shortest `slgId` with every entry's aliases, states and countries. Same name
-  alone is not a duplicate — 13 names (Baptist Health, La Clinica, …) are separate systems
-  in different states — and nor is same portal alone: 46 portals are shared by affiliates
-  that patients search for by their own names.
+- **A duplicate is the same name *and* the same portal.** A portal is `portalKey`: the
+  hostname plus the first path segment (the MyChart mount), lowercased, so case, a trailing
+  slash or `/Authentication/Login` don't make two. Epic lists Cleveland Clinic twice (`320`
+  for the US, `320-1` for Canada) and Ziekenhuis Amstelland twice; `mergeDuplicates` keeps the
+  shortest `slgId` with every entry's aliases. Same name alone is not a duplicate — 13 names
+  (Baptist Health, La Clinica, …) are separate systems in different states — and nor is same
+  portal alone: 34 portals are shared by several organizations (36 South Florida clinics on
+  one), which patients search for by their own names. There is no portal id in Epic's
+  directory to use instead; the `slgId` prefix names the Epic customer (all 240 OCHIN portals
+  are `432-…`).
 - **What clients search is the deterministic refresh's output** (Epic's directory, every login
   URL checked): `mychart-instances.json` from the last release until a newer run exists. The
   Claude Desktop extension and the iOS app rerun the same refresh in the background about
