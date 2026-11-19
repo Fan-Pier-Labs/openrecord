@@ -16,10 +16,9 @@ import type { Capability } from './types';
  *
  * A public capability takes no `account` parameter, needs no session, and must
  * not be run once per connected account the way every other capability is.
- * That is the `public` reads and the `accountFree` writes.
  */
 export function isPublicCapability(capability: Capability): boolean {
-  return capability.kind === 'public' || capability.accountFree === true;
+  return capability.kind === 'public';
 }
 
 /**

@@ -39,15 +39,13 @@ describe('renderCliHelp', () => {
   it('names the flag that reveals the rest, and says how many there are', () => {
     const help = renderCliHelp();
     expect(help).toContain('--show-all');
-    const hidden = LESS_FREQUENTLY_USED_CAPABILITIES.filter((c) => !c.modelOnly).length;
-    expect(help).toContain(`${hidden} less-frequently-used`);
+    expect(help).toContain(`${LESS_FREQUENTLY_USED_CAPABILITIES.length} less-frequently-used`);
   });
 
-  it('shows the whole registry under --show-all, less the model-only entries', () => {
+  it('shows the whole registry under --show-all', () => {
     const help = renderCliHelp({ showAll: true });
     for (const capability of CAPABILITIES) {
-      if (capability.modelOnly) expect(help).not.toContain(capability.id);
-      else expect(help).toContain(capability.id);
+      expect(help).toContain(capability.id);
     }
     expect(help).toContain('Less frequently used');
   });

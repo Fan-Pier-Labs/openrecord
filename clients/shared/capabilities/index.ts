@@ -64,7 +64,6 @@ import { ACCOUNT_SETTINGS_CAPABILITIES } from './registry/accountSettings';
 import { ACCOUNT_SECURITY_CAPABILITIES } from './registry/accountSecurity';
 import { PROVIDER_CAPABILITIES } from './registry/providers';
 import { DIRECTORY_CAPABILITIES } from './registry/directory';
-import { FEEDBACK_CAPABILITIES } from './registry/feedback';
 
 export type {
   Capability,
@@ -109,7 +108,6 @@ const CAPABILITY_IMPLS: readonly CapabilityImpl[] = [
   ...ACCOUNT_SECURITY_CAPABILITIES,
   ...PROVIDER_CAPABILITIES,
   ...DIRECTORY_CAPABILITIES,
-  ...FEEDBACK_CAPABILITIES,
 ];
 
 // ── Lookup helpers ──────────────────────────────────────────────────────────
@@ -147,11 +145,11 @@ export const LESS_FREQUENTLY_USED_CAPABILITIES: readonly Capability[] = CAPABILI
 export const WRITE_CAPABILITY_IDS: readonly string[] = CAPABILITIES.filter((c) => c.kind === 'write').map((c) => c.id);
 
 /**
- * The account-free lookups — public directories and registries. Reads only:
- * an `accountFree` write also runs with no account (`isPublicCapability`), but
- * a caller offering this list as safe lookups must not be handed a send.
+ * The capabilities that need no MyChart account — public directories and
+ * registries. Clients use this to decide what to offer, and what to run,
+ * before anyone has connected anything.
  */
-export const PUBLIC_CAPABILITIES: readonly Capability[] = CAPABILITIES.filter((c) => c.kind === 'public');
+export const PUBLIC_CAPABILITIES: readonly Capability[] = CAPABILITIES.filter(isPublicCapability);
 
 export const PUBLIC_CAPABILITY_IDS: readonly string[] = PUBLIC_CAPABILITIES.map((c) => c.id);
 
@@ -242,10 +240,9 @@ export async function executeCapability(
   if (capability.notImplemented !== undefined) return capability.notImplemented;
 
   let result: unknown;
-  if (capability.kind === 'public' || capability.accountFree === true) {
+  if (capability.kind === 'public') {
     // Public capabilities are the reason `request` is nullable: they read the
-    // NPI Registry or Epic's instance directory, or send us a feature
-    // request — nothing an account owns. Their
+    // NPI Registry or Epic's instance directory, which no account owns. Their
     // `run` cannot take a session, so there is nothing to assert and nothing
     // that could read the wrong chart.
     result = await capability.run(args);
