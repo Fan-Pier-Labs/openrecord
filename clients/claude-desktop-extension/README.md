@@ -392,8 +392,12 @@ The short version, for what this extension does:
   by Anthropic's terms and privacy policy. Nothing passes through Fan Pier Labs.
 - **Telemetry.** We record basic usage stats and basic user info (eg email) to
   help improve our product. We do not send any medical information to our
-  server or to analytics services. You can disable by setting
-  `MYCHART_CLI_TELEMETRY_DISABLED=1`.
+  server or to analytics services. To turn it off, ask Claude to — the
+  `set_telemetry` tool. The choice is saved as `telemetryDisabled` in
+  `~/.openrecord.json`, so it outlasts restarts and updates and also covers the
+  calendar sync app and `mychart-cli` on that computer; asking Claude to turn it
+  back on reverses it. Setting `MYCHART_CLI_TELEMETRY_DISABLED=1` in the
+  extension's environment turns it off too.
 - **Update check.** At startup and daily it reads
   `openrecord.fanpierlabs.com/mcpb_version.json`; when this copy is behind, every tool result
   ends with a one-line notice (`clients/shared/mcp-server/update-notice.ts`). It sends nothing but the request,
@@ -481,6 +485,7 @@ clients/claude-desktop-extension/
     ├── index.ts            # stdio entry: startServer(MCPB_HOST) + the setup widget page
     ├── host.ts             # what this extension adds to the shared server (McpHost)
     ├── calendar-tools.ts   # connect_google_calendar / disconnect_google_calendar
+    ├── telemetry-tool.ts   # set_telemetry
     ├── google-calendar/    # the macOS menu-bar sync app
     └── setup-widget/       # the MCP Apps setup widget (React)
 ```
