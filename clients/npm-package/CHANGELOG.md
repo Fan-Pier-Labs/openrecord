@@ -1,13 +1,22 @@
 # Changelog
 
-## Unreleased — `mychart-cli mcp`: OpenRecord's MCP server for any MCP client
+## Unreleased — `mychart-cli mcp` telemetry, described correctly
+
+The README and `docs/mcp.md` published with 2.3.0 said `mychart-cli mcp` sends the CLI's anonymous
+telemetry. It does not: like the Claude Desktop extension, whose server it runs, it sends your
+email, your MyChart username and your IP address with every tool call. The behaviour is unchanged
+from 2.3.0; the documents now say so, and how to turn it off — see
+[docs/mcp.md](docs/mcp.md#telemetry). Its events are now tagged `cli-mcp` in our own log, where
+2.3.0 tagged them `mcpb`.
+
+## 2.3.0 — `mychart-cli mcp`: OpenRecord's MCP server for any MCP client
 
 `npx -y mychart-cli mcp` runs the same stdio MCP server as the Claude Desktop extension — every
 capability as a tool, plus in-chat sign-in, 2FA and passkeys — so Claude Code, Cursor, VS Code and
 other MCP clients can use it. Saved accounts are shared with the extension. See
 [docs/mcp.md](docs/mcp.md). Adds `@napi-rs/keyring` (native) as a dependency, for the OS keystore.
 
-## Unreleased — `hospital-info` is a registry capability (breaking for its CLI flags)
+## 2.3.0 — `hospital-info` is a registry capability (breaking for its CLI flags)
 
 `get_hospital_info` is now a `public` capability, so `--action get_hospital_info` works like any
 other and the library has `MyChartClient.getHospitalInfo(hostname, options)`. `--host <h> --action
@@ -19,7 +28,7 @@ hospital-info` still works.
 | `--arg billing=false` | `--arg include_billing=false` |
 | `--local` for `hospital-info` | Nothing: localhost and dotless hosts are read over http, as at login. |
 
-## Unreleased — `silentLogin` split into `machineLogin` and `humanLogin` (breaking)
+## 2.3.0 — `silentLogin` split into `machineLogin` and `humanLogin` (breaking)
 
 | Removed | What to do |
 | --- | --- |
