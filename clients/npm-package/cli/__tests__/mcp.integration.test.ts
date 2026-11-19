@@ -91,7 +91,7 @@ describe('npx mychart-cli mcp', () => {
     for (const meta of ['list_accounts', 'setup_account', 'complete_2fa', 'check_pending_call']) {
       expect(names).toContain(meta);
     }
-    for (const extensionOnly of ['get_setup_widget', 'connect_google_calendar', 'disconnect_google_calendar']) {
+    for (const extensionOnly of ['get_setup_widget', 'connect_google_calendar', 'disconnect_google_calendar', 'set_telemetry']) {
       expect(names).not.toContain(extensionOnly);
     }
   });
