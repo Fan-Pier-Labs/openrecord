@@ -6,7 +6,8 @@
  *
  * Runs the shared MCP server (clients/shared/mcp-server/server.ts) with the
  * extension's host: the setup widget, inlined here at build time, and the
- * Google Calendar tools. Claude Desktop runs it as `node dist/server.cjs`.
+ * Google Calendar tools. Claude Desktop runs `dist/launcher.cjs`, which runs
+ * this as `dist/server.cjs` (or a newer download of it) — see ./launcher/.
  */
 
 import { routeLogsToStderr, startServer } from '../../shared/mcp-server/server';

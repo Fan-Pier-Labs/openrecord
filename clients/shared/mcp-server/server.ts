@@ -19,7 +19,7 @@ import { clearAllSessions } from './session-manager';
 import { SETUP_UI_MIME_TYPE, SETUP_UI_RESOURCE_META } from './ui';
 import { startDirectoryRefresh } from './directory-refresh';
 import { startUpdateCheck } from './update-notice';
-import { updateTarget, type McpHost } from './host';
+import type { McpHost } from './host';
 
 /**
  * Stdio MCP transport requires stdout be ONLY JSON-RPC messages — anything else
@@ -140,7 +140,9 @@ export async function startServer(host: McpHost): Promise<void> {
 
   await server.connect(new StdioServerTransport());
   startDirectoryRefresh();
-  void startUpdateCheck(updateTarget(host), host.version);
+  // The .mcpb's launcher downloads updates itself and owns what the user is told
+  // about them (clients/claude-desktop-extension/src/launcher/).
+  if (host.app === 'cli-mcp') void startUpdateCheck('cli', host.version);
 
   // Clean up keepalive timers when the client closes stdio.
   const shutdown = () => {
