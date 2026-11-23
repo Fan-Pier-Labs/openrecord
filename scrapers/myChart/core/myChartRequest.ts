@@ -53,6 +53,13 @@ export class MyChartRequest {
   firstPathPart: string | null = null;
 
   /**
+   * Set by a custom login portal (auth/customPortals.ts): the device id it remembers once it
+   * has passed 2FA. The client saves it with the account's other secrets and passes
+   * it back to the next login, which then skips 2FA. null everywhere else.
+   */
+  trustedDeviceId: string | null = null;
+
+  /**
    * Restore this session to a logged-in state, wired by each client after
    * login (the CLI, the desktop extension and the mobile app each know where
    * their own credentials live — this class deliberately doesn't).

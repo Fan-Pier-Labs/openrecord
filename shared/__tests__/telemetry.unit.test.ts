@@ -11,7 +11,15 @@ import * as path from 'path';
 const realOs = await import('os');
 const fakeHome = fs.mkdtempSync(path.join(realOs.tmpdir(), 'telemetry-home-'));
 void mock.module('os', () => ({ ...realOs, default: { ...realOs, homedir: () => fakeHome }, homedir: () => fakeHome }));
-const { describeError, gatherEnvInfo, getAnonymousId, sendTelemetryEvent, setTelemetryApp } = await import('../telemetry');
+const {
+  describeError,
+  gatherEnvInfo,
+  getAnonymousId,
+  isTelemetryDisabled,
+  sendTelemetryEvent,
+  setTelemetryApp,
+  setTelemetryDisabled,
+} = await import('../telemetry');
 const idFile = path.join(fakeHome, '.openrecord.json');
 
 /** Anything with the shape of a `mock()`'d fetch, for the drain helper below. */
@@ -336,6 +344,63 @@ describe('telemetry', () => {
       expect(amplitude.events[0].app_version).toBe('9.9.9');
       expect(amplitude.events[0].event_properties).toMatchObject({ app: 'mcpb', app_version: '9.9.9' });
       expect(lambda.properties).toMatchObject({ app: 'mcpb', app_version: '9.9.9' });
+    });
+  });
+
+  describe('the opt-out saved on this computer', () => {
+    let originalFetch: typeof globalThis.fetch;
+    let originalDisable: string | undefined;
+    let fetchMock: ReturnType<typeof mock>;
+
+    beforeEach(() => {
+      fs.rmSync(idFile, { force: true });
+      originalDisable = process.env.MYCHART_CLI_TELEMETRY_DISABLED;
+      delete process.env.MYCHART_CLI_TELEMETRY_DISABLED;
+      originalFetch = globalThis.fetch;
+      fetchMock = mock((_url: string, _init?: RequestInit) => Promise.resolve(new Response('{}', { status: 200 })));
+      globalThis.fetch = fetchMock as unknown as typeof fetch;
+    });
+
+    afterEach(() => {
+      fs.rmSync(idFile, { force: true });
+      globalThis.fetch = originalFetch;
+      if (originalDisable === undefined) delete process.env.MYCHART_CLI_TELEMETRY_DISABLED;
+      else process.env.MYCHART_CLI_TELEMETRY_DISABLED = originalDisable;
+    });
+
+    test('stops every event, and lifting it starts them again', async () => {
+      setTelemetryDisabled(true);
+      expect(isTelemetryDisabled()).toBe(true);
+      sendTelemetryEvent('test_event');
+      await drainSend(fetchMock, 1);
+      expect(fetchMock.mock.calls).toHaveLength(0);
+
+      setTelemetryDisabled(false);
+      expect(isTelemetryDisabled()).toBe(false);
+      sendTelemetryEvent('test_event');
+      await drainSend(fetchMock, 2);
+      expect(fetchMock.mock.calls).toHaveLength(2);
+    });
+
+    test('is saved beside the device id, and neither replaces the other', () => {
+      const id = getAnonymousId();
+      setTelemetryDisabled(true);
+      expect(JSON.parse(fs.readFileSync(idFile, 'utf8'))).toEqual({ deviceId: id, telemetryDisabled: true });
+      expect(fs.statSync(idFile).mode & 0o777).toBe(0o600);
+
+      fs.rmSync(idFile);
+      setTelemetryDisabled(true);
+      const fresh = getAnonymousId();
+      expect(JSON.parse(fs.readFileSync(idFile, 'utf8'))).toEqual({ telemetryDisabled: true, deviceId: fresh });
+    });
+
+    test('a file that cannot be parsed counts as opted out, until a saved choice replaces it', () => {
+      fs.writeFileSync(idFile, '{not json');
+      expect(isTelemetryDisabled()).toBe(true);
+
+      setTelemetryDisabled(false);
+      expect(JSON.parse(fs.readFileSync(idFile, 'utf8'))).toEqual({ telemetryDisabled: false });
+      expect(isTelemetryDisabled()).toBe(false);
     });
   });
 });

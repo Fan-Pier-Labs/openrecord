@@ -4,6 +4,7 @@ import { makeAuthenticatedRequest } from '../core/makeAuthenticatedRequest';
 import type { MyChartRequest } from '../core/myChartRequest';
 import { fetchSessionCsrfToken } from '../core/csrf';
 import { generateTotpCode } from './totp';
+import { supportsPasskeyAndTotp, passkeyAndTotpUnsupported } from './customPortals';
 import { logger } from '../../../shared/logger';
 
 export interface SetupTotpResult {
@@ -34,6 +35,7 @@ function fail(error: string): SetupTotpResult {
  * Returns the TOTP secret if setup succeeds, or null with an error message if it fails.
  */
 export async function setupTotp(mychartRequest: MyChartRequest, password: string): Promise<SetupTotpResult> {
+  if (!supportsPasskeyAndTotp(mychartRequest.hostname)) throw passkeyAndTotpUnsupported();
 
   // Get CSRF token for API requests
   const csrfToken = await fetchSessionCsrfToken(mychartRequest);
