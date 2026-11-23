@@ -303,7 +303,10 @@
         These go to Amplitude, a third-party analytics product, and to our own logging endpoint on AWS.
         Naming the health system you are a patient of is more than we would want a tool to send about
         us without saying so, which is why it is written out here. To send none of it, set
-        <code>MYCHART_CLI_TELEMETRY_DISABLED=1</code> in the environment the tool runs in.
+        <code>MYCHART_CLI_TELEMETRY_DISABLED=1</code> in the environment the tool runs in. In the
+        Claude Desktop extension you can instead ask Claude to turn telemetry off: that choice is
+        saved in <code>~/.openrecord.json</code>, the command-line tool on that computer follows it
+        too, and asking Claude to turn it back on reverses it.
       </p>
 
       <h2>Feature requests</h2>

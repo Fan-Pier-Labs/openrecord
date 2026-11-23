@@ -16,7 +16,8 @@
  *                   `search_mycharts` and `get_hospital_info` used to be
  *                   meta tools and are now `public` capabilities in the
  *                   shared registry, so every client has them.
- *   2. Host tools — `McpHost.registerExtraTools` (the extension's Google Calendar sync).
+ *   2. Host tools — `McpHost.registerExtraTools` (the extension's Google Calendar sync
+ *                   and telemetry opt-out).
  *   3. Capability tools — one per entry in `clients/shared/capabilities/`, which is
  *                   the single source of truth for what OpenRecord can do with
  *                   a MyChart account. Nothing in this file decides what the
