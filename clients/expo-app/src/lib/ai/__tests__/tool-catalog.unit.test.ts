@@ -10,6 +10,7 @@ import {
   WRITE_TOOLS,
   RESPOND_TOOL,
   isExclusiveTool,
+  renderToolList,
 } from "../tool-catalog";
 
 describe("tool catalog", () => {
@@ -21,9 +22,9 @@ describe("tool catalog", () => {
   test("every write tool is declared in the prompt-side tool list", () => {
     // A write tool the model can't see is dead code; one missing from
     // WRITE_TOOL_META would execute without a confirmation dialog.
-    const declared = new Set(TOOLS.map((t) => t.name));
+    const prompt = renderToolList();
     for (const name of WRITE_TOOLS) {
-      expect(declared.has(name)).toBe(true);
+      expect(prompt).toContain(`- ${name}(`);
     }
   });
 

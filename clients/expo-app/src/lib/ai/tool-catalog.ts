@@ -38,6 +38,7 @@ import {
   describeModeParam,
   CAPABILITIES,
 } from "../../../../shared/capabilities";
+import { FEATURE_REQUEST_TOOL } from "../../../../shared/featureRequest";
 
 export type ToolSpec = {
   name: string;
@@ -99,28 +100,34 @@ const CONFIRM_LABELS: Record<string, string> = {
 };
 
 /**
- * Tools that mutate state — on MyChart's server or the session pointed at it.
- * Every entry gets a native confirmation dialog before executing and is
- * exclusive in the agent protocol (must be the only tool call in a turn).
+ * Tools that mutate state — on MyChart's server or the session pointed at it —
+ * or send something off the device. Every entry gets a native confirmation
+ * dialog before executing and is exclusive in the agent protocol (must be the
+ * only tool call in a turn).
  *
  * Derived from the registry's `kind`, so a write added there is
  * confirmation-gated here from the first build. The previous hand-written map
  * covered four of the eight writes the other clients already had.
  */
-export const WRITE_TOOL_META: Record<string, WriteToolMeta> = Object.fromEntries(
-  // A capability with no scraper is not confirmation-gated: it changes nothing,
-  // and "Request refill?" in front of a call that does nothing is a prompt that
-  // teaches a patient their confirmations are noise. `kind` describes the write
-  // it will be once implemented, not what it does today.
-  CAPABILITIES.filter((c) => c.kind === "write" && !c.notImplemented).map((c) => [
-    c.id,
-    {
-      title: c.title,
-      description: c.description,
-      ...(CONFIRM_LABELS[c.id] ? { confirmLabel: CONFIRM_LABELS[c.id] } : {}),
-    },
-  ]),
-);
+export const WRITE_TOOL_META: Record<string, WriteToolMeta> = {
+  ...Object.fromEntries(
+    // A capability with no scraper is not confirmation-gated: it changes nothing,
+    // and "Request refill?" in front of a call that does nothing is a prompt that
+    // teaches a patient their confirmations are noise. `kind` describes the write
+    // it will be once implemented, not what it does today.
+    CAPABILITIES.filter((c) => c.kind === "write" && !c.notImplemented).map((c) => [
+      c.id,
+      {
+        title: c.title,
+        description: c.description,
+        ...(CONFIRM_LABELS[c.id] ? { confirmLabel: CONFIRM_LABELS[c.id] } : {}),
+      },
+    ]),
+  ),
+  // Not in the registry (see FEATURE_REQUEST_TOOL), so gated by name: it sends
+  // what the user typed, and who they are if they agreed, to the developers.
+  [FEATURE_REQUEST_TOOL.name]: { title: FEATURE_REQUEST_TOOL.title, description: FEATURE_REQUEST_TOOL.description },
+};
 
 export const WRITE_TOOLS: ReadonlySet<string> = new Set(Object.keys(WRITE_TOOL_META));
 
@@ -130,8 +137,8 @@ export const SAVE_FILE_TOOL = "save_file";
 
 /**
  * Tools this app runs itself rather than through the registry — the mobile
- * side of the desktop extension's own `save_file`. Kept out of TOOLS, which
- * mirrors the registry exactly.
+ * side of the desktop extension's own `save_file` and `send_feature_request`.
+ * Kept out of TOOLS, which mirrors the registry exactly.
  */
 const LOCAL_TOOLS: ToolSpec[] = [
   {
@@ -142,6 +149,13 @@ const LOCAL_TOOLS: ToolSpec[] = [
       file_name: argHint("string", true, 'File name with extension, e.g. "lab-history.csv". No folders.'),
       content: argHint("string", true, "The complete file content."),
     },
+  },
+  {
+    name: FEATURE_REQUEST_TOOL.name,
+    description: FEATURE_REQUEST_TOOL.description,
+    args: Object.fromEntries(
+      FEATURE_REQUEST_TOOL.params.map((p) => [p.name, argHint(p.type, p.required, p.description)]),
+    ),
   },
 ];
 
