@@ -103,7 +103,7 @@
     <header>
       <a class="back" href="/">← OpenRecord</a>
       <h1>Privacy Policy</h1>
-      <p class="updated">Last updated 24 October 2026</p>
+      <p class="updated">Last updated 15 November 2026</p>
     </header>
 
     <main>
@@ -111,9 +111,10 @@
         OpenRecord is software you run yourself. It signs in to your Epic MyChart patient portal from
         your own device and reads your records there. Fan Pier Labs does not operate a server that
         holds your medical records, and there is no OpenRecord account containing a copy of them.
-        Two things do leave your device: the question you send to an AI model, and — on the desktop
-        tools only — usage data, which from the Claude Desktop extension includes who you are. Both
-        are described in full below.
+        Two things leave your device on their own: the question you send to an AI model, and — on the
+        desktop tools only — usage data, which from the Claude Desktop extension includes who you are.
+        A third, a feature request, leaves only when you choose to send one. All three are described
+        in full below.
       </p>
 
       <h2>Who this covers</h2>
@@ -140,17 +141,25 @@
       </ul>
       <p>
         On iPhone, credentials are held in the iOS Keychain, restricted to that device and readable
-        only while it is unlocked. On desktop, the Claude Desktop extension keeps them in
-        <code>~/.openrecord-mcpb/</code> and the command-line tool keeps them in the directory you run
-        it from, in files whose permissions are set to your user account only. Anyone with
-        administrator access to your computer, or with your unlocked device, can read them — the same
-        as any other application data on your machine.
+        only while it is unlocked. On desktop, the Claude Desktop extension and the command-line tool
+        run as <code>mychart-cli mcp</code> share one store, so an account set up in one is available
+        to the other. Your password, TOTP secret and passkey go in your operating system's credential
+        store — the macOS Keychain, Windows Credential Manager, or the Secret Service on Linux —
+        under the name <code>openrecord-mcpb</code>. The list of your accounts and your session
+        cookies go in <code>~/.openrecord-mcpb/</code>, in files whose permissions are set to your
+        user account only; where no credential store is available, the password, TOTP secret and
+        passkey are kept in those files too. Run any other way, the command-line tool keeps your
+        session, TOTP secret and passkey in <code>.cookie-cache</code>, <code>.totp-secrets</code>
+        and <code>.passkey-credentials</code> folders in the directory you run it from, as ordinary
+        files with no special permissions. Anyone with administrator access to your computer, or with
+        your unlocked device, can read them — the same as any other application data on your machine.
       </p>
       <p>
         Removing an account in the iPhone app's settings, or disconnecting one in the Claude Desktop
-        extension, deletes that account's stored credentials, passkey and session. The command-line
-        tool has no disconnect command — delete its <code>.cookie-cache</code> and
-        <code>.totp-secrets</code> folders yourself.
+        extension or through <code>mychart-cli mcp</code>, deletes that account's stored credentials,
+        passkey and session. Run any other way, the command-line tool has no disconnect command —
+        delete its <code>.cookie-cache</code>, <code>.totp-secrets</code> and
+        <code>.passkey-credentials</code> folders yourself.
       </p>
 
       <div class="callout">
@@ -187,7 +196,11 @@
             </tr>
             <tr>
               <td>Command-line tool and library</td>
-              <td>Nowhere by default — it does not call a model. If you build something on top of the library, that is your call to make.</td>
+              <td>Nowhere by default — on its own it does not call a model. If you build something on top of the library, that is your call to make.</td>
+            </tr>
+            <tr>
+              <td>Command-line tool run as <code>mychart-cli mcp</code></td>
+              <td>The model behind whichever AI app you connect it to. Whatever that app reads through OpenRecord's tools goes to its model provider, through your own account with them and under their terms and privacy policy. Nothing passes through Fan Pier Labs.</td>
             </tr>
             <tr>
               <td>Website demo</td>
@@ -291,6 +304,25 @@
         Naming the health system you are a patient of is more than we would want a tool to send about
         us without saying so, which is why it is written out here. To send none of it, set
         <code>MYCHART_CLI_TELEMETRY_DISABLED=1</code> in the environment the tool runs in.
+      </p>
+
+      <h2>Feature requests</h2>
+      <p>
+        When you ask for something OpenRecord cannot do, the AI may offer to tell us about it. Nothing
+        is sent unless you say so, and you choose what goes with it:
+      </p>
+      <ul>
+        <li><strong>With your details:</strong> your description, plus the name, email address and
+          health system you give it, so we can reply.</li>
+        <li><strong>Without them:</strong> your description only.</li>
+        <li><strong>Nothing:</strong> nothing is sent.</li>
+      </ul>
+      <p>
+        A request is emailed to us through <strong>Resend</strong>, an email delivery service, and
+        logged on our AWS account together with <strong>the IP address it came from</strong>. Sending
+        it without your details leaves out your name, email and health system, but the IP address is
+        still recorded, and from the Claude Desktop extension the usage event for the same call can
+        be matched to it.
       </p>
 
       <h2>The update check</h2>

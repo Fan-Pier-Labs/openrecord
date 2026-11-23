@@ -72,6 +72,19 @@ describe('looksLikeSignedOutPage', () => {
   it('does not match an authenticated page that carries a verification token and the Epic footer', () => {
     expect(looksLikeSignedOutPage(AUTHENTICATED_PAGE_HTML)).toBe(false);
   });
+
+  it('matches isPrelogin as a body class token on its own', () => {
+    expect(looksLikeSignedOutPage('<html><body class="isPrelogin">Login</body></html>')).toBe(true);
+    expect(looksLikeSignedOutPage("<html><body class='md_layout isPrelogin hasHeader'></body></html>")).toBe(true);
+  });
+
+  it('does not match an authenticated page whose routing JSON says "isPrelogin":false', () => {
+    const html = `<!DOCTYPE html><html><body>
+  <script>var config = {"routing":{"isPrelogin":false,"activity":"home"}};</script>
+  <input name="__RequestVerificationToken" type="hidden" value="fake-csrf" />
+</body></html>`;
+    expect(looksLikeSignedOutPage(html)).toBe(false);
+  });
 });
 
 describe('makeAuthenticatedRequest', () => {
@@ -191,6 +204,32 @@ describe('makeAuthenticatedRequest', () => {
     };
     const resp = await makeAuthenticatedRequest(request, { path: '/Clinical/Allergies', followRedirects: false });
     expect(resp.status).toBe(200);
+    expect(hookCalls).toBe(1);
+    cleanup(request);
+  });
+
+  // Stanford's myhealth_sso: /Authentication/Login itself 302s on to a 200 error page, so
+  // neither the final URL nor the body looks like a login page.
+  it('detects the bounce that ends on the AuthError referring page', async () => {
+    const referringPage = 'https://mychart.example.org/MyChart/custom/referringpage.asp?&errorNamespace=AuthError&errorKey=genericloginfailed';
+    const { request, state } = fakeMyChart((url) => {
+      if (url === referringPage) {
+        // A real fetch reports the URL it answered; a constructed Response doesn't.
+        const page = new Response('<html></html>', { status: 200, headers: { 'Content-Type': 'text/html' } });
+        Object.defineProperty(page, 'url', { value: url });
+        return page;
+      }
+      if (url.includes('/Authentication/Login')) return new Response(null, { status: 302, headers: { Location: referringPage } });
+      return null;
+    });
+    let hookCalls = 0;
+    request.reauthenticate = async () => {
+      hookCalls++;
+      state.loggedIn = true;
+      return true;
+    };
+    const resp = await makeAuthenticatedRequest(request, { path: '/api/allergies/LoadAllergies', method: 'POST', body: '{}' });
+    expect(await resp.json()).toEqual({ dataList: [{ name: 'Vegetables' }] });
     expect(hookCalls).toBe(1);
     cleanup(request);
   });

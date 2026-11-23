@@ -20,7 +20,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
 import type { MyChartRequest } from '../../core/myChartRequest';
 import { myChartUserPassLogin } from '../../auth/login';
 import { makeAuthenticatedRequest, SessionExpiredError } from '../../core/makeAuthenticatedRequest';
-import { wireSilentReauthentication } from '../../auth/silentLogin';
+import { wireSilentReauthentication } from '../../auth/loginModes';
 import { sessionStore } from '../../core/sessionStore';
 import { getAllergies } from '../../chart/allergies/allergies';
 import { getMedications } from '../../chart/medications/medications';

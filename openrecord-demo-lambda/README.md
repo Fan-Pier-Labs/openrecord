@@ -6,12 +6,12 @@ The model proxy behind every OpenRecord surface that needs a hosted model:
   fictional health record, 45-tool MyChart layer, and agent loop all live in
   `openrecord-splash/demo/` — the one thing a static page can't do is call a
   model, and
-- the iOS app's **free tier** (`expo-app/`), whose agent loop runs on-device
+- the iOS app's **free tier** (`clients/expo-app/`), whose agent loop runs on-device
   against the user's real record. The record is scraped locally; only what the
   client puts in the prompt reaches this Lambda.
 
 Current endpoint: `https://dur15eh31e.execute-api.us-east-2.amazonaws.com`
-(baked into `openrecord-splash/demo/src/config.ts` and `expo-app/app.config.ts`).
+(baked into `openrecord-splash/demo/src/config.ts` and `clients/expo-app/app.config.ts`).
 
 ## Contract
 

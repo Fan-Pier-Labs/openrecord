@@ -1,6 +1,13 @@
 // Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
 
 /**
+ * Where an expired session's request ends up: the login page, or — on instances that log in
+ * through an outside portal (see auth/customPortals.ts) — the 200 `custom/referringpage.asp`
+ * error page that /Authentication/Login redirects to there.
+ */
+export const SIGNED_OUT_URL_RE = /\/authentication\/login|[?&]errorNamespace=AuthError(&|$)/i;
+
+/**
  * Whether an HTML body is the login page an EXPIRED session gets bounced to.
  *
  * Deliberately much stricter than `looksLikeLoginPage` in `../auth/login.ts`:
@@ -14,7 +21,10 @@
  */
 export function looksLikeSignedOutPage(html: string): boolean {
   const bodyLower = html.toLowerCase();
-  return bodyLower.includes('isprelogin')          // <body class="… isPrelogin">
+  // A class token only: signed-in pages on some instances embed routing JSON
+  // carrying `"isPrelogin":false`, which a bare substring match mistakes for
+  // the login page.
+  return /class\s*=\s*["'][^"']*\bisprelogin\b/.test(bodyLower) // <body class="… isPrelogin">
     || bodyLower.includes('login with passkey')     // real instances
     || bodyLower.includes('sign in with passkey')
     || bodyLower.includes('forgot login information')

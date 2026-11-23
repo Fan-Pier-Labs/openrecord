@@ -57,7 +57,7 @@ describe("splash link preview (Open Graph / Twitter)", () => {
   });
 
   test("carries the title, description, url, and card type crawlers read", () => {
-    expect(meta("property", "og:title")).toContain("OpenRecord");
+    expect(meta("property", "og:title")).toBe("MyChart MCP");
     expect(meta("property", "og:description")).toBeTruthy();
     expect(meta("property", "og:type")).toBe("website");
     expect(meta("property", "og:url")).toBe(`${SITE_ORIGIN}/`);
@@ -90,7 +90,7 @@ describe("splash icons and manifest", () => {
   });
 
   test("manifest has the fields an installable PWA needs", () => {
-    expect(manifest.name).toContain("OpenRecord");
+    expect(manifest.name).toBe("MyChart MCP");
     expect(manifest.short_name).toBe("OpenRecord");
     expect(manifest.start_url).toBe("/");
     expect(manifest.display).toBe("standalone");

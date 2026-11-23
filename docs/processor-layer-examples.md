@@ -53,6 +53,8 @@ so this script has nothing to run them against — see [`scrapers/npi/README.md`
 | `get_ehi_export` | 524 | 165 | 195 | 122 |
 | `get_linked_accounts` | 1828 | 571 | 721 | 278 |
 | `get_emergency_contacts` | 2177 | 679 | 833 | 456 |
+| `get_notification_preferences` | 7107 | 4433 | 4879 | 839 |
+| `get_account_settings` | 8485 | 1283 | 1526 | 510 |
 
 ## Examples
 
@@ -20133,6 +20135,1402 @@ Emergency contacts on file.
       "isEmergencyContact": true
     }
   ]
+}
+```
+
+</details>
+
+---
+
+### `get_notification_preferences`
+
+Which notifications this MyChart sends and on which channels (email, text, push, phone, mail), topic by topic, as this health system arranges them — including the ones locked on — plus the email and mobile number they go to.
+
+<details>
+<summary><code>mode: raw</code> (7107 chars)</summary>
+
+```json
+{
+  "requests": [
+    {
+      "path": "/api/communicationPreferences/GetContactInformation",
+      "method": "POST",
+      "requestBody": {},
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "body": {
+        "email": "homer.simpson@springfieldnuclear.example.com",
+        "mobilePhone": "",
+        "emailPending": false,
+        "mobilePending": false,
+        "showLinkToContactInfo": true,
+        "mediaTypesMissingContactMethod": [],
+        "proxyContextName": "",
+        "mobileIsVerified": false
+      }
+    },
+    {
+      "path": "/api/communicationPreferences/GetPreferences",
+      "method": "POST",
+      "requestBody": {},
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "body": {
+        "groupers": {
+          "WP-24GRP0": {
+            "hstId": "WP-24GRP0",
+            "title": "Appointments",
+            "description": "Reminders and updates about upcoming appointments",
+            "conceptIds": [
+              "WP-24CPT0x0",
+              "WP-24CPT0x1"
+            ]
+          },
+          "WP-24GRP1": {
+            "hstId": "WP-24GRP1",
+            "title": "Messages",
+            "description": "New messages and letters",
+            "conceptIds": [
+              "WP-24CPT1x0",
+              "WP-24CPT1x1"
+            ]
+          },
+          "WP-24GRP2": {
+            "hstId": "WP-24GRP2",
+            "title": "Health",
+            "description": "Test results and prescriptions",
+            "conceptIds": [
+              "WP-24CPT2x0",
+              "WP-24CPT2x1"
+            ]
+          },
+          "WP-24GRP3": {
+            "hstId": "WP-24GRP3",
+            "title": "Billing",
+            "description": "Statements and payment reminders",
+            "conceptIds": [
+              "WP-24CPT3x0"
+            ]
+          },
+          "WP-24GRP4": {
+            "hstId": "WP-24GRP4",
+            "title": "Account Management",
+            "description": "Changes to your account",
+            "conceptIds": [
+              "WP-24CPT4x0"
+            ]
+          },
+          "WP-24GRP5": {
+            "hstId": "WP-24GRP5",
+            "title": "Care Companion",
+            "description": "Tasks in your care plan",
+            "conceptIds": [
+              "WP-24CPT5x0"
+            ],
+            "otherPreferencesLinkPath": "/app/care-companion/settings",
+            "otherPreferencesLinkText": "Care Companion Settings"
+          }
+        },
+        "concepts": {
+          "WP-24CPT0x0": {
+            "hstId": "WP-24CPT0x0",
+            "title": "Status Updates",
+            "description": "Receive a notification when an appointment changes.",
+            "mediaIds": [
+              "WP-24MED0x0x0",
+              "WP-24MED0x0x1",
+              "WP-24MED0x0x2"
+            ],
+            "additionalItemSectionId": "WP-24SEC0x0"
+          },
+          "WP-24CPT0x1": {
+            "hstId": "WP-24CPT0x1",
+            "title": "Wait List Offer",
+            "description": "Receive a notification when an earlier appointment opens up.",
+            "mediaIds": [
+              "WP-24MED0x1x0",
+              "WP-24MED0x1x1"
+            ],
+            "additionalItemSectionId": "WP-24SEC0x1"
+          },
+          "WP-24CPT1x0": {
+            "hstId": "WP-24CPT1x0",
+            "title": "New Message",
+            "description": "Receive a notification when you have a new message.",
+            "mediaIds": [
+              "WP-24MED1x0x0",
+              "WP-24MED1x0x1",
+              "WP-24MED1x0x2"
+            ],
+            "additionalItemSectionId": ""
+          },
+          "WP-24CPT1x1": {
+            "hstId": "WP-24CPT1x1",
+            "title": "Letters",
+            "description": "Receive a notification when a new letter is available.",
+            "mediaIds": [
+              "WP-24MED1x1x0",
+              "WP-24MED1x1x1"
+            ],
+            "additionalItemSectionId": ""
+          },
+          "WP-24CPT2x0": {
+            "hstId": "WP-24CPT2x0",
+            "title": "Test Result",
+            "description": "Receive a notification when a new test result is available.",
+            "mediaIds": [
+              "WP-24MED2x0x0",
+              "WP-24MED2x0x1",
+              "WP-24MED2x0x2"
+            ],
+            "additionalItemSectionId": ""
+          },
+          "WP-24CPT2x1": {
+            "hstId": "WP-24CPT2x1",
+            "title": "Prescription",
+            "description": "Receive a notification when a prescription is ready.",
+            "mediaIds": [
+              "WP-24MED2x1x0",
+              "WP-24MED2x1x1"
+            ],
+            "additionalItemSectionId": ""
+          },
+          "WP-24CPT3x0": {
+            "hstId": "WP-24CPT3x0",
+            "title": "Statement",
+            "description": "Receive a notification when a new statement is available.",
+            "mediaIds": [
+              "WP-24MED3x0x0",
+              "WP-24MED3x0x1"
+            ],
+            "additionalItemSectionId": ""
+          },
+          "WP-24CPT4x0": {
+            "hstId": "WP-24CPT4x0",
+            "title": "Password Changed",
+            "description": "Receive a notification when your password is changed.",
+            "mediaIds": [
+              "WP-24MED4x0x0",
+              "WP-24MED4x0x1"
+            ],
+            "additionalItemSectionId": ""
+          },
+          "WP-24CPT5x0": {
+            "hstId": "WP-24CPT5x0",
+            "title": "New Task",
+            "description": "Receive a notification when a new task is assigned.",
+            "mediaIds": [
+              "WP-24MED5x0x0"
+            ],
+            "additionalItemSectionId": ""
+          }
+        },
+        "medias": {
+          "WP-24MED0x0x0": {
+            "mediaId": "WP-24MED0x0x0",
+            "type": "1",
+            "toggleStatus": 1
+          },
+          "WP-24MED0x0x1": {
+            "mediaId": "WP-24MED0x0x1",
+            "type": "100",
+            "toggleStatus": 0
+          },
+          "WP-24MED0x0x2": {
+            "mediaId": "WP-24MED0x0x2",
+            "type": "6",
+            "toggleStatus": 1
+          },
+          "WP-24MED0x1x0": {
+            "mediaId": "WP-24MED0x1x0",
+            "type": "1",
+            "toggleStatus": 1
+          },
+          "WP-24MED0x1x1": {
+            "mediaId": "WP-24MED0x1x1",
+            "type": "100",
+            "toggleStatus": 0
+          },
+          "WP-24MED1x0x0": {
+            "mediaId": "WP-24MED1x0x0",
+            "type": "1",
+            "toggleStatus": 1
+          },
+          "WP-24MED1x0x1": {
+            "mediaId": "WP-24MED1x0x1",
+            "type": "100",
+            "toggleStatus": 0
+          },
+          "WP-24MED1x0x2": {
+            "mediaId": "WP-24MED1x0x2",
+            "type": "6",
+            "toggleStatus": 1
+          },
+          "WP-24MED1x1x0": {
+            "mediaId": "WP-24MED1x1x0",
+            "type": "1",
+            "toggleStatus": 0
+          },
+          "WP-24MED1x1x1": {
+            "mediaId": "WP-24MED1x1x1",
+            "type": "6",
+            "toggleStatus": 0
+          },
+          "WP-24MED2x0x0": {
+            "mediaId": "WP-24MED2x0x0",
+            "type": "1",
+            "toggleStatus": 1
+          },
+          "WP-24MED2x0x1": {
+            "mediaId": "WP-24MED2x0x1",
+            "type": "100",
+            "toggleStatus": 0
+          },
+          "WP-24MED2x0x2": {
+            "mediaId": "WP-24MED2x0x2",
+            "type": "6",
+            "toggleStatus": 1
+          },
+          "WP-24MED2x1x0": {
+            "mediaId": "WP-24MED2x1x0",
+            "type": "1",
+            "toggleStatus": 0
+          },
+          "WP-24MED2x1x1": {
+            "mediaId": "WP-24MED2x1x1",
+            "type": "100",
+            "toggleStatus": 0
+          },
+          "WP-24MED3x0x0": {
+            "mediaId": "WP-24MED3x0x0",
+            "type": "1",
+            "toggleStatus": 1
+          },
+          "WP-24MED3x0x1": {
+            "mediaId": "WP-24MED3x0x1",
+            "type": "3",
+            "toggleStatus": 0
+          },
+          "WP-24MED4x0x0": {
+            "mediaId": "WP-24MED4x0x0",
+            "type": "1",
+            "toggleStatus": 3
+          },
+          "WP-24MED4x0x1": {
+            "mediaId": "WP-24MED4x0x1",
+            "type": "100",
+            "toggleStatus": 0
+          },
+          "WP-24MED5x0x0": {
+            "mediaId": "WP-24MED5x0x0",
+            "type": "6",
+            "toggleStatus": 1
+          }
+        },
+        "additionalItemSections": {
+          "WP-24SEC0x0": {
+            "sectionType": "Checkbox",
+            "optionDescriptionMap": {
+              "WP-24OPT0x0x0": "Scheduled",
+              "WP-24OPT0x0x1": "Changed",
+              "WP-24OPT0x0x2": "Canceled",
+              "WP-24OPT0x0x3": "Missed"
+            },
+            "optionSelectionMap": {
+              "WP-24OPT0x0x0": true,
+              "WP-24OPT0x0x1": true,
+              "WP-24OPT0x0x2": true,
+              "WP-24OPT0x0x3": false
+            },
+            "optionIds": [
+              "WP-24OPT0x0x0",
+              "WP-24OPT0x0x1",
+              "WP-24OPT0x0x2",
+              "WP-24OPT0x0x3"
+            ],
+            "sectionDescription": "Receive reminders when your appointment has been: ",
+            "sectionId": "WP-24SEC0x0",
+            "dropDownAdditionalItemId": ""
+          },
+          "WP-24SEC0x1": {
+            "sectionType": "Checkbox",
+            "optionDescriptionMap": {
+              "WP-24OPT0x1x0": "Automatically sign up my appointments for earlier offers"
+            },
+            "optionSelectionMap": {
+              "WP-24OPT0x1x0": true
+            },
+            "optionIds": [
+              "WP-24OPT0x1x0"
+            ],
+            "sectionDescription": "",
+            "sectionId": "WP-24SEC0x1",
+            "dropDownAdditionalItemId": ""
+          }
+        },
+        "grouperOrder": [
+          "WP-24GRP0",
+          "WP-24GRP1",
+          "WP-24GRP2",
+          "WP-24GRP3",
+          "WP-24GRP4",
+          "WP-24GRP5"
+        ],
+        "paperlessBillingRequiredConcepts": [
+          "WP-24CPT3x0"
+        ],
+        "canApplyToAll": false,
+        "smsFlagOn": true,
+        "userAcceptsSms": false,
+        "showContactInformation": true,
+        "grouperIdToExpandOnLoad": ""
+      }
+    },
+    {
+      "path": "/app/communication-preferences",
+      "method": "GET",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "body": "<!DOCTYPE html>\n<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\"en\" dir=\"ltr\">\n<head>\n  <title>MyChart</title>\n  <meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\" />\n</head>\n<body>\n  <div class='hidden' id='__CSRFContainer'><input name=\"__RequestVerificationToken\" type=\"hidden\" value=\"fake-csrf-token-00000000000000000000000000000000\" /></div>\n  <script>\n(function () {\n  var originalFetch = window.fetch;\n  window.fetch = function (url, opts) {\n    opts = opts || {};\n    if ((opts.method || 'GET').toUpperCase() === 'POST') {\n      var el = document.querySelector('#__CSRFContainer input[name=__RequestVerificationToken]');\n      if (el) {\n        opts.headers = opts.headers || {};\n        if (!opts.headers['__RequestVerificationToken']) {\n          opts.headers['__RequestVerificationToken'] = el.value;\n        }\n      }\n    }\n    return originalFetch.call(this, url, opts);\n  };\n})();\n</script>\n  <div></div>\n</body>\n</html>",
+      "purpose": "token"
+    }
+  ]
+}
+```
+
+</details>
+
+<details>
+<summary><code>mode: standard</code> (4879 chars)</summary>
+
+## groupers (6)
+
+### groupers 1
+
+- **title**: Appointments
+- **description**: Reminders and updates about upcoming appointments
+
+#### concepts (2)
+
+##### concepts 1
+
+- **title**: Status Updates
+- **description**: Receive a notification when an appointment changes.
+
+###### medias (3)
+
+| type | channel | toggleStatus | status |
+| - | - | - | - |
+| 1 | Email | 1 | On |
+| 100 | Text | 0 | Off |
+| 6 | Push | 1 | On |
+- **channelsOn**: Email, Push
+- **requiredForPaperlessBilling**: false
+
+###### additionalItemSection
+
+- **sectionType**: Checkbox
+- **sectionDescription**: Receive reminders when your appointment has been: 
+
+###### options (4)
+
+| description | selected |
+| - | - |
+| Scheduled | true |
+| Changed | true |
+| Canceled | true |
+| Missed | false |
+
+##### concepts 2
+
+- **title**: Wait List Offer
+- **description**: Receive a notification when an earlier appointment opens up.
+
+###### medias (2)
+
+| type | channel | toggleStatus | status |
+| - | - | - | - |
+| 1 | Email | 1 | On |
+| 100 | Text | 0 | Off |
+- **channelsOn**: Email
+- **requiredForPaperlessBilling**: false
+
+###### additionalItemSection
+
+- **sectionType**: Checkbox
+- **sectionDescription**: (empty)
+
+###### options (1)
+
+| description | selected |
+| - | - |
+| Automatically sign up my appointments for earlier offers | true |
+
+- **otherPreferencesLinkText**: (none)
+
+### groupers 2
+
+- **title**: Messages
+- **description**: New messages and letters
+
+#### concepts (2)
+
+##### concepts 1
+
+- **title**: New Message
+- **description**: Receive a notification when you have a new message.
+
+###### medias (3)
+
+| type | channel | toggleStatus | status |
+| - | - | - | - |
+| 1 | Email | 1 | On |
+| 100 | Text | 0 | Off |
+| 6 | Push | 1 | On |
+- **channelsOn**: Email, Push
+- **requiredForPaperlessBilling**: false
+- **additionalItemSection**: (none)
+
+##### concepts 2
+
+- **title**: Letters
+- **description**: Receive a notification when a new letter is available.
+
+###### medias (2)
+
+| type | channel | toggleStatus | status |
+| - | - | - | - |
+| 1 | Email | 0 | Off |
+| 6 | Push | 0 | Off |
+- **channelsOn**: (none)
+- **requiredForPaperlessBilling**: false
+- **additionalItemSection**: (none)
+
+- **otherPreferencesLinkText**: (none)
+
+### groupers 3
+
+- **title**: Health
+- **description**: Test results and prescriptions
+
+#### concepts (2)
+
+##### concepts 1
+
+- **title**: Test Result
+- **description**: Receive a notification when a new test result is available.
+
+###### medias (3)
+
+| type | channel | toggleStatus | status |
+| - | - | - | - |
+| 1 | Email | 1 | On |
+| 100 | Text | 0 | Off |
+| 6 | Push | 1 | On |
+- **channelsOn**: Email, Push
+- **requiredForPaperlessBilling**: false
+- **additionalItemSection**: (none)
+
+##### concepts 2
+
+- **title**: Prescription
+- **description**: Receive a notification when a prescription is ready.
+
+###### medias (2)
+
+| type | channel | toggleStatus | status |
+| - | - | - | - |
+| 1 | Email | 0 | Off |
+| 100 | Text | 0 | Off |
+- **channelsOn**: (none)
+- **requiredForPaperlessBilling**: false
+- **additionalItemSection**: (none)
+
+- **otherPreferencesLinkText**: (none)
+
+### groupers 4
+
+- **title**: Billing
+- **description**: Statements and payment reminders
+
+#### concepts (1)
+
+##### concepts 1
+
+- **title**: Statement
+- **description**: Receive a notification when a new statement is available.
+
+###### medias (2)
+
+| type | channel | toggleStatus | status |
+| - | - | - | - |
+| 1 | Email | 1 | On |
+| 3 | Mail | 0 | Off |
+- **channelsOn**: Email
+- **requiredForPaperlessBilling**: true
+- **additionalItemSection**: (none)
+
+- **otherPreferencesLinkText**: (none)
+
+### groupers 5
+
+- **title**: Account Management
+- **description**: Changes to your account
+
+#### concepts (1)
+
+##### concepts 1
+
+- **title**: Password Changed
+- **description**: Receive a notification when your password is changed.
+
+###### medias (2)
+
+| type | channel | toggleStatus | status |
+| - | - | - | - |
+| 1 | Email | 3 | LockedOn |
+| 100 | Text | 0 | Off |
+- **channelsOn**: Email
+- **requiredForPaperlessBilling**: false
+- **additionalItemSection**: (none)
+
+- **otherPreferencesLinkText**: (none)
+
+### groupers 6
+
+- **title**: Care Companion
+- **description**: Tasks in your care plan
+
+#### concepts (1)
+
+##### concepts 1
+
+- **title**: New Task
+- **description**: Receive a notification when a new task is assigned.
+
+###### medias (1)
+
+| type | channel | toggleStatus | status |
+| - | - | - | - |
+| 6 | Push | 1 | On |
+- **channelsOn**: Push
+- **requiredForPaperlessBilling**: false
+- **additionalItemSection**: (none)
+
+- **otherPreferencesLinkText**: Care Companion Settings
+
+- **smsFlagOn**: true
+- **userAcceptsSms**: false
+
+## contactInformation
+
+- **email**: homer.simpson@springfieldnuclear.example.com
+- **mobilePhone**: (empty)
+- **emailPending**: false
+- **mobilePending**: false
+- **mobileIsVerified**: false
+- **mediaTypesMissingContactMethod**: (none)
+- **proxyContextName**: (empty)
+
+</details>
+
+<details>
+<summary><code>mode: concise</code> (839 chars)</summary>
+
+## groupers (6)
+
+### groupers 1
+
+- **title**: Appointments
+
+#### concepts (2)
+
+| title | channelsOn |
+| - | - |
+| Status Updates | Email, Push |
+| Wait List Offer | Email |
+
+### groupers 2
+
+- **title**: Messages
+
+#### concepts (2)
+
+| title | channelsOn |
+| - | - |
+| New Message | Email, Push |
+| Letters | |
+
+### groupers 3
+
+- **title**: Health
+
+#### concepts (2)
+
+| title | channelsOn |
+| - | - |
+| Test Result | Email, Push |
+| Prescription | |
+
+### groupers 4
+
+- **title**: Billing
+
+#### concepts (1)
+
+| title | channelsOn |
+| - | - |
+| Statement | Email |
+
+### groupers 5
+
+- **title**: Account Management
+
+#### concepts (1)
+
+| title | channelsOn |
+| - | - |
+| Password Changed | Email |
+
+### groupers 6
+
+- **title**: Care Companion
+
+#### concepts (1)
+
+| title | channelsOn |
+| - | - |
+| New Task | Push |
+
+- **userAcceptsSms**: false
+
+</details>
+
+<details>
+<summary><code>mode: json</code> (4433 chars)</summary>
+
+```json
+{
+  "groupers": [
+    {
+      "title": "Appointments",
+      "description": "Reminders and updates about upcoming appointments",
+      "concepts": [
+        {
+          "title": "Status Updates",
+          "description": "Receive a notification when an appointment changes.",
+          "medias": [
+            {
+              "type": "1",
+              "channel": "Email",
+              "toggleStatus": 1,
+              "status": "On"
+            },
+            {
+              "type": "100",
+              "channel": "Text",
+              "toggleStatus": 0,
+              "status": "Off"
+            },
+            {
+              "type": "6",
+              "channel": "Push",
+              "toggleStatus": 1,
+              "status": "On"
+            }
+          ],
+          "channelsOn": [
+            "Email",
+            "Push"
+          ],
+          "requiredForPaperlessBilling": false,
+          "additionalItemSection": {
+            "sectionType": "Checkbox",
+            "sectionDescription": "Receive reminders when your appointment has been: ",
+            "options": [
+              {
+                "description": "Scheduled",
+                "selected": true
+              },
+              {
+                "description": "Changed",
+                "selected": true
+              },
+              {
+                "description": "Canceled",
+                "selected": true
+              },
+              {
+                "description": "Missed",
+                "selected": false
+              }
+            ]
+          }
+        },
+        {
+          "title": "Wait List Offer",
+          "description": "Receive a notification when an earlier appointment opens up.",
+          "medias": [
+            {
+              "type": "1",
+              "channel": "Email",
+              "toggleStatus": 1,
+              "status": "On"
+            },
+            {
+              "type": "100",
+              "channel": "Text",
+              "toggleStatus": 0,
+              "status": "Off"
+            }
+          ],
+          "channelsOn": [
+            "Email"
+          ],
+          "requiredForPaperlessBilling": false,
+          "additionalItemSection": {
+            "sectionType": "Checkbox",
+            "sectionDescription": "",
+            "options": [
+              {
+                "description": "Automatically sign up my appointments for earlier offers",
+                "selected": true
+              }
+            ]
+          }
+        }
+      ],
+      "otherPreferencesLinkText": null
+    },
+    {
+      "title": "Messages",
+      "description": "New messages and letters",
+      "concepts": [
+        {
+          "title": "New Message",
+          "description": "Receive a notification when you have a new message.",
+          "medias": [
+            {
+              "type": "1",
+              "channel": "Email",
+              "toggleStatus": 1,
+              "status": "On"
+            },
+            {
+              "type": "100",
+              "channel": "Text",
+              "toggleStatus": 0,
+              "status": "Off"
+            },
+            {
+              "type": "6",
+              "channel": "Push",
+              "toggleStatus": 1,
+              "status": "On"
+            }
+          ],
+          "channelsOn": [
+            "Email",
+            "Push"
+          ],
+          "requiredForPaperlessBilling": false,
+          "additionalItemSection": null
+        },
+        {
+          "title": "Letters",
+          "description": "Receive a notification when a new letter is available.",
+          "medias": [
+            {
+              "type": "1",
+              "channel": "Email",
+              "toggleStatus": 0,
+              "status": "Off"
+            },
+            {
+              "type": "6",
+              "channel": "Push",
+              "toggleStatus": 0,
+              "status": "Off"
+            }
+          ],
+          "channelsOn": [],
+          "requiredForPaperlessBilling": false,
+          "additionalItemSection": null
+        }
+      ],
+      "otherPreferencesLinkText": null
+    },
+    {
+      "title": "Health",
+      "description": "Test results and prescriptions",
+      "concepts": [
+        {
+          "title": "Test Result",
+          "description": "Receive a notification when a new test result is available.",
+          "medias": [
+            {
+              "type": "1",
+              "channel": "Email",
+              "toggleStatus": 1,
+              "status": "On"
+            },
+            {
+              "type": "100",
+              "channel": "Text",
+              "toggleStatus": 0,
+              "status": "Off"
+            },
+            {
+              "type": "6",
+              "channel": "Push",
+              "toggleStatus": 1,
+              "status": "On"
+            }
+          ],
+          "channelsOn": [
+            "Email",
+            "Push"
+          ],
+          "requiredForPaperlessBilling": false,
+          "additionalItemSection": null
+        },
+        {
+          "title": "Prescription",
+          "description": "Receive a notification when a prescription is ready.",
+          "medias": [
+            {
+              "type": "1",
+              "channel": "Email",
+              "toggleStatus": 0,
+              "status": "Off"
+            },
+            {
+              "type": "100",
+              "channel": "Text",
+              "toggleStatus": 0,
+              "status": "Off"
+            }
+          ],
+          "channelsOn": [],
+          "requiredForPaperlessBilling": false,
+          "additionalItemSection": null
+        }
+      ],
+      "otherPreferencesLinkText": null
+    },
+    {
+      "title": "Billing",
+      "description": "Statements and payment reminders",
+      "concepts": [
+        {
+          "title": "Statement",
+          "description": "Receive a notification when a new statement is available.",
+          "medias": [
+            {
+              "type": "1",
+              "channel": "Email",
+              "toggleStatus": 1,
+              "status": "On"
+            },
+            {
+              "type": "3",
+              "channel": "Mail",
+              "toggleStatus": 0,
+              "status": "Off"
+            }
+          ],
+          "channelsOn": [
+            "Email"
+          ],
+          "requiredForPaperlessBilling": true,
+          "additionalItemSection": null
+        }
+      ],
+      "otherPreferencesLinkText": null
+    },
+    {
+      "title": "Account Management",
+      "description": "Changes to your account",
+      "concepts": [
+        {
+          "title": "Password Changed",
+          "description": "Receive a notification when your password is changed.",
+          "medias": [
+            {
+              "type": "1",
+              "channel": "Email",
+              "toggleStatus": 3,
+              "status": "LockedOn"
+            },
+            {
+              "type": "100",
+              "channel": "Text",
+              "toggleStatus": 0,
+              "status": "Off"
+            }
+          ],
+          "channelsOn": [
+            "Email"
+          ],
+          "requiredForPaperlessBilling": false,
+          "additionalItemSection": null
+        }
+      ],
+      "otherPreferencesLinkText": null
+    },
+    {
+      "title": "Care Companion",
+      "description": "Tasks in your care plan",
+      "concepts": [
+        {
+          "title": "New Task",
+          "description": "Receive a notification when a new task is assigned.",
+          "medias": [
+            {
+              "type": "6",
+              "channel": "Push",
+              "toggleStatus": 1,
+              "status": "On"
+            }
+          ],
+          "channelsOn": [
+            "Push"
+          ],
+          "requiredForPaperlessBilling": false,
+          "additionalItemSection": null
+        }
+      ],
+      "otherPreferencesLinkText": "Care Companion Settings"
+    }
+  ],
+  "smsFlagOn": true,
+  "userAcceptsSms": false,
+  "contactInformation": {
+    "email": "homer.simpson@springfieldnuclear.example.com",
+    "mobilePhone": "",
+    "emailPending": false,
+    "mobilePending": false,
+    "mobileIsVerified": false,
+    "mediaTypesMissingContactMethod": [],
+    "proxyContextName": ""
+  }
+}
+```
+
+</details>
+
+---
+
+### `get_account_settings`
+
+Paperless enrollment (statements, EOBs, invoices, after-visit summaries), when new test results are released, two-step verification and password age, text-message consent, and whether the record is shared through Care Everywhere.
+
+<details>
+<summary><code>mode: raw</code> (8485 chars)</summary>
+
+```json
+{
+  "requests": [
+    {
+      "path": "/api/care-everywhere-opt-out/GetCeConfiguration",
+      "method": "POST",
+      "requestBody": {},
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "body": {
+        "dxtId": 1001,
+        "isPatientOptedIn": true,
+        "doesPatientReqConsent": false,
+        "authorizationRequirements": 3,
+        "canSignAllOrgAuthorizations": true,
+        "hasNonStandardProspectiveAuth": false,
+        "hasAuthsOnFile": false,
+        "authNotReqReason": 0,
+        "authReqReason": 0,
+        "canAuthOverride": false,
+        "mcesAccessLevel": 0,
+        "hideMCESEduVideo": false,
+        "isThresholdMet": false,
+        "userLocale": "en-US",
+        "canChangeCeStatus": true,
+        "hasPatientRequiredAuth": false,
+        "isPayerOnly": false,
+        "orgLogo": "",
+        "orgAuthPreferences": false,
+        "needsAuthorization": false,
+        "authorizationMnemonic": false,
+        "allowToggleDXT234": true
+      }
+    },
+    {
+      "path": "/api/paperless-settings/GetCombinedPaperless",
+      "method": "POST",
+      "requestBody": {},
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "body": {
+        "billingInfo": {
+          "isLTCEnabled": false,
+          "hasAnAuthUser": false,
+          "status": 1,
+          "allowSignup": true,
+          "showNoNotifsPopup": false,
+          "allowCancel": true
+        },
+        "eobInfo": {
+          "status": -1,
+          "allowSignup": false,
+          "showNoNotifsPopup": false,
+          "allowCancel": false
+        },
+        "invoiceInfo": {
+          "status": -1,
+          "allowSignup": false,
+          "showNoNotifsPopup": false,
+          "allowCancel": false
+        },
+        "avsInfo": {
+          "status": 3,
+          "allowSignup": true,
+          "showNoNotifsPopup": false,
+          "allowCancel": false
+        },
+        "showContactInfo": true,
+        "expandID": ""
+      }
+    },
+    {
+      "path": "/api/security-settings/GetInitialSettings",
+      "method": "POST",
+      "requestBody": {},
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "body": {
+        "passwordLastUpdated": "Jan 10, 2026",
+        "twoFactorEmailSmsOn": false,
+        "twoFactorTOTPOn": false,
+        "twoFactorRequired": false,
+        "rememberWebDevices": false,
+        "rememberWebDevicesAllowed": false,
+        "isUserOptedIntoPreviewFeatures": false,
+        "arePreviewFeaturesEnabled": true,
+        "nativeLoginAllowed": true,
+        "passwordChangeAvailable": true,
+        "commPrefAvailable": true,
+        "passkeyLoginAvailable": true,
+        "systemMethodsList": [
+          1,
+          2,
+          3
+        ],
+        "allowEmailSmsToggle": true,
+        "allowTotpToggle": true,
+        "isMyChartCentral": false,
+        "isUserDoubleActivated": false,
+        "deactivateAccountAllowed": true,
+        "hasPersonalInformationSecurity": true
+      }
+    },
+    {
+      "path": "/api/test-results/GetResultsReleasePreferences",
+      "method": "POST",
+      "requestBody": {},
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "body": {
+        "options": [
+          {
+            "value": "1",
+            "titleUtf8": "Show me test results as soon as possible"
+          },
+          {
+            "value": "2",
+            "titleUtf8": "Wait to show me test results"
+          }
+        ],
+        "chosenRRPreference": ""
+      }
+    },
+    {
+      "path": "/api/textoptin/GetConsentData",
+      "method": "POST",
+      "requestBody": {},
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "body": {
+        "consentData": {
+          "phone": "",
+          "shortCodesConsent": {}
+        },
+        "primarySender": {
+          "callToAction": "Text messages about your care at Springfield General will be sent to the phone number above. Message and data rates may apply. Text STOP to opt out.",
+          "termsAndConditionsURL": "",
+          "privacyPolicyURL": "",
+          "shortCode": "55555",
+          "displayName": "",
+          "hasRcsSender": false
+        },
+        "secondarySenders": []
+      }
+    },
+    {
+      "path": "/app/care-everywhere-opt-out",
+      "method": "GET",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "body": "<!DOCTYPE html>\n<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\"en\" dir=\"ltr\">\n<head>\n  <title>MyChart</title>\n  <meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\" />\n</head>\n<body>\n  <div class='hidden' id='__CSRFContainer'><input name=\"__RequestVerificationToken\" type=\"hidden\" value=\"fake-csrf-token-00000000000000000000000000000000\" /></div>\n  <script>\n(function () {\n  var originalFetch = window.fetch;\n  window.fetch = function (url, opts) {\n    opts = opts || {};\n    if ((opts.method || 'GET').toUpperCase() === 'POST') {\n      var el = document.querySelector('#__CSRFContainer input[name=__RequestVerificationToken]');\n      if (el) {\n        opts.headers = opts.headers || {};\n        if (!opts.headers['__RequestVerificationToken']) {\n          opts.headers['__RequestVerificationToken'] = el.value;\n        }\n      }\n    }\n    return originalFetch.call(this, url, opts);\n  };\n})();\n</script>\n  <div></div>\n</body>\n</html>",
+      "purpose": "token"
+    },
+    {
+      "path": "/app/paperless-settings",
+      "method": "GET",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "body": "<!DOCTYPE html>\n<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\"en\" dir=\"ltr\">\n<head>\n  <title>MyChart</title>\n  <meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\" />\n</head>\n<body>\n  <div class='hidden' id='__CSRFContainer'><input name=\"__RequestVerificationToken\" type=\"hidden\" value=\"fake-csrf-token-00000000000000000000000000000000\" /></div>\n  <script>\n(function () {\n  var originalFetch = window.fetch;\n  window.fetch = function (url, opts) {\n    opts = opts || {};\n    if ((opts.method || 'GET').toUpperCase() === 'POST') {\n      var el = document.querySelector('#__CSRFContainer input[name=__RequestVerificationToken]');\n      if (el) {\n        opts.headers = opts.headers || {};\n        if (!opts.headers['__RequestVerificationToken']) {\n          opts.headers['__RequestVerificationToken'] = el.value;\n        }\n      }\n    }\n    return originalFetch.call(this, url, opts);\n  };\n})();\n</script>\n  <div></div>\n</body>\n</html>",
+      "purpose": "token"
+    },
+    {
+      "path": "/app/security-settings",
+      "method": "GET",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "body": "<!DOCTYPE html>\n<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\"en\" dir=\"ltr\">\n<head>\n  <title>MyChart</title>\n  <meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\" />\n</head>\n<body>\n  <div class='hidden' id='__CSRFContainer'><input name=\"__RequestVerificationToken\" type=\"hidden\" value=\"fake-csrf-token-00000000000000000000000000000000\" /></div>\n  <script>\n(function () {\n  var originalFetch = window.fetch;\n  window.fetch = function (url, opts) {\n    opts = opts || {};\n    if ((opts.method || 'GET').toUpperCase() === 'POST') {\n      var el = document.querySelector('#__CSRFContainer input[name=__RequestVerificationToken]');\n      if (el) {\n        opts.headers = opts.headers || {};\n        if (!opts.headers['__RequestVerificationToken']) {\n          opts.headers['__RequestVerificationToken'] = el.value;\n        }\n      }\n    }\n    return originalFetch.call(this, url, opts);\n  };\n})();\n</script>\n  <div></div>\n</body>\n</html>",
+      "purpose": "token"
+    },
+    {
+      "path": "/app/test-results",
+      "method": "GET",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "body": "<!DOCTYPE html>\n<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\"en\" dir=\"ltr\">\n<head>\n  <title>MyChart</title>\n  <meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\" />\n</head>\n<body>\n  <div class='hidden' id='__CSRFContainer'><input name=\"__RequestVerificationToken\" type=\"hidden\" value=\"fake-csrf-token-00000000000000000000000000000000\" /></div>\n  <script>\n(function () {\n  var originalFetch = window.fetch;\n  window.fetch = function (url, opts) {\n    opts = opts || {};\n    if ((opts.method || 'GET').toUpperCase() === 'POST') {\n      var el = document.querySelector('#__CSRFContainer input[name=__RequestVerificationToken]');\n      if (el) {\n        opts.headers = opts.headers || {};\n        if (!opts.headers['__RequestVerificationToken']) {\n          opts.headers['__RequestVerificationToken'] = el.value;\n        }\n      }\n    }\n    return originalFetch.call(this, url, opts);\n  };\n})();\n</script>\n  <div></div>\n</body>\n</html>",
+      "purpose": "token"
+    },
+    {
+      "path": "/app/text-opt-in",
+      "method": "GET",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "body": "<!DOCTYPE html>\n<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\"en\" dir=\"ltr\">\n<head>\n  <title>MyChart</title>\n  <meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\" />\n</head>\n<body>\n  <div class='hidden' id='__CSRFContainer'><input name=\"__RequestVerificationToken\" type=\"hidden\" value=\"fake-csrf-token-00000000000000000000000000000000\" /></div>\n  <script>\n(function () {\n  var originalFetch = window.fetch;\n  window.fetch = function (url, opts) {\n    opts = opts || {};\n    if ((opts.method || 'GET').toUpperCase() === 'POST') {\n      var el = document.querySelector('#__CSRFContainer input[name=__RequestVerificationToken]');\n      if (el) {\n        opts.headers = opts.headers || {};\n        if (!opts.headers['__RequestVerificationToken']) {\n          opts.headers['__RequestVerificationToken'] = el.value;\n        }\n      }\n    }\n    return originalFetch.call(this, url, opts);\n  };\n})();\n</script>\n  <div></div>\n</body>\n</html>",
+      "purpose": "token"
+    }
+  ]
+}
+```
+
+</details>
+
+<details>
+<summary><code>mode: standard</code> (1526 chars)</summary>
+
+## paperless
+
+### billingInfo
+
+- **status**: 1
+- **statusName**: SignedUp
+- **allowSignup**: true
+- **allowCancel**: true
+
+### eobInfo
+
+- **status**: -1
+- **statusName**: NotEligible
+- **allowSignup**: false
+- **allowCancel**: false
+
+### invoiceInfo
+
+- **status**: -1
+- **statusName**: NotEligible
+- **allowSignup**: false
+- **allowCancel**: false
+
+### avsInfo
+
+- **status**: 3
+- **statusName**: NoResponse
+- **allowSignup**: true
+- **allowCancel**: false
+
+## resultsRelease
+
+### options (2)
+
+| value | titleUtf8 |
+| - | - |
+| 1 | Show me test results as soon as possible |
+| 2 | Wait to show me test results |
+- **chosenRRPreference**: (empty)
+- **chosenRRPreferenceTitle**: (none)
+
+## security
+
+- **passwordLastUpdated**: Jan 10, 2026
+- **twoFactorEmailSmsOn**: false
+- **twoFactorTOTPOn**: false
+- **twoFactorRequired**: false
+- **allowEmailSmsToggle**: true
+- **allowTotpToggle**: true
+- **passkeyLoginAvailable**: true
+- **rememberWebDevices**: false
+- **rememberWebDevicesAllowed**: false
+- **passwordChangeAvailable**: true
+- **isMyChartCentral**: false
+- **deactivateAccountAllowed**: true
+
+## textMessaging
+
+### consentData
+
+- **phone**: (empty)
+
+#### shortCodesConsent
+
+(empty)
+
+### primarySender
+
+- **shortCode**: 55555
+- **displayName**: (empty)
+- **termsAndConditionsURL**: (empty)
+- **secondarySenders**: (none)
+
+## careEverywhere
+
+- **isPatientOptedIn**: true
+- **canChangeCeStatus**: true
+- **doesPatientReqConsent**: false
+- **hasAuthsOnFile**: false
+- **needsAuthorization**: false
+- **unavailable**: (none)
+
+</details>
+
+<details>
+<summary><code>mode: concise</code> (510 chars)</summary>
+
+## paperless
+
+### billingInfo
+
+- **statusName**: SignedUp
+
+### eobInfo
+
+- **statusName**: NotEligible
+
+### invoiceInfo
+
+- **statusName**: NotEligible
+
+### avsInfo
+
+- **statusName**: NoResponse
+
+## resultsRelease
+
+- **chosenRRPreferenceTitle**: (none)
+
+## security
+
+- **twoFactorEmailSmsOn**: false
+- **twoFactorTOTPOn**: false
+- **passwordLastUpdated**: Jan 10, 2026
+
+## textMessaging
+
+### consentData
+
+#### shortCodesConsent
+
+(empty)
+
+## careEverywhere
+
+- **isPatientOptedIn**: true
+- **unavailable**: (none)
+
+</details>
+
+<details>
+<summary><code>mode: json</code> (1283 chars)</summary>
+
+```json
+{
+  "paperless": {
+    "billingInfo": {
+      "status": 1,
+      "statusName": "SignedUp",
+      "allowSignup": true,
+      "allowCancel": true
+    },
+    "eobInfo": {
+      "status": -1,
+      "statusName": "NotEligible",
+      "allowSignup": false,
+      "allowCancel": false
+    },
+    "invoiceInfo": {
+      "status": -1,
+      "statusName": "NotEligible",
+      "allowSignup": false,
+      "allowCancel": false
+    },
+    "avsInfo": {
+      "status": 3,
+      "statusName": "NoResponse",
+      "allowSignup": true,
+      "allowCancel": false
+    }
+  },
+  "resultsRelease": {
+    "options": [
+      {
+        "value": "1",
+        "titleUtf8": "Show me test results as soon as possible"
+      },
+      {
+        "value": "2",
+        "titleUtf8": "Wait to show me test results"
+      }
+    ],
+    "chosenRRPreference": "",
+    "chosenRRPreferenceTitle": null
+  },
+  "security": {
+    "passwordLastUpdated": "Jan 10, 2026",
+    "twoFactorEmailSmsOn": false,
+    "twoFactorTOTPOn": false,
+    "twoFactorRequired": false,
+    "allowEmailSmsToggle": true,
+    "allowTotpToggle": true,
+    "passkeyLoginAvailable": true,
+    "rememberWebDevices": false,
+    "rememberWebDevicesAllowed": false,
+    "passwordChangeAvailable": true,
+    "isMyChartCentral": false,
+    "deactivateAccountAllowed": true
+  },
+  "textMessaging": {
+    "consentData": {
+      "phone": "",
+      "shortCodesConsent": {}
+    },
+    "primarySender": {
+      "shortCode": "55555",
+      "displayName": "",
+      "termsAndConditionsURL": ""
+    },
+    "secondarySenders": []
+  },
+  "careEverywhere": {
+    "isPatientOptedIn": true,
+    "canChangeCeStatus": true,
+    "doesPatientReqConsent": false,
+    "hasAuthsOnFile": false,
+    "needsAuthorization": false
+  },
+  "unavailable": []
 }
 ```
 
