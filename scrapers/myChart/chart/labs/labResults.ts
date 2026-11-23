@@ -12,6 +12,8 @@ import { fdiContextForOrder, imagingResultsProcessor, isImagingOrder, type Imagi
 
 export type {
   LabResultsStandard,
+  UnloadedOrderStandard,
+  UnloadedReportStandard,
   LabOrderStandard,
   LabOrderConcise,
   LabResultStandard,
@@ -118,6 +120,10 @@ async function collectLabResults(collector: RawCollector): Promise<void> {
   // first failure is the one to report. A rejected speculative probe is
   // expected and never an error.
   const acceptedFailures: Error[] = [];
+  // One order's details failing must not cost the others theirs: each is
+  // tolerated and the processor names it. Every order failing is the payload
+  // failing — there is nothing loaded to return.
+  const detailFailures: Error[] = [];
 
   for (const groupType of [...ACCEPTED_GROUP_TYPES, ...SPECULATIVE_GROUP_TYPES]) {
     const outcome = await fetchResultGroupList(collector, groupType, token);
@@ -127,15 +133,21 @@ async function collectLabResults(collector: RawCollector): Promise<void> {
     }
     const page = outcome.page;
 
-    // Outside the swallow: these are results the instance says exist, so a
-    // failure here would return a short list indistinguishable from a
-    // complete one — "you have 39 results" when you have 60.
+    // These are results the instance says exist, so a failure must never
+    // read as a short list that looks complete — "you have 39 results" when
+    // you have 60. It is recorded, and the processor lists the order in
+    // `unloadedOrders` and says so in `notice`.
     for (const group of list(rec<TestResultList>(page).newResultGroups)) {
       const key = text(rec(group).key);
       if (!key || seenKeys.has(key)) continue;
       seenKeys.add(key);
 
-      const details = rec<TestResultDetails>(await collector.postJson('/api/test-results/GetDetails', token, { orderKey: key, organizationID: '', PageNonce: '' }));
+      const answer = await tolerated(collector, '/api/test-results/GetDetails', token, { orderKey: key, organizationID: '', PageNonce: '' });
+      if ('failure' in answer) {
+        detailFailures.push(answer.failure);
+        continue;
+      }
+      const details = rec<TestResultDetails>(answer.body);
       logger.debug('got detail back:', details.orderName);
 
       for (const result of list(details.results)) {
@@ -143,7 +155,7 @@ async function collectLabResults(collector: RawCollector): Promise<void> {
         const reportID = text(reportDetails.reportID);
         if (!reportID) continue;
         const vars = rec(reportDetails.reportVars);
-        await collector.postJson('/api/report-content/LoadReportContent', token, {
+        await tolerated(collector, '/api/report-content/LoadReportContent', token, {
           reportID,
           assumedVariables: { ordId: vars.ordId ?? '', ordDat: vars.ordDat ?? '' },
           isFullReportPage: false,
@@ -157,6 +169,33 @@ async function collectLabResults(collector: RawCollector): Promise<void> {
   }
 
   if (acceptedFailures.length === ACCEPTED_GROUP_TYPES.length) throw acceptedFailures[0]!;
+  if (seenKeys.size > 0 && detailFailures.length === seenKeys.size) throw detailFailures[0]!;
+}
+
+/** A per-order POST whose failure is recorded and handed back rather than thrown; a dead session still throws. */
+async function tolerated(
+  collector: RawCollector,
+  path: string,
+  token: string,
+  body: Record<string, unknown>,
+): Promise<{ body: unknown } | { failure: Error }> {
+  try {
+    const { body: answer, failure } = await collector.send(
+      {
+        path,
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', __RequestVerificationToken: token },
+        body: JSON.stringify(body),
+      },
+      { tolerateFailure: true },
+    );
+    if (failure) logger.debug(`${path} failed:`, failure.message);
+    return failure ? { failure } : { body: answer };
+  } catch (err) {
+    if (err instanceof SessionExpiredError) throw err;
+    logger.debug(`${path} failed:`, (err as Error).message);
+    return { failure: err as Error };
+  }
 }
 
 export async function fetchLabResultsRaw(mychartRequest: MyChartRequest): Promise<RawResponse> {
