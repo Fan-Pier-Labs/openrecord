@@ -103,7 +103,7 @@
     <header>
       <a class="back" href="/">← OpenRecord</a>
       <h1>Privacy Policy</h1>
-      <p class="updated">Last updated 23 November 2026</p>
+      <p class="updated">Last updated 15 November 2026</p>
     </header>
 
     <main>
@@ -112,8 +112,7 @@
         your own device and reads your records there. Fan Pier Labs does not operate a server that
         holds your medical records, and there is no OpenRecord account containing a copy of them.
         Two things leave your device on their own: the question you send to an AI model, and — on the
-        desktop tools only — usage data. <strong>From the Claude Desktop extension that usage data is
-        not anonymous: it includes your email address.</strong>
+        desktop tools only — usage data, which from the Claude Desktop extension includes who you are.
         A third, a feature request, leaves only when you choose to send one. All three are described
         in full below.
       </p>
@@ -263,17 +262,6 @@
       </p>
 
       <h2>Usage analytics</h2>
-      <div class="callout">
-        <h3>The Claude Desktop extension is not anonymous</h3>
-        <p>
-          If you use the Claude Desktop extension, we know who you are. Every time Claude uses one of
-          its tools, the extension reads the email address on your MyChart profile and sends it to us
-          with your MyChart username, your IP address, which tool was used and which health system it
-          was used on. That email is also attached to your computer's usage identifier, so the other
-          events from that computer — including the command-line tool's — can be tied to you as well.
-          The details are below, and so is how to turn it off.
-        </p>
-      </div>
       <p>
         The command-line tool and the Claude Desktop extension report usage, so we can see
         how much OpenRecord is being used and which health systems to look at when logins start
@@ -285,9 +273,7 @@
         <li>
           A random identifier created the first time you run it and kept in
           <code>~/.openrecord.json</code>, one per computer, shared by the command-line tool and the
-          extension. It is not derived from your name, your account, or anything about your machine
-          — but once the Claude Desktop extension has sent your email with it, as described below, it
-          identifies you.
+          extension. It is not derived from your name, your account, or anything about your machine.
         </li>
         <li>
           The event name, and for login events <strong>the hostname of the MyChart portal you are
@@ -303,13 +289,6 @@
         address</strong> — the one on your MyChart profile, or your MyChart username if that is an
         email — <strong>your MyChart username</strong>, and <strong>your IP address</strong>. Never your password or anything else from your
         record.
-      </p>
-      <p>
-        To find that email, the extension reads the contact details on your MyChart profile, the first
-        time it uses each account after it starts. The email is sent alongside the per-computer
-        identifier above, so in Amplitude and in our logs that identifier — and every event sent
-        with it, before or after, from the extension or from the command-line tool on the same
-        computer — is linked to your email address.
       </p>
       <p>
         When one of those tools fails, the extension also sends <strong>the error: its message and

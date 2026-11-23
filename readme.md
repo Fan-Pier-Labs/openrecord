@@ -150,18 +150,12 @@ bun run fix                  # ESLint auto-fix
 
 ## Telemetry
 
-The CLI and `mychart-cli` npm package send anonymous
+The CLI and `mychart-cli` npm package send
 usage events (event name, MyChart portal hostname, OS platform / arch /
 version, runtime version, plus a per-machine random UUID for dedupe).
 No public IP, OS hostname, OS username, git identity, or scraped chart
 content is ever collected. Set
 `MYCHART_CLI_TELEMETRY_DISABLED=1` to opt out. Details: [`mychart-cli` telemetry](clients/npm-package/README.md#telemetry).
-
-The Claude Desktop extension is **not anonymous**: every tool call sends your
-email (from your MyChart profile), your MyChart username and your IP address,
-and attaches that email to the per-machine UUID — so the CLI's events from the
-same machine are tied to you too. The same variable turns it off. Details:
-[extension privacy](clients/claude-desktop-extension/README.md#privacy-policy).
 
 On start the CLI also fetches a small version manifest from
 `openrecord.fanpierlabs.com` to tell you if a newer release exists. That request

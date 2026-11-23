@@ -148,8 +148,7 @@ wild and which ones break. Each event carries:
 - the event name (e.g. `scraper_login_started`) and the MyChart **portal** hostname it targeted
 - OS platform, architecture and version, and the runtime version (e.g. `node v22.11.0`)
 - a random UUID generated once per computer, saved as `deviceId` in `~/.openrecord.json`, used
-  only to count unique installs. The Claude Desktop extension shares it and sends your email with
-  it, so on a computer that also runs the extension these events are tied to your email
+  only to count unique installs
 
 **Never collected:** your IP address, your machine's hostname, your OS username, git identity, or
 anything read from a chart.
