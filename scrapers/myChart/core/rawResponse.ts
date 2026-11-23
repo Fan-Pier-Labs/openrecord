@@ -170,18 +170,20 @@ function landedOnHome(url: string): boolean {
 }
 
 /**
- * The first line or so of a body, tags stripped, for an error message. This
- * is page text — an error page's apology, a WAF's support id — never chart
- * data: a failed answer carries none, which is the point. It does reach
- * whatever logs the error message.
+ * What a failed answer said, for the detailed message: an HTML page's own
+ * `<title>` ("MyChart - Oops!", "Request Rejected"), or the first line or so
+ * of a body that is not markup (ASP.NET's JSON `Message`).
+ *
+ * Never a page's body text. A signed-in MyChart page — its error pages
+ * included — opens with the print header, so the first line of the body is
+ * the patient's name, date of birth and MRN, not anything the page said. Only
+ * the `<head>` is searched: a `<title>` further down is an SVG's label.
  */
 function excerptOf(text: string): string {
-  const plain = text
-    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+  const head = /<head(?:\s[^>]*)?>([\s\S]*?)<\/head>/i.exec(text)?.[1] ?? '';
+  const title = /<title[^>]*>([^<]*)<\/title>/i.exec(head)?.[1];
+  const said = title ?? (/<[a-z!/]/i.test(text) ? '' : text);
+  const plain = said.replace(/\s+/g, ' ').trim();
   return plain.length > 160 ? `${plain.slice(0, 157)}...` : plain;
 }
 

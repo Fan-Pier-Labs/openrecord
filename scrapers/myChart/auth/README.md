@@ -7,7 +7,7 @@ enrolling the credentials that make the next login silent.
 | | |
 | --- | --- |
 | **Capabilities** | `register_passkey` · `list_passkeys` · `delete_passkey` · `setup_totp` · `disable_totp` (account-security writes) |
-| **Source** | [`login.ts`](login.ts) · [`loginModes.ts`](loginModes.ts) · [`softwareAuthenticator.ts`](softwareAuthenticator.ts) · [`setupPasskey.ts`](setupPasskey.ts) · [`setupTotp.ts`](setupTotp.ts) · [`totp.ts`](totp.ts) · [`passkeyLoginRetry.ts`](passkeyLoginRetry.ts) · [`termsAndConditions.ts`](termsAndConditions.ts) · [`blockedInstances.ts`](blockedInstances.ts) |
+| **Source** | [`login.ts`](login.ts) · [`loginModes.ts`](loginModes.ts) · [`softwareAuthenticator.ts`](softwareAuthenticator.ts) · [`setupPasskey.ts`](setupPasskey.ts) · [`setupTotp.ts`](setupTotp.ts) · [`totp.ts`](totp.ts) · [`passkeyLoginRetry.ts`](passkeyLoginRetry.ts) · [`termsAndConditions.ts`](termsAndConditions.ts) · [`blockedInstances.ts`](blockedInstances.ts) · [`customPortals.ts`](customPortals.ts) · [`stanford.ts`](stanford.ts) |
 
 Everything here runs through the **raw** `MyChartRequest.makeRequest`, not
 `makeAuthenticatedRequest` — this is the pre-login world, and it is what makes the session
@@ -46,6 +46,19 @@ wrapper safe (see [`../core/`](../core/)).
 | --- | --- | --- |
 | `POST /Authentication/Login/GetPasskeyGetParams?force=true&noCache=…` | — | the WebAuthn challenge |
 | `POST /Authentication/Login/DoLogin` | `Type: "PasskeyLogin"` + the assertion | log in with the passkey |
+
+### Stanford Health Care login
+
+Portal calls go to `https://myhealth.stanfordhealthcare.org/Private/Ajax/V1/MyHealthLogin`
+(below as `…/MyHealthLogin`); MyChart calls are under `mychart.stanfordhealthcare.org/myhealth_sso`.
+
+| Request | Body | Purpose |
+| --- | --- | --- |
+| `POST …/MyHealthLogin` | JSON `{username, password, deviceId}` | log in to the portal |
+| `POST …/MyHealthLogin/generateTwoFactorLoginCode` | JSON `{userName, sendType: "EMAIL" \| "SMS"}` | send the code — **skipped with `skipSendCode`** |
+| `POST …/MyHealthLogin/verifyTwoFactorLoginCode` | JSON `{userName, loginCode, deviceId}` | submit the code |
+| `GET /inside.asp?webservice=true&lang=en-US` | — | SSO hop from the portal session into MyChart |
+| `GET /Home` | — | proof the hop worked |
 
 ### Enrollment (requires an authenticated session)
 
@@ -163,6 +176,49 @@ no MRN or PCP (see [`../chart/profile/`](../chart/profile/)).
   redirects to `/Authentication/TermsConditions` until it is accepted.
   [`termsAndConditions.ts`](termsAndConditions.ts) detects the page during login and posts
   the form back with every hidden field intact.
+
+## Custom login portals
+
+Some health systems put their own login portal in front of MyChart and SSO into it.
+[`customPortals.ts`](customPortals.ts) lists them, one file each, and is the only place the rest
+of the code asks about them:
+
+- `myChartUserPassLogin` and `complete2faFlow` hand a portal's hosts to its `login` and
+  `complete2fa`.
+- `supportsPasskeyAndTotp` is false for them. A MyChart passkey or authenticator registered
+  behind the portal would never be used, so `setupPasskey` and `setupTotp` refuse and the
+  clients don't offer them.
+- `canonicalHostname` files every host of one portal under its first, so the MCPB doesn't turn
+  one login into two accounts.
+- A portal that remembers a device leaves the id on `mychartRequest.trustedDeviceId`. Each
+  client saves it with the account's other secrets (the MCPB's keystore, the CLI's
+  `.totp-secrets/`, the app's secure store) and passes it back as `trustedDeviceId` to
+  `myChartUserPassLogin`, `machineLogin` and `humanLogin`.
+
+To add one: write its file exporting a `CustomPortal`, and add it to `PORTALS`.
+
+## Stanford Health Care
+
+Stanford ([`stanford.ts`](stanford.ts)) is a custom login portal for
+`myhealth.stanfordhealthcare.org` (the host the directory lists, and the one accounts are filed
+under) and `mychart.stanfordhealthcare.org`. After the SSO hop the
+session is a stock Epic MyChart at `/myhealth_sso`, and every other scraper works unchanged.
+Contributed in a community fork (`thehesiod-forks/openrecord`) and tested there on one
+account. Here only the unauthenticated behaviour below was probed.
+
+- **Failure is in the body, not the status.** The portal answers HTTP 200 either way; a
+  rejected login carries `meta: {code: 401, errorCode: …, errorMessage: …}` (an unknown
+  username gives `1000` / `USER_MISSING_ERROR`).
+- **A signed-out request never reaches a login page.** `/myhealth_sso/Authentication/Login`
+  302s on to a 200 `custom/referringpage.asp?…&errorNamespace=AuthError&errorKey=genericloginfailed`,
+  with nothing login-like in the body. So the SSO hop is judged by `/Home`, and
+  `SIGNED_OUT_URL_RE` (`../core/signedOutPage.ts`) counts that page as an expired session.
+- **`deviceId` is what skips 2FA.** The web app keeps a random one in localStorage, and the
+  portal stops asking once it has passed 2FA. It is the `trustedDeviceId` above; without a
+  saved one, the login mints a new id and needs a code.
+- **The masked contact for 2FA delivery is read out of the login JSON** with the same
+  regexes as the MyChart 2FA page ([`maskedContact.ts`](maskedContact.ts)). Email is
+  preferred, and SMS is used only when no email is found.
 
 ## TOTP
 

@@ -27,7 +27,7 @@ In Claude Desktop, Claude shows an inline **step-based setup widget**
 (`get_setup_widget`). It opens on a choice between two routes, and connects
 accounts **one at a time**: nearly every portal asks for a 2FA code, so each
 account runs to the end before the next is offered. The full flow is diagrammed
-in [`docs/mcpb-setup-flow.md`](../docs/mcpb-setup-flow.md).
+in [`docs/mcpb-setup-flow.md`](../../docs/mcpb-setup-flow.md).
 
 **Import from your browser** (the easier one):
 
@@ -126,7 +126,7 @@ Or skip typing a password entirely, if your browser already has one saved:
 Anything it cannot confirm is left out rather than guessed at — use
 `setup_account` for those, or run the import again later if a portal was
 temporarily unreachable. See
-[`clients/shared/read-local-passwords/README.md`](../read-local-passwords/README.md) for what is
+[`clients/shared/read-local-passwords/README.md`](../shared/read-local-passwords/README.md) for what is
 read and how confirmation works.
 3. **`complete_2fa(pending_id, code)`** — if MyChart requires 2FA, Claude
    asks you for the 6-digit code.
@@ -189,7 +189,7 @@ done** when the accounts have appointments to sync; otherwise ask Claude to
   (`resolveSessionWithoutUser`), so it never makes MyChart send a 2FA code:
   nobody is there to type one. An account that has only a password and hits
   2FA fails with a hint to save a passkey. See
-  [`docs/login-modes.md`](../docs/login-modes.md).
+  [`docs/login-modes.md`](../../docs/login-modes.md).
 - **When a sync fails, three tries, then stop.** Any failure counts: a sign-in
   MyChart refuses, a network error, Google, or a run that crashed or hit the
   10-minute timeout. A failure is retried at the next four-hour sync. The third
@@ -292,7 +292,7 @@ unsupported and points at the saved copy.
 
 Viewing never writes to disk; only asking for a copy does. The decode runs here,
 on your machine either way: MyChart serves imaging as proprietary CLO, which
-[`scrapers/myChart/clo-image-parser/`](../scrapers/myChart/clo-image-parser/)
+[`scrapers/myChart/clo-image-parser/`](../../scrapers/myChart/clo-image-parser/)
 turns into pixels.
 
 ### Saving what Claude writes: `save_file`
@@ -370,9 +370,9 @@ Every read tool takes an optional `mode`:
 
 Claude asks for `standard`, `json` or `raw` by name when a concise answer is
 missing something. The field decisions per capability are in
-[`docs/processor-layer-proposal.md`](../docs/processor-layer-proposal.md);
+[`docs/processor-layer-proposal.md`](../../docs/processor-layer-proposal.md);
 example output in every mode is in
-[`docs/processor-layer-examples.md`](../docs/processor-layer-examples.md).
+[`docs/processor-layer-examples.md`](../../docs/processor-layer-examples.md).
 
 ## Privacy Policy
 
@@ -392,8 +392,12 @@ The short version, for what this extension does:
   by Anthropic's terms and privacy policy. Nothing passes through Fan Pier Labs.
 - **Telemetry.** We record basic usage stats and basic user info (eg email) to
   help improve our product. We do not send any medical information to our
-  server or to analytics services. You can disable by setting
-  `MYCHART_CLI_TELEMETRY_DISABLED=1`.
+  server or to analytics services. To turn it off, ask Claude to — the
+  `set_telemetry` tool. The choice is saved as `telemetryDisabled` in
+  `~/.openrecord.json`, so it outlasts restarts and updates and also covers the
+  calendar sync app and `mychart-cli` on that computer; asking Claude to turn it
+  back on reverses it. Setting `MYCHART_CLI_TELEMETRY_DISABLED=1` in the
+  extension's environment turns it off too.
 - **Update check.** At startup and daily it reads
   `openrecord.fanpierlabs.com/mcpb_version.json`; when this copy is behind, every tool result
   ends with a one-line notice (`clients/shared/mcp-server/update-notice.ts`). It sends nothing but the request,
@@ -415,9 +419,10 @@ The short version, for what this extension does:
   native binding used to reach the OS credential store — see below.
 - **Secrets live in the OS keystore** — the macOS Keychain, Windows Credential
   Manager, or the Secret Service on Linux, under service `openrecord-mcpb`,
-  three items per identity:
+  up to four items per identity:
   - `password:<hostname>:<username>`
   - `totp:<hostname>:<username>`
+  - `device:<hostname>:<username>` (health systems with their own login portal only — the remembered device id that lets a login skip 2FA)
   - `passkey:<hostname>:<username>` — a raw P-256 private key that logs in with
     neither password nor 2FA
 
@@ -480,6 +485,7 @@ clients/claude-desktop-extension/
     ├── index.ts            # stdio entry: startServer(MCPB_HOST) + the setup widget page
     ├── host.ts             # what this extension adds to the shared server (McpHost)
     ├── calendar-tools.ts   # connect_google_calendar / disconnect_google_calendar
+    ├── telemetry-tool.ts   # set_telemetry
     ├── google-calendar/    # the macOS menu-bar sync app
     └── setup-widget/       # the MCP Apps setup widget (React)
 ```
@@ -584,17 +590,23 @@ directory (a few minutes' crawl), packs, boots the packed server (`smoke.mjs`), 
 bundle to `openrecord-<old version>.mcpb`, uploads to
 `https://openrecord.fanpierlabs.com/openrecord.mcpb` (the splash page's Claude Desktop
 button), invalidates CloudFront, checks the live file matches what was packed, publishes it as the GitHub Release
-`mcpb-v<version>` (needs `gh` signed in), then runs `openrecord-splash/deploy.sh` to publish `mcpb_version.json`. That manifest also carries the
+`mcpb-v<version>` (needs `gh` signed in), runs `openrecord-splash/deploy.sh` to publish `mcpb_version.json`, and
+finally starts the MCP Registry workflow below. That manifest also carries the
 `mychart-cli` version, so publish a bumped CLI to npm before running it. It refuses a version
 `mcpb_version.json` already advertises, and if the live check fails it prints the command that
 restores the old bundle. A failed run can be re-run as is. Commit a refreshed directory list in
 a PR afterwards — the script says so when it changed.
 
-Publishing a GitHub Release tagged `mcpb-v<version>` triggers
-`.github/workflows/mcp-registry.yml`, which lists that version on the official MCP Registry as
+`.github/workflows/mcp-registry.yml` lists a release on the official MCP Registry as
 `io.github.Fan-Pier-Labs/openrecord`. It fills `server.json`'s version, download URL and SHA-256
-from the release, so the committed copy only needs editing for the description or metadata. To
-list a release again by hand, run the workflow from the Actions tab with its tag.
+from the release, so the committed copy only needs editing for the description or metadata. It
+runs only when `deploy.sh` starts it as its last step, never when the release is created: a
+re-run of a failed deploy replaces the release's bundle, and the registry rejects a second
+publish of a version, so a listing made between attempts would keep a hash the download no
+longer has. The script only starts the run — check it finished in the Actions tab. If the
+script could not start it, it prints the command to run by hand
+(`gh workflow run mcp-registry.yml --repo Fan-Pier-Labs/openrecord -f tag=mcpb-v<version>`);
+that is for a release not yet listed, since a version already listed is refused as a duplicate.
 
 **Don't sign the bundle.** `mcpb sign` appends a PKCS#7 block after the zip's end record, and
 Claude Desktop reads extensions with `yauzl`, which requires that record to be the file's last

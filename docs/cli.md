@@ -1,8 +1,8 @@
 # CLI — contributor notes
 
-**The user-facing reference is [`clients/npm-package/docs/cli.md`](../npm-package/docs/cli.md)**. It
+**The user-facing reference is [`clients/npm-package/docs/cli.md`](../clients/npm-package/docs/cli.md)**. It
 covers every flag, sign-in, output, family records, files and exit codes. Capabilities are in
-[`clients/npm-package/docs/capabilities.md`](../npm-package/docs/capabilities.md). This page only covers
+[`clients/npm-package/docs/capabilities.md`](../clients/npm-package/docs/capabilities.md). This page only covers
 what you need when working on the CLI itself.
 
 ## Running from a checkout
