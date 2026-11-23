@@ -12,6 +12,7 @@
 #   5b. publishes the bundle as GitHub Release mcpb-v<version>
 #   6. deploys the splash site, which regenerates mcpb_version.json — the file
 #      installed copies poll to learn a new version exists
+#   7. starts the workflow that lists the release on the MCP Registry
 #
 # Unsigned on purpose. `mcpb sign` appends its signature after the zip's end
 # record, and Claude Desktop's zip reader (yauzl) refuses the result with
@@ -29,6 +30,7 @@ REGION="us-east-2"
 BUCKET="openrecord-fanpierlabs-com"
 DIST_ID="EXUZ8GHUQ9ULF"   # CloudFront distribution for openrecord.fanpierlabs.com
 URL="https://openrecord.fanpierlabs.com/openrecord.mcpb"
+REPO="Fan-Pier-Labs/openrecord"
 EXT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$EXT_DIR/../.." && pwd)"
 INSTANCES="scrapers/list-all-mycharts/mychart-instances.json"
@@ -59,7 +61,7 @@ if [ "$VERSION" = "$LIVE_VERSION" ]; then
 fi
 echo "    releasing MCPB $VERSION (live: $LIVE_VERSION)"
 # Checked now so a missing login can't fail the run after the bundle is live.
-gh auth status >/dev/null
+gh auth status --hostname github.com >/dev/null
 
 echo "==> Installing dependencies"
 ( cd "$REPO_DIR" && bun install )
@@ -77,7 +79,7 @@ if [ "$(tail -c 22 "$EXT_DIR/openrecord.mcpb" | xxd -p | head -c 8)" != "504b050
   echo "!! openrecord.mcpb does not end with a zip end record — Claude Desktop will refuse it" >&2
   exit 1
 fi
-SHA="$(shasum "$EXT_DIR/openrecord.mcpb" | cut -d' ' -f1)"
+SHA="$(shasum -a 256 "$EXT_DIR/openrecord.mcpb" | cut -d' ' -f1)"
 
 # The only check that boots the packed server the way Claude Desktop does; CI
 # does not run it. `pack` just built dist/, so run smoke.mjs directly rather than
@@ -133,7 +135,7 @@ INVALIDATION_ID="$("${AWS[@]}" cloudfront create-invalidation --distribution-id 
 "${AWS[@]}" cloudfront wait invalidation-completed --distribution-id "$DIST_ID" --id "$INVALIDATION_ID"
 
 echo "==> Checking the live download"
-LIVE_SHA="$(curl -fsSL "$URL" | shasum | cut -d' ' -f1)"
+LIVE_SHA="$(curl -fsSL "$URL" | shasum -a 256 | cut -d' ' -f1)"
 if [ "$LIVE_SHA" != "$SHA" ]; then
   echo "!! $URL serves $LIVE_SHA, expected $SHA" >&2
   echo "   To restore $LIVE_VERSION:  $ROLLBACK" >&2
@@ -141,24 +143,28 @@ if [ "$LIVE_SHA" != "$SHA" ]; then
 fi
 
 # The GitHub Release is what the MCP Registry's mcpb entry points at (it only
-# accepts GitHub/GitLab release URLs), and its download count is our install
-# metric. Before the splash deploy, so a failure here is re-runnable: the
-# version guard above only trips once mcpb_version.json advertises $VERSION.
-SHA256="$(shasum -a 256 "$EXT_DIR/openrecord.mcpb" | cut -d' ' -f1)"
+# accepts GitHub/GitLab release URLs). Its download count covers installs
+# through GitHub and the registry only — the splash button and the in-app
+# update link download from CloudFront. Before the splash deploy, so a failure
+# here is re-runnable: the version guard above only trips once
+# mcpb_version.json advertises $VERSION.
 TAG="mcpb-v$VERSION"
-if gh release view "$TAG" --repo Fan-Pier-Labs/openrecord >/dev/null 2>&1; then
-  echo "==> Replacing the bundle on the existing GitHub Release $TAG"
-  gh release upload "$TAG" "$EXT_DIR/openrecord.mcpb" --repo Fan-Pier-Labs/openrecord --clobber
-else
-  echo "==> Publishing GitHub Release $TAG"
-  gh release create "$TAG" "$EXT_DIR/openrecord.mcpb" --repo Fan-Pier-Labs/openrecord \
-    --target "$(git -C "$REPO_DIR" rev-parse HEAD)" \
-    --title "Claude Desktop extension $VERSION" \
-    --notes "OpenRecord for Claude Desktop, version $VERSION.
+NOTES="OpenRecord for Claude Desktop, version $VERSION.
 
 Download \`openrecord.mcpb\` below and open it with Claude Desktop (macOS or Windows), then ask Claude to \"set up my MyChart\". The same bundle is served at $URL.
 
-SHA-256: \`$SHA256\`"
+SHA-256: \`$SHA\`"
+if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+  # A re-run packed again, so the hash in the first attempt's notes is stale.
+  echo "==> Replacing the bundle on the existing GitHub Release $TAG"
+  gh release upload "$TAG" "$EXT_DIR/openrecord.mcpb" --repo "$REPO" --clobber
+  gh release edit "$TAG" --repo "$REPO" --notes "$NOTES"
+else
+  echo "==> Publishing GitHub Release $TAG"
+  gh release create "$TAG" "$EXT_DIR/openrecord.mcpb" --repo "$REPO" \
+    --target "$(git -C "$REPO_DIR" rev-parse HEAD)" \
+    --title "Claude Desktop extension $VERSION" \
+    --notes "$NOTES"
 fi
 
 echo "==> Deploying the splash site (publishes mcpb_version.json)"
@@ -169,4 +175,14 @@ echo "==> Released MCPB $VERSION ($SHA)"
 echo "    $URL"
 if [ -n "$(git -C "$REPO_DIR" status --porcelain -- "$INSTANCES")" ]; then
   echo "    The refreshed $INSTANCES shipped in this bundle — commit it in a PR."
+fi
+
+# Last, once no re-run can replace the release's bundle: the registry records
+# the bundle's hash and a published version can never be corrected. Not fatal,
+# because the release is live and the version guard would refuse a re-run.
+REGISTRY=(gh workflow run mcp-registry.yml --repo "$REPO" -f "tag=$TAG")
+echo "==> Starting the MCP Registry publish for $TAG"
+if ! "${REGISTRY[@]}"; then
+  echo "!! Could not start the MCP Registry publish. The release itself is live; run this by hand:" >&2
+  echo "   ${REGISTRY[*]}" >&2
 fi

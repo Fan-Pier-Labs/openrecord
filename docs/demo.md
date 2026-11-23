@@ -87,7 +87,7 @@ without someone deciding to add it.
 ### The skill playbooks are abridged
 
 `demo/src/skills.ts` carries the same three skills as
-[`clients/expo-app/src/lib/skills/catalog.ts`](../expo-app/src/lib/skills/catalog.ts) — same ids, titles,
+[`clients/expo-app/src/lib/skills/catalog.ts`](../clients/expo-app/src/lib/skills/catalog.ts) — same ids, titles,
 kickoff messages, and closing lines — with shorter playbooks. Each one drops its
 sparse-data terminator (`analyze_history`'s "don't fabricate observations", `bill_itemization`'s
 "zero bills … say so plainly and stop", `recommend_insurance`'s "too thin to estimate … don't

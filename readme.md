@@ -150,7 +150,7 @@ bun run fix                  # ESLint auto-fix
 
 ## Telemetry
 
-The CLI and `mychart-cli` npm package send anonymous
+The CLI and `mychart-cli` npm package send
 usage events (event name, MyChart portal hostname, OS platform / arch /
 version, runtime version, plus a per-machine random UUID for dedupe).
 No public IP, OS hostname, OS username, git identity, or scraped chart
@@ -166,7 +166,7 @@ nothing else, and no chart content. It runs even with telemetry turned off.
 
 [Privacy policy](https://openrecord.fanpierlabs.com/privacy.html) — what stays on
 your device (everything scraped, plus your credentials), what leaves it (the AI
-call you make, and the anonymous events above), and who receives it for each
+call you make, and the usage events above), and who receives it for each
 client.
 
 ## License

@@ -75,6 +75,7 @@ interface ConnectArgs extends MyChartClientOptions {
   pass: string;
   skipSendCode?: boolean;         // don't ask MyChart to send an email/SMS code (use with TOTP)
   totpSecret?: string;            // lets a silent re-login answer 2FA by itself
+  trustedDeviceId?: string;       // Stanford Health Care only: a saved client.request.trustedDeviceId, skips 2FA
 }
 
 type ConnectResult =
@@ -496,7 +497,7 @@ Every read has the pair, for example `fetchLabResultsRaw` / `labResultsProcessor
 names and casing**. Derived fields get new names (`bodyText`, `instantISO`, `organizationName`),
 and HTML only appears in `raw`. No field is dropped for being empty. The reasoning and each
 capability's field contract are in
-[`docs/processor-layer-proposal.md`](../../docs/processor-layer-proposal.md).
+[`docs/processor-layer-proposal.md`](../../../docs/processor-layer-proposal.md).
 
 ## The capability registry
 
@@ -556,7 +557,7 @@ const directory = await fetchProviderDirectory(new MyChartRequest('mychart.examp
 | `fetchSchedulingQuestionnaire`, `submitSchedulingAnswers` | The open-scheduling questionnaire |
 
 Behaviour and the portal quirks behind each one are documented in
-[`scrapers/myChart/prelogin/README.md`](../../scrapers/myChart/prelogin/README.md).
+[`scrapers/myChart/prelogin/README.md`](../../../scrapers/myChart/prelogin/README.md).
 
 ## Directories: MyChart instances and the NPI Registry
 

@@ -1,10 +1,10 @@
 name: Publish to the MCP Registry
-# Lists each Claude Desktop extension release on registry.modelcontextprotocol.io.
-# deploy.sh creates the GitHub Release mcpb-v<version> with the user's own gh
-# login, which (unlike GITHUB_TOKEN) does trigger this workflow.
+# Lists a Claude Desktop extension release on registry.modelcontextprotocol.io.
+# Started by deploy.sh as its last step, never by the release being published:
+# a re-run of a failed deploy replaces the release's bundle, and the registry
+# cannot be corrected afterwards — a published version is immutable, so it
+# would keep the first attempt's hash and clients would refuse the download.
 on:
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
       tag:
@@ -13,7 +13,6 @@ on:
 
 jobs:
   publish:
-    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.release.tag_name, 'mcpb-v')
     runs-on: ubuntu-latest
     permissions:
       # OIDC is what grants the io.github.Fan-Pier-Labs/* namespace; the
@@ -21,7 +20,7 @@ jobs:
       id-token: write
       contents: read
     env:
-      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      TAG: ${{ inputs.tag }}
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
@@ -32,7 +31,9 @@ jobs:
           tar xzf mcp-publisher.tar.gz mcp-publisher
       # The registry stores the hash but never checks it; clients refuse to
       # install a bundle whose bytes don't match, so it has to come from the
-      # asset actually attached to the release.
+      # asset actually attached to the release. The npm entry takes the
+      # mychart-cli version in the repo at that tag, which must already be on
+      # npm: the registry checks it exists and that its mcpName matches.
       - name: Point server.json at this release
         working-directory: clients/claude-desktop-extension
         run: |
@@ -40,7 +41,10 @@ jobs:
           jq --arg v "${TAG#mcpb-v}" \
              --arg url "https://github.com/${{ github.repository }}/releases/download/$TAG/openrecord.mcpb" \
              --arg sha "$(sha256sum "$RUNNER_TEMP/openrecord.mcpb" | cut -d' ' -f1)" \
-             '.version = $v | .packages[0].identifier = $url | .packages[0].fileSha256 = $sha' \
+             --arg npm "$(jq -r .version ../npm-package/package.json)" \
+             '.version = $v
+              | (.packages[] | select(.registryType == "mcpb")) |= (.identifier = $url | .fileSha256 = $sha)
+              | (.packages[] | select(.registryType == "npm")).version = $npm' \
              server.json > "$RUNNER_TEMP/server.json"
           mv "$RUNNER_TEMP/server.json" server.json
           cat server.json

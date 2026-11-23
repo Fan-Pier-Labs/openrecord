@@ -28,11 +28,22 @@ mychart-cli --host mychart.example.org --action get_lab_results --mode concise
 | --- | --- |
 | **[CLI reference](docs/cli.md)** | Every flag, how sign-in works, output formats, family records, files and exit codes |
 | **[Library API reference](docs/api.md)** | `MyChartClient`, every method and return type, errors, imaging, raw scrapers, the capability registry |
+| **[MCP server](docs/mcp.md)** | `mychart-cli mcp`: OpenRecord in Claude Code, Cursor, VS Code and other MCP clients |
 | **[Capabilities](docs/capabilities.md)** | Every action you can run, with arguments, output modes and how ids chain |
 | **[Authentication](docs/authentication.md)** | Passkeys, TOTP, 2FA codes, sessions, and the `signCount` rule |
 | **[Recipes](docs/recipes.md)** | Export a chart, read clinical notes, download imaging, message a doctor, run unattended, wire up an AI agent |
 | **[Troubleshooting](docs/troubleshooting.md)** | Sign-in failures, refused reads, empty categories |
 | **[Changelog](CHANGELOG.md)** | Breaking changes by version |
+
+## Quick start: MCP server
+
+Give any MCP client your MyChart — this is the same server as the Claude Desktop extension:
+
+```bash
+claude mcp add openrecord -- npx -y mychart-cli mcp
+```
+
+Then ask it to "set up my MyChart". Other clients: [docs/mcp.md](docs/mcp.md).
 
 ## Quick start: CLI
 
@@ -149,7 +160,9 @@ you about new releases. That request reveals your IP address to the CDN, and not
 export MYCHART_CLI_TELEMETRY_DISABLED=1
 ```
 
-turns off the events. The update check always runs.
+turns off the events, and so does `"telemetryDisabled": true` in `~/.openrecord.json` — what the
+Claude Desktop extension's `set_telemetry` tool writes, so one opt-out covers both on a computer.
+The update check always runs.
 
 ## Privacy and safety
 
