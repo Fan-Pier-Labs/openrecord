@@ -49,6 +49,8 @@ export type StoredLoginParams = {
    * native-cookie fetch on device, jar-driven fetch on Node/Bun — on its own.)
    */
   passkey?: PasskeyCredential | null | undefined;
+  /** Saved `mychartRequest.trustedDeviceId` — lets a custom login portal (customPortals.ts) skip 2FA. */
+  trustedDeviceId?: string | null | undefined;
   /** 'http' for local fake-mychart; defaults to https. */
   protocol?: string | undefined;
   /** A passkey login succeeded — persist the bumped signature counter. */
@@ -143,6 +145,7 @@ async function loginLadder(
     pass: params.password,
     skipSendCode: !sendCode,
     protocol,
+    trustedDeviceId: params.trustedDeviceId,
   });
 
   if (userPass.state === 'logged_in') {

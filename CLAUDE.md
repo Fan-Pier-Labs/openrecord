@@ -88,7 +88,7 @@ fake server. **Never take an action that could trigger a 2FA SMS to the user wit
 | --- | --- |
 | `bun run lint` | ESLint — **type-aware**: install every package's deps and build `clients/npm-package` first, or it lints the wrong thing. See [`docs/testing.md`](docs/testing.md#lint) |
 | `bun run typecheck` | Typecheck the shared core (strict). CI also runs `clients/expo-app` and `clients/npm-package` (the latter needs `bun run build` first) |
-| `bun run test` | Every `*.unit.test.ts`. **Needs `cd clients/claude-desktop-extension && bun install` first** — the parity test imports the extension's real tools |
+| `bun run test` | Every `*.unit.test.ts`. **Needs `bun install` in `clients/shared` and `clients/claude-desktop-extension` first** — the parity test imports both |
 | `bun run test:integration` | Every `*.integration.test.ts` (needs the compose service + built CLI) |
 | `bun run test:coverage` | Unit + integration with the 75%-per-file gate — see [`docs/testing.md`](docs/testing.md) |
 | `bun run test:real-mychart` | Every `*.real-mychart.test.ts`, against a real account. By hand only |

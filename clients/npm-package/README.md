@@ -168,7 +168,9 @@ you about new releases. That request reveals your IP address to the CDN, and not
 export MYCHART_CLI_TELEMETRY_DISABLED=1
 ```
 
-turns off the events, `mychart-cli mcp`'s included. The update check always runs.
+turns off the events, `mychart-cli mcp`'s included, and so does `"telemetryDisabled": true` in
+`~/.openrecord.json` — what the Claude Desktop extension's `set_telemetry` tool writes, so one
+opt-out covers both on a computer. The update check always runs.
 
 ## Privacy and safety
 

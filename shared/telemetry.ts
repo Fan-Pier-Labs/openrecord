@@ -13,7 +13,8 @@
  *   user's email and MyChart username, and asks Amplitude to record the
  *   request's IP address.
  * - Opt out by setting `MYCHART_CLI_TELEMETRY_DISABLED` to any
- *   truthy value.
+ *   truthy value, or with `telemetryDisabled: true` in `~/.openrecord.json`,
+ *   which is what the MCPB's `set_telemetry` tool writes.
  *
  * Every event fans out to two independent sinks:
  *   1. Amplitude (product analytics UI)
@@ -62,7 +63,49 @@ const REQUEST_TIMEOUT_MS = 5000;
  * suites spawn stays quiet too. The telemetry suites set it back themselves.
  */
 export function isTelemetryDisabled(): boolean {
-  return Boolean(process.env.MYCHART_CLI_TELEMETRY_DISABLED) || process.env.NODE_ENV === 'test';
+  return Boolean(process.env.MYCHART_CLI_TELEMETRY_DISABLED) || process.env.NODE_ENV === 'test' || savedOptOut();
+}
+
+const configFile = () => path.join(os.homedir(), '.openrecord.json');
+
+/** `~/.openrecord.json`, or `{}` before it exists. Throws on one that can't be read or parsed. */
+function readConfig(): Record<string, unknown> {
+  let text: string;
+  try {
+    text = fs.readFileSync(configFile(), 'utf8');
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return {};
+    throw err;
+  }
+  return JSON.parse(text) as Record<string, unknown>;
+}
+
+function writeConfig(config: Record<string, unknown>): void {
+  fs.writeFileSync(configFile(), `${JSON.stringify(config, null, 2)}\n`, { mode: 0o600 });
+}
+
+/** Re-read on every event, so the CLI and the calendar app follow a choice made in the MCPB at once. */
+function savedOptOut(): boolean {
+  try {
+    return readConfig().telemetryDisabled === true;
+  } catch {
+    // A file we can't read may hold an opt-out, so nothing is sent until it is fixed.
+    return true;
+  }
+}
+
+/**
+ * Save this computer's telemetry choice in `~/.openrecord.json`. Throws when
+ * it can't be written, so no caller confirms an opt-out that didn't land.
+ */
+export function setTelemetryDisabled(disabled: boolean): void {
+  let config: Record<string, unknown> = {};
+  try {
+    config = readConfig();
+  } catch {
+    // Unreadable, so there is nothing in it to keep; the choice replaces it.
+  }
+  writeConfig({ ...config, telemetryDisabled: disabled });
 }
 
 /** Used only when `~/.openrecord.json` can't be read or written. */
@@ -75,15 +118,11 @@ let fallbackDeviceId: string | undefined;
  * a CLI run and the MCPB that start at once settle on whichever ID landed.
  */
 export function getAnonymousId(): string {
-  const file = path.join(os.homedir(), '.openrecord.json');
   try {
-    let config: Record<string, unknown> = {};
-    if (fs.existsSync(file)) {
-      config = JSON.parse(fs.readFileSync(file, 'utf8')) as Record<string, unknown>;
-      if (typeof config.deviceId === 'string' && config.deviceId) return config.deviceId;
-    }
+    const config = readConfig();
+    if (typeof config.deviceId === 'string' && config.deviceId) return config.deviceId;
     const fresh = randomUUID();
-    fs.writeFileSync(file, `${JSON.stringify({ ...config, deviceId: fresh }, null, 2)}\n`, { mode: 0o600 });
+    writeConfig({ ...config, deviceId: fresh });
     return fresh;
   } catch {
     // A corrupt file or a read-only home: don't overwrite it, but keep one ID
@@ -177,7 +216,7 @@ export function telemetryApp(): { name: string; version: string } | undefined {
 /**
  * Send a telemetry event to both sinks (Amplitude and our analytics
  * Lambda). Fire-and-forget. Never throws. Returns immediately when
- * telemetry is disabled via `MYCHART_CLI_TELEMETRY_DISABLED`.
+ * telemetry is disabled (`isTelemetryDisabled`).
  *
  * `source` identifies the client emitting the event ('cli', 'scraper',
  * 'mcpb', 'cli-mcp', …) and is only used by the self-hosted sink; Amplitude

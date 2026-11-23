@@ -4,6 +4,7 @@ import type { McpHost } from '../../shared/mcp-server/host';
 import { version } from '../manifest.json';
 import { registerCalendarTools } from './calendar-tools';
 import { calendarSyncStatus } from './google-calendar/applet';
+import { registerTelemetryTool } from './telemetry-tool';
 
 /**
  * The extension as a host of the shared MCP server. The setup widget's page is
@@ -12,6 +13,9 @@ import { calendarSyncStatus } from './google-calendar/applet';
 export const MCPB_HOST: McpHost = {
   app: 'mcpb',
   version,
-  registerExtraTools: registerCalendarTools,
+  registerExtraTools: (server) => {
+    registerCalendarTools(server);
+    registerTelemetryTool(server);
+  },
   listAccountsExtra: () => ({ calendarSync: calendarSyncStatus() }),
 };
