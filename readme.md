@@ -150,7 +150,7 @@ bun run fix                  # ESLint auto-fix
 
 ## Telemetry
 
-The CLI and `mychart-cli` npm package send anonymous
+The CLI and `mychart-cli` npm package send
 usage events (event name, MyChart portal hostname, OS platform / arch /
 version, runtime version, plus a per-machine random UUID for dedupe).
 No public IP, OS hostname, OS username, git identity, or scraped chart
