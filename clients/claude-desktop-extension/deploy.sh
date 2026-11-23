@@ -96,12 +96,14 @@ if [ ! -f "$HASHES" ]; then
   echo "!! $HASHES is missing — pack did not build the calendar binaries" >&2
   exit 1
 fi
-for ARCH in arm64 x64; do
-  HASH="$(node -p "require('$HASHES')['$ARCH']")"
-  NAME="openrecord-calendar-darwin-$ARCH-$HASH"
+for TARGET in darwin-arm64 darwin-x64 windows-x64 windows-arm64; do
+  HASH="$(node -p "require('$HASHES')['$TARGET']")"
+  NAME="openrecord-calendar-$TARGET-$HASH"
+  LOCAL="$EXT_DIR/applet/openrecord-calendar-$TARGET"
+  case "$TARGET" in windows-*) LOCAL="$LOCAL.exe" ;; esac
   if ! "${AWS[@]}" s3 ls "s3://$BUCKET/calendar/$NAME" >/dev/null 2>&1; then
     echo "==> Uploading s3://$BUCKET/calendar/$NAME"
-    "${AWS[@]}" s3 cp "$EXT_DIR/applet/openrecord-calendar-darwin-$ARCH" "s3://$BUCKET/calendar/$NAME" \
+    "${AWS[@]}" s3 cp "$LOCAL" "s3://$BUCKET/calendar/$NAME" \
       --content-type application/octet-stream \
       --cache-control "public, max-age=31536000, immutable" \
       --only-show-errors

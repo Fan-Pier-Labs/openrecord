@@ -159,7 +159,7 @@ machine and have no counterpart in the other clients.
 > Send a message to Dr. Smith asking about my latest blood pressure reading.
 > Show me my last imaging study.
 
-### Google Calendar sync (macOS)
+### Google Calendar sync (macOS and Windows)
 
 `connect_google_calendar` puts every connected account's upcoming appointments on
 a Google calendar and keeps them there. The setup widget offers it after **I'm
@@ -170,8 +170,8 @@ done** when the accounts have appointments to sync; otherwise ask Claude to
   creates a "MyChart Appointments" calendar and can see and change only that one.
   It never reads the user's other calendars.
 - **All TypeScript, one binary.** `src/google-calendar/worker.ts` is compiled
-  with `bun build --compile --aot` into `openrecord-calendar`, one binary per Mac
-  architecture, using this extension's own scrapers, credential store and passkeys:
+  with `bun build --compile --aot` into `openrecord-calendar`, one binary per OS
+  and architecture (macOS and Windows, arm64 and x64), using this extension's own scrapers, credential store and passkeys:
   `tray` (the menu-bar item), `connect` (loopback + PKCE consent in the
   browser), `sync` (one pass) and `disconnect`.
 - **The menu-bar item** (`tray.ts`) drives AppKit through `bun:ffi` (`objc.ts`).
@@ -200,20 +200,33 @@ done** when the accounts have appointments to sync; otherwise ask Claude to
   `UNUserNotificationCenter` refuses a binary that isn't an app bundle), and the
   menu says why. **Sync Now** retries everything with the count reset to zero, and so does
   connecting again.
+- **On Windows** the same binary's `tray` mode is a notification-area icon
+  (`tray-windows.ts`, Win32 through `bun:ffi`). It uses the same model: a hidden
+  window's `GetMessageW` loop owns the thread, and clicks, timers and
+  resume-from-sleep call into JS. The sync runs through `CreateProcessW`. The
+  icon is drawn in code (`tray-icon.ts`), and the struct layouts are in
+  `win32-structs.ts`, tested byte for byte. The binary is built GUI-subsystem
+  (`--windows-hide-console`), so no console window opens. It starts at sign-in
+  from the per-user Run key (`HKCU\…\Run`, value "OpenRecord Calendar"), and
+  Windows tools are called by `System32` path. Credential Manager has no
+  per-app access, so there's no "Always Allow" prompt. The Windows binaries are
+  unsigned, and **the tray has not yet been run on a real Windows machine**.
 - **Install.** The binaries are not in the `.mcpb`, which would be ~200 MB
   bigger. `deploy.sh` uploads them beside it as
-  `https://openrecord.fanpierlabs.com/calendar/openrecord-calendar-darwin-<arch>-<sha256>`.
+  `https://openrecord.fanpierlabs.com/calendar/openrecord-calendar-<os>-<arch>-<sha256>`.
   Content-addressed names make them immutable, so every released bundle keeps
   finding its own. What ships is `applet/calendar-binaries.json`, the SHA-256 per
-  architecture. On first connect the tool downloads the matching binary and
+  OS and architecture. On first connect the tool downloads the matching binary and
   installs it at `~/.openrecord-mcpb/bin/openrecord-calendar` only if the
   download's hash matches. It downloads nothing when that binary is already
   installed. A checkout that ran `build:applet` uses its local build instead.
   It then runs `connect` and a first `sync`, and writes
   `~/Library/LaunchAgents/com.fanpierlabs.openrecord.calendar.plist`
-  (`openrecord-calendar tray`) so it starts at login.
+  (`openrecord-calendar tray`) so it starts at login. On Windows it installs
+  `openrecord-calendar.exe`, sets the Run key and starts the tray.
 - **Uninstall.** `disconnect_google_calendar` revokes the Google grant, then
-  unloads and deletes the LaunchAgent and the log. It keeps the binary in
+  unloads and deletes the LaunchAgent and the log (on Windows: ends the tray
+  and deletes the Run key). It keeps the binary in
   `~/.openrecord-mcpb/bin`, so turning sync back on skips the download (delete it
   to remove it completely). It also keeps the calendar ID, as Turn Off does.
 - **Updates.** When sync is on, the MCPB checks the installed binary's hash at
@@ -250,7 +263,8 @@ done** when the accounts have appointments to sync; otherwise ask Claude to
   fails without one), so that approval survives updates.
 - **Build.** `bun run build:applet` (part of `bun run pack`, so packing needs a
   Mac with the Developer ID) writes
-  `applet/openrecord-calendar-darwin-{arm64,x64}` (about 96 and 106 MB) and
+  `applet/openrecord-calendar-darwin-{arm64,x64}` (about 96 and 106 MB),
+  `applet/openrecord-calendar-windows-{x64,arm64}.exe` (about 124 and 109 MB) and
   `applet/calendar-binaries.json`. It bakes
   in the Google "Desktop app" OAuth client from
   `~/.config/fan-pier-labs/google-oauth-client.json`, which is never committed,

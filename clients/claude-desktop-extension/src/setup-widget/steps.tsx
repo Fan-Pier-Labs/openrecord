@@ -378,11 +378,11 @@ export function CalendarOffer({ step, onConnect, onSkip }: { step: StepOf<'calen
         <p><strong>You have {appts}.</strong> Want them on your Google Calendar?</p>
         <ul>
           <li><strong>Its own calendar.</strong> OpenRecord adds a "MyChart Appointments" calendar and can only see and change that one, never your other calendars.</li>
-          <li><strong>Kept up to date.</strong> A small menu-bar app starts when you log in and syncs every 4 hours. New, moved and canceled appointments follow.</li>
+          <li><strong>Kept up to date.</strong> A small calendar icon in your menu bar (Mac) or system tray (Windows) starts when you sign in and syncs every 4 hours. New, moved and canceled appointments follow.</li>
           <li><strong>Sign in with Google.</strong> Your browser opens Google's sign-in page. Finish there, then come back here.</li>
           <li><strong>macOS will ask too.</strong> It notes the new menu-bar app, and later asks whether it may use your saved MyChart sign-in. Choose "Always Allow".</li>
         </ul>
-        <p className="passkey-note">All appointment details will be sent to Google Calendar. Turn it off any time from the menu-bar app.</p>
+        <p className="passkey-note">All appointment details will be sent to Google Calendar. Turn it off any time from that icon.</p>
       </div>
       <div className="actions">
         <BusyButton busy={busy} busyLabel="Waiting for Google sign-in…" autoFocus onClick={() => void run(onConnect)}>

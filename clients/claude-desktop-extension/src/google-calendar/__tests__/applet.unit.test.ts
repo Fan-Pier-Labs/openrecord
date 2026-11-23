@@ -22,13 +22,15 @@ const PLIST = path.join(LIBRARY, 'LaunchAgents', 'com.fanpierlabs.openrecord.cal
 // applet.ts resolves applet/ from its own directory's parent: src/ here, the extension root once bundled into dist/.
 const APPLET = path.resolve(import.meta.dir, '..', '..', 'applet');
 const LOCAL_BUILD = path.join(APPLET, `openrecord-calendar-darwin-${process.arch}`);
+const LOCAL_BUILD_WIN = path.join(APPLET, `openrecord-calendar-windows-${process.arch}.exe`);
+const WORKER_WIN = `${WORKER}.exe`;
 const HASHES = path.join(APPLET, 'calendar-binaries.json');
 const LOG = path.join(LIBRARY, 'Logs', 'OpenRecord Calendar.log');
 const sha256 = (s: string) => crypto.createHash('sha256').update(s).digest('hex');
 
 const files = new Map<string, string>();
 const ours = (p: unknown): p is string =>
-  typeof p === 'string' && (p.startsWith(ROOT) || p.startsWith(LIBRARY) || p === LOCAL_BUILD || p === HASHES);
+  typeof p === 'string' && (p.startsWith(ROOT) || p.startsWith(LIBRARY) || p === LOCAL_BUILD || p === LOCAL_BUILD_WIN || p === HASHES);
 const enoent = () => Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
 
 const fsMock = {
@@ -60,22 +62,36 @@ const fsMock = {
 void mock.module('fs', () => fsMock);
 void mock.module('node:fs', () => fsMock);
 
+// The file name of a macOS or a Windows path, whichever the code under test built.
+const base = (file: string) => file.split(/[\\/]/).pop()!;
+
 /** Every command run, and what the calendar binary answers per subcommand. */
 let commands: string[][] = [];
 let replies: Record<string, string> = {};
 let bootstrapFails = false;
+let runKeySet = false;
+let launched: string[][] = [];
 type Done = (err: Error | null, stdout: string, stderr: string) => void;
 void mock.module('child_process', () => ({
   execFile: (file: string, args: string[], _opts: unknown, done: Done) => {
-    commands.push([path.basename(file), ...args]);
-    if (file === WORKER) {
+    commands.push([base(file), ...args]);
+    if (file === WORKER || file === WORKER_WIN) {
       const out = replies[args[0]!];
       done(out === undefined ? Object.assign(new Error('crashed'), { code: 1 }) : null, out ?? '', '');
     } else if (args[0] === 'bootstrap' && bootstrapFails) {
       done(Object.assign(new Error('bootstrap'), { code: 5 }), '', '');
     } else {
+      if (base(file) === 'reg.exe' && args[0] === 'add') runKeySet = true;
       done(null, '', '');
     }
+  },
+  execFileSync: (file: string, args: string[]) => {
+    if (base(file) === 'reg.exe' && args[0] === 'query' && runKeySet) return '';
+    throw new Error('not found');
+  },
+  spawn: (file: string, args: string[]) => {
+    launched.push([base(file), ...args]);
+    return { unref() {} };
   },
 }));
 
@@ -96,7 +112,7 @@ let requested: string[] = [];
 beforeEach(() => {
   files.clear();
   files.set(LOCAL_BUILD, 'binary');
-  files.set(HASHES, JSON.stringify({ [process.arch]: sha256('binary') }));
+  files.set(HASHES, JSON.stringify({ [`darwin-${process.arch}`]: sha256('binary') }));
   served = null;
   requested = [];
   setTestTransport(async (url) => {
@@ -106,6 +122,73 @@ beforeEach(() => {
   commands = [];
   replies = { connect: '{"ok":true}', sync: '{"ok":true,"synced":2,"accounts":[]}', disconnect: '{"ok":true}' };
   bootstrapFails = false;
+  runKeySet = false;
+  launched = [];
+});
+
+describe('on Windows', () => {
+  const asWindows = async (fn: () => Promise<void>) => {
+    Object.defineProperty(process, 'platform', { value: 'win32' });
+    try {
+      await fn();
+    } finally {
+      Object.defineProperty(process, 'platform', { value: 'darwin' });
+    }
+  };
+
+  const withWindowsBuild = () => {
+    files.delete(LOCAL_BUILD);
+    files.set(LOCAL_BUILD_WIN, 'exe');
+    files.set(HASHES, JSON.stringify({ [`windows-${process.arch}`]: sha256('exe') }));
+  };
+
+  it('stops the old tray, installs the .exe, connects, syncs, and starts the tray now and at every sign-in', async () => {
+    withWindowsBuild();
+    await asWindows(async () => {
+      expect(applet.calendarSyncStatus().enabled).toBe(false);
+      const { sync } = await applet.connectGoogleCalendar();
+      expect(sync.synced).toBe(2);
+      files.set(path.join(ROOT, 'google-calendar.json'), JSON.stringify({ connectedAt: 'x' }));
+      expect(applet.calendarSyncStatus().enabled).toBe(true);
+    });
+    expect(commands.map((c) => c.slice(0, 2).join(' '))).toEqual([
+      'taskkill.exe /F', 'openrecord-calendar.exe connect', 'openrecord-calendar.exe sync', 'reg.exe add',
+    ]);
+    const regAdd = commands.at(-1)!;
+    expect(regAdd.slice(1, 5)).toEqual(['add', applet.RUN_KEY, '/v', applet.RUN_VALUE]);
+    expect(regAdd.at(-2)).toBe(`"${WORKER_WIN}" tray`);
+    expect(launched).toEqual([['openrecord-calendar.exe', 'tray']]);
+    expect(files.get(WORKER_WIN)).toBe('exe');
+  });
+
+  it('downloads the Windows binary by its own name', async () => {
+    withWindowsBuild();
+    files.delete(LOCAL_BUILD_WIN);
+    served = 'exe';
+    await asWindows(() => applet.connectGoogleCalendar().then(() => undefined));
+    expect(requested).toEqual([`${applet.DOWNLOAD_BASE}openrecord-calendar-windows-${process.arch}-${sha256('exe')}`]);
+    expect(files.get(WORKER_WIN)).toBe('exe');
+  });
+
+  it('stops the tray and removes the Run key on uninstall', async () => {
+    withWindowsBuild();
+    await asWindows(async () => {
+      await applet.connectGoogleCalendar();
+      commands = [];
+      await applet.uninstallGoogleCalendar();
+    });
+    expect(commands.map((c) => c.slice(0, 2).join(' '))).toEqual([
+      'openrecord-calendar.exe disconnect', 'taskkill.exe /F', 'reg.exe delete',
+    ]);
+    expect(files.get(WORKER_WIN)).toBe('exe');
+  });
+
+  it('refuses on a build without the Windows binary', async () => {
+    await asWindows(async () => {
+      await expect(applet.connectGoogleCalendar()).rejects.toThrow('does not include Google Calendar sync for this computer');
+    });
+    expect(commands).toEqual([]);
+  });
 });
 
 describe('connectGoogleCalendar', () => {
@@ -167,10 +250,10 @@ describe('connectGoogleCalendar', () => {
 
   it('refuses where it cannot run', async () => {
     files.delete(HASHES);
-    await expect(applet.connectGoogleCalendar()).rejects.toThrow('does not include Google Calendar sync for this Mac');
-    Object.defineProperty(process, 'platform', { value: 'win32' });
+    await expect(applet.connectGoogleCalendar()).rejects.toThrow('does not include Google Calendar sync for this computer');
+    Object.defineProperty(process, 'platform', { value: 'linux' });
     try {
-      await expect(applet.connectGoogleCalendar()).rejects.toThrow('needs macOS');
+      await expect(applet.connectGoogleCalendar()).rejects.toThrow('needs macOS or Windows');
     } finally {
       Object.defineProperty(process, 'platform', { value: 'darwin' });
     }
@@ -226,7 +309,7 @@ describe('updateInstalledBinary', () => {
     files.set(WORKER, 'binary');
     await applet.updateInstalledBinary();
     files.clear();
-    files.set(HASHES, JSON.stringify({ [process.arch]: sha256('binary') }));
+    files.set(HASHES, JSON.stringify({ [`darwin-${process.arch}`]: sha256('binary') }));
     files.set(WORKER, 'old build');
     await applet.updateInstalledBinary();
     expect(commands).toEqual([]);
@@ -274,5 +357,19 @@ describe('buildAuthUrl', () => {
     expect(url.searchParams.get('access_type')).toBe('offline');
     expect(url.searchParams.get('code_challenge_method')).toBe('S256');
     expect(url.searchParams.get('redirect_uri')).toBe('http://127.0.0.1:5555');
+  });
+});
+
+describe('system32', () => {
+  it('names Windows tools by absolute path', () => {
+    const saved = process.env.SystemRoot;
+    process.env.SystemRoot = 'D:\\Win';
+    try {
+      expect(applet.system32('reg')).toBe('D:\\Win\\System32\\reg.exe');
+      delete process.env.SystemRoot;
+      expect(applet.system32('reg')).toBe('C:\\Windows\\System32\\reg.exe');
+    } finally {
+      if (saved !== undefined) process.env.SystemRoot = saved;
+    }
   });
 });

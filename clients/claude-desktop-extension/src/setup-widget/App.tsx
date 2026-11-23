@@ -55,8 +55,8 @@ export function App({ host }: { host: Host }) {
   // message reports how they went rather than asking Claude to make them again.
   const done = async () => {
     dispatch({ type: 'done' });
-    // The sync runs from a macOS menu-bar app; elsewhere there is nothing to offer, so read no charts.
-    const canSync = navigator.userAgent.includes('Mac');
+    // The sync runs from a macOS menu-bar or Windows tray icon; elsewhere there is nothing to offer, so read no charts.
+    const canSync = /Mac|Windows/.test(navigator.userAgent);
     const [accounts, ...visits] = await Promise.all([
       host.callTool('list_accounts', {}),
       ...(canSync ? state.connected.map((c) => host.callTool('get_upcoming_visits', { account: c.account, mode: 'json' })) : []),
