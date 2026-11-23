@@ -1,8 +1,8 @@
 // Copyright (c) Fan Pier Labs. Use of this software is governed by the LICENSE file in the project root.
 
 /**
- * Tells someone on an old .mcpb (or mychart-cli) that a new one is out, at the
- * bottom of every tool result. The server has no UI of its own between calls,
+ * Tells someone on an old mychart-cli that a new one is out, at the bottom of
+ * every tool result. (The .mcpb updates itself; see its src/launcher/.) The server has no UI of its own between calls,
  * so a tool result is the only place a notice can reach the user.
  *
  * The check runs in the background — at startup, then daily, since Claude

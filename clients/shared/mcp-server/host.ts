@@ -18,8 +18,3 @@ export interface McpHost {
   /** Extra top-level fields for list_accounts' result. */
   listAccountsExtra?: () => Record<string, unknown>;
 }
-
-/** Which release the update notice compares against. */
-export function updateTarget(host: McpHost): 'mcpb' | 'cli' {
-  return host.app === 'mcpb' ? 'mcpb' : 'cli';
-}

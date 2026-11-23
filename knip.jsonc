@@ -47,7 +47,6 @@
         "jpeg-js",
         "pica",
         "cheerio",
-        "compare-versions",
         "fetch-cookie",
         "html-to-text",
         "@types/html-to-text",
