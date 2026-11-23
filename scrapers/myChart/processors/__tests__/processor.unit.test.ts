@@ -97,13 +97,43 @@ describe('RawCollector failed answers', () => {
     expect(error!.status).toBe(500);
     expect(error!.path).toBe('/api/allergies/LoadAllergies');
     expect(error!.message).toContain('POST /api/allergies/LoadAllergies with HTTP 500 (text/html; charset=utf-8)');
-    // The message goes to error reporting, and a MyChart page can carry the patient's name.
-    expect(error!.message).not.toContain('An error has occurred');
-    expect(error!.detailedMessage).toContain('An error has occurred. Please try again later.');
-    expect(error!.detailedMessage).not.toContain('<h1>');
+    // The message goes to error reporting, so it quotes nothing; the detailed one quotes the page's title.
+    expect(error!.message).not.toContain('"Error"');
+    expect(error!.detailedMessage).toContain('with HTTP 500 (text/html; charset=utf-8): "Error". The request failed');
     // The answer is still in the envelope for whoever catches this.
     expect(collector.requests).toHaveLength(1);
     expect(collector.requests[0]).toMatchObject({ status: 500, body: ERROR_PAGE });
+  });
+
+  // A signed-in page opens with the print header, so quoting the start of its
+  // body quoted the patient's name, date of birth and MRN and not the error.
+  const PRINT_HEADER = '<div class="printheader">Name: Homer Simpson | DOB: 5/12/1956 | MRN: 742 | PCP: Julius Hibbert, MD</div>';
+  const PATIENT_HEADER_RE = /Homer|Simpson|1956|742|Hibbert/;
+
+  it('quotes a signed-in error page by its title, never its body', async () => {
+    const page =
+      `<!DOCTYPE html><html><head><meta charset="utf-8"><title>MyChart - Oops!</title><style>h1 { color: red }</style></head><body>` +
+      `${PRINT_HEADER}<header><svg><title>Homer Simpson</title></svg></header><h1>Oops!</h1><p>Sorry. We could not find the page you requested.</p></body></html>`;
+    const req = mockRequest([{ body: page, status: 500, contentType: 'text/html; charset=utf-8' }]);
+    const error = await new RawCollector(req)
+      .pageToken('/Community/Manage')
+      .then(() => null, (e: unknown) => e as MyChartResponseError);
+    expect(error!.detailedMessage).toContain(': "MyChart - Oops!". The request failed');
+    expect(error!.detailedMessage).not.toMatch(PATIENT_HEADER_RE);
+    expect(error!.message).not.toMatch(PATIENT_HEADER_RE);
+  });
+
+  it('quotes nothing from markup that has no title of its own', async () => {
+    const req = mockRequest([{ body: `${PRINT_HEADER}<svg><title>Homer Simpson</title></svg><p>Not available.</p>`, status: 500, contentType: 'text/html' }]);
+    const error = await new RawCollector(req).send({ path: '/api/x' }).then(() => null, (e: unknown) => e as MyChartResponseError);
+    expect(error!.detailedMessage).toBe(error!.message);
+  });
+
+  it('still quotes a body that is not markup, in the detailed message only', async () => {
+    const req = mockRequest([{ body: '{"Message":"An error has occurred."}', status: 500 }]);
+    const error = await new RawCollector(req).send({ path: '/api/x' }).then(() => null, (e: unknown) => e as MyChartResponseError);
+    expect(error!.detailedMessage).toContain('{"Message":"An error has occurred."}');
+    expect(error!.message).not.toContain('An error has occurred');
   });
 
   it('throws on a 4xx too — a Cloudflare challenge is a 403 with a page, not an empty chart', async () => {
