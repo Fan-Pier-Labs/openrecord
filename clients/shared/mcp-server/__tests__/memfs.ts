@@ -10,9 +10,9 @@
  *
  * **Scoped on purpose.** `cd clients/claude-desktop-extension && bun test` runs every
  * file in ONE process, and `imaging/__tests__/encode.test.ts` reads real fixture
- * files. So the mock intercepts only paths under the credential-store root and
- * delegates everything else to the real `fs`. A blanket mock would break the
- * other suites in the same run.
+ * files. So the mock intercepts only paths under the credential-store root (and
+ * telemetry's one file) and delegates everything else to the real `fs`. A
+ * blanket mock would break the other suites in the same run.
  *
  * Nothing under the root ever reaches real `fs`: the delegate throws if such a
  * path reaches it, which turns any gap in this shim into a loud failure rather
@@ -57,7 +57,15 @@ interface Entry {
 const files = new Map<string, Entry>()
 const dirs = new Set<string>()
 
-const isStorePath = (p: unknown): boolean => typeof p === 'string' && p.startsWith(ROOT)
+/**
+ * Telemetry's device id and opt-out (shared/telemetry.ts). Owned here too, so a
+ * suite that switches telemetry on neither writes the developer's own file nor
+ * goes quiet because they have opted out.
+ */
+export const TELEMETRY_CONFIG = path.join(os.homedir(), '.openrecord.json')
+
+const isStorePath = (p: unknown): boolean =>
+  typeof p === 'string' && (p.startsWith(ROOT) || p === TELEMETRY_CONFIG)
 
 function guardDelegate(p: unknown): void {
   if (isStorePath(p)) {

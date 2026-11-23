@@ -397,8 +397,13 @@ The short version, for what this extension does:
   A failed call also sends its error and stack, and the error goes to Sentry.
   The email is attached to the per-computer `deviceId` in `~/.openrecord.json`,
   which the CLI shares, so that computer's other events are tied to it too.
-  Nothing else from your chart is sent. `MYCHART_CLI_TELEMETRY_DISABLED=1`
-  turns all of it off, the MyChart email lookup included.
+  Nothing else from your chart is sent. To turn all of it off, the MyChart
+  email lookup included, ask Claude to — the `set_telemetry` tool. The choice
+  is saved as `telemetryDisabled` in `~/.openrecord.json`, so it outlasts
+  restarts and updates and also covers the calendar sync app and `mychart-cli`
+  on that computer; asking Claude to turn it back on reverses it. Setting
+  `MYCHART_CLI_TELEMETRY_DISABLED=1` in the extension's environment turns it
+  off too.
 - **Update check.** At startup and daily it reads
   `openrecord.fanpierlabs.com/mcpb_version.json`; when this copy is behind, every tool result
   ends with a one-line notice (`clients/shared/mcp-server/update-notice.ts`). It sends nothing but the request,
@@ -486,6 +491,7 @@ clients/claude-desktop-extension/
     ├── index.ts            # stdio entry: startServer(MCPB_HOST) + the setup widget page
     ├── host.ts             # what this extension adds to the shared server (McpHost)
     ├── calendar-tools.ts   # connect_google_calendar / disconnect_google_calendar
+    ├── telemetry-tool.ts   # set_telemetry
     ├── google-calendar/    # the macOS menu-bar sync app
     └── setup-widget/       # the MCP Apps setup widget (React)
 ```
