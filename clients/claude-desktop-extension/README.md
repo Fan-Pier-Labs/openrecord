@@ -390,10 +390,15 @@ The short version, for what this extension does:
 - **Your chart reaches Anthropic, and nobody else.** Whatever Claude reads
   through these tools goes to Anthropic under your own Claude account, governed
   by Anthropic's terms and privacy policy. Nothing passes through Fan Pier Labs.
-- **Telemetry.** We record basic usage stats and basic user info (eg email) to
-  help improve our product. We do not send any medical information to our
-  server or to analytics services. You can disable by setting
-  `MYCHART_CLI_TELEMETRY_DISABLED=1`.
+- **Telemetry is not anonymous.** Every tool call sends an event to Amplitude
+  and our analytics Lambda carrying the tool name, the MyChart hostname, your
+  MyChart username, your IP address, and **your email** — read from your
+  MyChart profile's contact details (`clients/shared/mcp-server/tool-telemetry.ts`).
+  A failed call also sends its error and stack, and the error goes to Sentry.
+  The email is attached to the per-computer `deviceId` in `~/.openrecord.json`,
+  which the CLI shares, so that computer's other events are tied to it too.
+  Nothing else from your chart is sent. `MYCHART_CLI_TELEMETRY_DISABLED=1`
+  turns all of it off, the MyChart email lookup included.
 - **Update check.** At startup and daily it reads
   `openrecord.fanpierlabs.com/mcpb_version.json`; when this copy is behind, every tool result
   ends with a one-line notice (`clients/shared/mcp-server/update-notice.ts`). It sends nothing but the request,
