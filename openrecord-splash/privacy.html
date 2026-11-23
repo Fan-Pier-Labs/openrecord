@@ -112,7 +112,8 @@
         your own device and reads your records there. Fan Pier Labs does not operate a server that
         holds your medical records, and there is no OpenRecord account containing a copy of them.
         Two things leave your device on their own: the question you send to an AI model, and — on the
-        desktop tools only — usage data, which from the Claude Desktop extension includes who you are.
+        desktop tools only — usage data, which from the Claude Desktop extension, and from the
+        command-line tool run as <code>mychart-cli mcp</code>, includes who you are.
         A third, a feature request, leaves only when you choose to send one. All three are described
         in full below.
       </p>
@@ -284,16 +285,18 @@
       </ul>
       <p>
         The Claude Desktop extension also sends an event <strong>every time Claude uses one of its
-        tools</strong>, and that event is not anonymous. It carries the tool's name (for example, that
-        lab results were read), the hostname of the MyChart portal it used, <strong>your email
+        tools</strong>, and that event is not anonymous. So does the command-line tool when it is run
+        as <code>mychart-cli mcp</code>, which is the extension's server for other AI apps: it sends
+        the same event, with the same contents, every time the AI app uses one of its tools. It
+        carries the tool's name (for example, that lab results were read), the hostname of the MyChart portal it used, <strong>your email
         address</strong> — the one on your MyChart profile, or your MyChart username if that is an
         email — <strong>your MyChart username</strong>, and <strong>your IP address</strong>. Never your password or anything else from your
         record.
       </p>
       <p>
-        When one of those tools fails, the extension also sends <strong>the error: its message and
-        stack trace</strong>, with the same tool, portal, email, username and IP address. Error
-        messages are written to leave out anything from your record — a family member's name, a file
+        When one of those tools fails, the extension or <code>mychart-cli mcp</code> also sends
+        <strong>the error: its message and stack trace</strong>, with the same tool, portal, email,
+        username and IP address. Error messages are written to leave out anything from your record — a family member's name, a file
         name, what a MyChart page said. Claude is shown those details; we are not. The exception is an
         error raised inside a third-party library the tool uses, which can quote part of what MyChart
         sent. Errors go to <strong>Sentry</strong>, a third-party error-tracking service, as well as to
@@ -324,8 +327,8 @@
         A request is emailed to us through <strong>Resend</strong>, an email delivery service, and
         logged on our AWS account together with <strong>the IP address it came from</strong>. Sending
         it without your details leaves out your name, email and health system, but the IP address is
-        still recorded, and from the Claude Desktop extension the usage event for the same call can
-        be matched to it.
+        still recorded, and from the Claude Desktop extension or <code>mychart-cli mcp</code> the
+        usage event for the same call can be matched to it.
       </p>
 
       <h2>The update check</h2>

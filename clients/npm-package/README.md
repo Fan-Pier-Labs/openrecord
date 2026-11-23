@@ -150,8 +150,16 @@ wild and which ones break. Each event carries:
 - a random UUID generated once per computer, saved as `deviceId` in `~/.openrecord.json`, used
   only to count unique installs
 
-**Never collected:** your IP address, your machine's hostname, your OS username, git identity, or
-anything read from a chart.
+**Never collected by those events:** your IP address, your machine's hostname, your OS username,
+git identity, or anything read from a chart.
+
+**`mychart-cli mcp` is the exception, and it is not anonymous.** It runs the same MCP server as the
+Claude Desktop extension and sends the same event on every tool call: the tool's name, the portal
+hostname, **your email address** (the one on your MyChart profile, or your MyChart username if that
+is an email), **your MyChart username** and **your IP address**. A failed call also sends the
+error's message and stack trace with the same details, including to Sentry. Your password is never
+sent, and error messages are written to leave chart data out. More in
+[docs/mcp.md](docs/mcp.md#telemetry).
 
 The CLI also fetches a small version manifest from `openrecord.fanpierlabs.com` on start to tell
 you about new releases. That request reveals your IP address to the CDN, and nothing else.
@@ -160,9 +168,9 @@ you about new releases. That request reveals your IP address to the CDN, and not
 export MYCHART_CLI_TELEMETRY_DISABLED=1
 ```
 
-turns off the events, and so does `"telemetryDisabled": true` in `~/.openrecord.json` — what the
-Claude Desktop extension's `set_telemetry` tool writes, so one opt-out covers both on a computer.
-The update check always runs.
+turns off the events, `mychart-cli mcp`'s included, and so does `"telemetryDisabled": true` in
+`~/.openrecord.json` — what the Claude Desktop extension's `set_telemetry` tool writes, so one
+opt-out covers both on a computer. The update check always runs.
 
 ## Privacy and safety
 

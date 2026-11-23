@@ -8,9 +8,10 @@
  *   from identifying information.
  * - Event payload is event name + properties + OS platform/arch +
  *   runtime version. No OS hostname, no git config.
- * - An event sent with a `user` (the MCPB's per-tool-call event) is NOT
- *   anonymous: it carries the user's email and MyChart username, and asks
- *   Amplitude to record the request's IP address.
+ * - An event sent with a `user` (the MCP server's per-tool-call event, from
+ *   the MCPB and from `mychart-cli mcp`) is NOT anonymous: it carries the
+ *   user's email and MyChart username, and asks Amplitude to record the
+ *   request's IP address.
  * - Opt out by setting `MYCHART_CLI_TELEMETRY_DISABLED` to any
  *   truthy value, or with `telemetryDisabled: true` in `~/.openrecord.json`,
  *   which is what the MCPB's `set_telemetry` tool writes.
@@ -218,7 +219,7 @@ export function telemetryApp(): { name: string; version: string } | undefined {
  * telemetry is disabled (`isTelemetryDisabled`).
  *
  * `source` identifies the client emitting the event ('cli', 'scraper',
- * 'openclaw', …) and is only used by the self-hosted sink; Amplitude
+ * 'mcpb', 'cli-mcp', …) and is only used by the self-hosted sink; Amplitude
  * distinguishes clients by event name. `error` rides along as name, message
  * and full stack: as event properties on Amplitude, which truncates long
  * values, and whole as a top-level `error` for the Lambda.

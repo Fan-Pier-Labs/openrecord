@@ -157,6 +157,10 @@ No public IP, OS hostname, OS username, git identity, or scraped chart
 content is ever collected. Set
 `MYCHART_CLI_TELEMETRY_DISABLED=1` to opt out. Details: [`mychart-cli` telemetry](clients/npm-package/README.md#telemetry).
 
+The exception is the MCP server — the Claude Desktop extension and `mychart-cli mcp`. Its
+per-tool-call event is not anonymous: it carries your email, your MyChart username and your IP
+address. The same variable turns it off.
+
 On start the CLI also fetches a small version manifest from
 `openrecord.fanpierlabs.com` to tell you if a newer release exists. That request
 reaches our CDN, so it reveals your IP address and how often you run the CLI —
